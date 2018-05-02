@@ -180,46 +180,46 @@ function out = get_step_size( Pij )
 %p12:oles(1181)
 %p11:mia aporriptoume, mia kratame(1491)
 %p10:????? 2 aporriptoume, mia kratame(1170)
-%p09:??? 5 aporriptoume, mia kratame(1332.5)
-%p08:??? 7 aporriptoume, mia kratame(1321)
-%p07:??? 10 aporriptoume, mia kratame(1409.9)
-%p06:??? 12 aporriptoume, mia kratame(1426.26)
-%p05:??? 11 aporriptoume, mia kratame(1382.9)
-%p04:??? 11 aporriptoume, mia kratame(1402.58)
-%p03:??? 25 aporriptoume, mia kratame(1457.65)
-%p02:??? 18 aporriptoume, mia kratame(1474.68)
-%p01:??? 15 aporriptoume, mia kratame(1492)
-%p00:??? 19 aporriptoume, mia kratame(1498)
+%p09:??? 5 aporriptoume, mia kratame(1332.5)...h'-1,(1599)
+%p08:??? 7 aporriptoume, mia kratame(1321)...h'-1,(1510)
+%p07:??? 10 aporriptoume, mia kratame(1409.9)...-1,1550
+%p06:??? 12 aporriptoume, mia kratame(1426.26)...-1, (1545)
+%p05:??? 11 aporriptoume, mia kratame(1382.9)...no
+%p04:??? 11 aporriptoume, mia kratame(1402.58)...-1,1502
+%p03:??? 25 aporriptoume, mia kratame(1457.65)...-2, 1579
+%p02:??? 18 aporriptoume, mia kratame(1474.68)...-1, 1556
+%p01:??? 15 aporriptoume, mia kratame(1492)....no
+%p00:??? 19 aporriptoume, mia kratame(1498)...-2,1664
 
 if strcmp(Pij, 'p00/')
-	out =  20;
+	out =  18;
 
 elseif strcmp(Pij, 'p01/')
 	out =  16;
 
 elseif strcmp(Pij, 'p02/')
-	out = 19;
+	out = 18;
 
 elseif strcmp(Pij, 'p03/')
-	out = 26;
+	out = 24;
 
 elseif strcmp(Pij, 'p04/')
-	out = 12;
+	out = 11;
 
 elseif strcmp(Pij, 'p05/')
 	out = 12;
 
 elseif strcmp(Pij, 'p06/')
-	out = 13;
+	out = 12;
 
 elseif strcmp(Pij, 'p07/')
-	out = 11;
+	out = 10;
 
 elseif strcmp(Pij, 'p08/')
-	out = 8;
+	out = 7;
 
 elseif strcmp(Pij, 'p09/')
-	out = 6;
+	out = 5;
 
 elseif strcmp(Pij, 'p10/')
 	out = 3;
