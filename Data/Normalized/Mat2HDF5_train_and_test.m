@@ -1,3 +1,4 @@
+function Mat2HDF5()
 %%
 clear;
 clc;
@@ -43,7 +44,7 @@ for num_Pij=3:length(Pij)
   files = {dirData(~dirIndex).name}';
 
   %%%% STEPS %%%%
-  step_size = get_step_size(1500, filepath);
+  step_size = get_step_size( filepath);
   curr_step = 1;
 
   %%% TRAINING vs TEST RATIO(75%) %%%
@@ -56,14 +57,14 @@ for num_Pij=3:length(Pij)
     temp = load(readname);   
     num_data = length(temp.filenames(:,1));   
     for num_i=1:num_data
-      if curr_step == step_size 	
+      if curr_step == step_size 
 	curr_step = 1;
 
 
-        % for left
+	% for left
         img = temp.data.left.image(num_i, :,:);
         img = reshape(img, 36,60);
-        tempData.data(:, :, 1, 1) = img'; % filp the image
+       	tempData.data(:, :, 1, 1) = img'; % filp the image
         
         Lable_left = temp.data.left.gaze(num_i, :)';
         theta = asin((-1)*Lable_left(2));
@@ -129,16 +130,16 @@ for num_Pij=3:length(Pij)
                 trainData.label(:,trainindex) =  tempData.label(:,2);
                 trainData.headpose(:,trainindex) = tempData.headpose(:,2);
 
-	end
+	end % training Or Test????
 
      else % not in the samples
 	curr_step = curr_step + 1;
      end	
-    end
+    end %data per file
 
     fprintf('%d / %d !\n', num_f, length(files)); 
-end
- 
+  end % for each file
+end  % for each pij
 fprintf('Saving\n');
 
 testData.data = testData.data/255; %normalize
@@ -168,6 +169,86 @@ savename = 'MPII_testdata.h5';
 testData.headpose]); 
 fprintf('done\n');
 
+end
+
+
+
+
+function out = get_step_size( Pij )
+%p14:oles(1440)
+%p13:oles(1498)
+%p12:oles(1181)
+%p11:mia aporriptoume, mia kratame(1491)
+%p10:????? 2 aporriptoume, mia kratame(1170)
+%p09:??? 5 aporriptoume, mia kratame(1332.5)
+%p08:??? 7 aporriptoume, mia kratame(1321)
+%p07:??? 10 aporriptoume, mia kratame(1409.9)
+%p06:??? 12 aporriptoume, mia kratame(1426.26)
+%p05:??? 11 aporriptoume, mia kratame(1382.9)
+%p04:??? 11 aporriptoume, mia kratame(1402.58)
+%p03:??? 25 aporriptoume, mia kratame(1457.65)
+%p02:??? 18 aporriptoume, mia kratame(1474.68)
+%p01:??? 15 aporriptoume, mia kratame(1492)
+%p00:??? 19 aporriptoume, mia kratame(1498)
+
+if strcmp(Pij, 'p00/')
+	out =  20;
+
+elseif strcmp(Pij, 'p01/')
+	out =  16;
+
+elseif strcmp(Pij, 'p02/')
+	out = 19;
+
+elseif strcmp(Pij, 'p03/')
+	out = 26;
+
+elseif strcmp(Pij, 'p04/')
+	out = 12;
+
+elseif strcmp(Pij, 'p05/')
+	out = 12;
+
+elseif strcmp(Pij, 'p06/')
+	out = 13;
+
+elseif strcmp(Pij, 'p07/')
+	out = 11;
+
+elseif strcmp(Pij, 'p08/')
+	out = 8;
+
+elseif strcmp(Pij, 'p09/')
+	out = 6;
+
+elseif strcmp(Pij, 'p10/')
+	out = 3;
+
+elseif strcmp(Pij, 'p11/')
+	out = 2;
+
+elseif strcmp(Pij, 'p12/')
+	out = 1;
+
+elseif strcmp(Pij, 'p13/')
+	out = 1;
+
+elseif strcmp(Pij, 'p14/')
+	out = 1;
+end
 
 
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
