@@ -107,10 +107,24 @@ __μεγαλύτερη ομοιότητα__ στις τιμές των Head Pose
 * Ο αλγόριθμος με τον οποίο υπολογίζουμε ποια είναι τα βέλτιστα pixels και το
   βέλτιστο threshold για το split σε κάθε κόμβο είναι το __residual sum of squares__
   
+    (δείξε τύπο εδώ)
 
-* Το minimun sum of squares προκύπτει από τον  min(typos athroismatos edw)
+* Ο τρόπος μάθησης των στοιχείων διαχωρισμού περιγράφεται παρακάτω:
+
+	1. Για κάθε δυνατό ζευγάρι pixel(px1,px2)
+		2. Για κάθε threshold
+
+			3. Υπολόγισε το rightError= sum of squares error στο δεξί υποδέντρο  
+        		4. Υπολόγισε το leftError για το αριστερό υποδέντρο
+			5. Error = rightError + leftError
+        		6. Αν Error < minError
+				7. minError = Error; 
+				8. minPx1 = px1; 
+				9. minPx2 = px2; 
+				10. minThreshold = threshold;
 
 
+* Οπότε έτσι μαθαίνουμε τα  minPx1, minPx2, minThreshold κάθε κόμβου
 
 
 ## Πώς γίνεται το testing
