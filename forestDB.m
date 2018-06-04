@@ -5,10 +5,13 @@ clc;
 
 
 NUM_OF_GROUPS = 140;
+R = 5;
 centers = csvread('centers.txt');
 
 fprintf('File Path Ready!\n');
 groups = [];
+
+
 for group_i = 1:NUM_OF_GROUPS
    groups(group_i).trainData=[];
    groups(group_i).centerHor = centers(group_i,1);
@@ -18,6 +21,8 @@ for group_i = 1:NUM_OF_GROUPS
    groups(group_i).trainData.data = [];
    groups(group_i).trainData.label = [];
    groups(group_i).name = strcat( 'group', num2str(group_i) ); 
+   groups(group_i).RnearestCenters = zeros(R,2);
+   
 end
 
 
@@ -60,7 +65,7 @@ dirData = dir(pwd);
 dirIndex = [dirData.isdir];
 Pij = dirData(dirIndex);
 %for each Pij...
- for num_Pij=3:5%length(Pij)
+ for num_Pij=3:length(Pij)
    filepath = strcat(Pij(num_Pij).name, '/'); %'p00/';%'MPIIGaze/';
  
   %%% LIST ALL FILES %%%
@@ -201,13 +206,12 @@ plist = 'H5P_DEFAULT';
 
 
 for i = 1:140
-	i 
-
+	
 	groups(i).trainData.data = groups(i).trainData.data/255; %normalize
 	groups(i).trainData.data = single(groups(i).trainData.data); % must be single data, because caffe want
 	groups(i).trainData.label = single(groups(i).trainData.label);
+	
 	groups(i).trainData.headpose = single(groups(i).trainData.headpose);
-
 	grp = H5G.create(fid, strcat('g', num2str(i)) ,plist,plist,plist);
 	
 %%%%%% Dataset 1: numx1x36x60 image data %%%%	
@@ -233,6 +237,31 @@ for i = 1:140
 	H5D.close(dset);
 	H5S.close(space_id);
 
+
+%%%%%% Dataset 3: headpose-center of each group  %%%%	
+	dims = [1 2];
+	h5_dims = fliplr(dims);
+	h5_maxdims = h5_dims;
+	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
+
+	dset = H5D.create(grp,strcat('/g', num2str(i),'/center'), type_id,space_id,dcpl);	
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,[groups(i).centerHor groups(i).centerVert] );
+	H5D.close(dset);
+	H5S.close(space_id);
+
+%%%%%% Dataset 4: List of R-nearest groups %%%%
+
+	listOfGroupIds = find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, [] );
+	dims = [1 R];
+	h5_dims = fliplr(dims);
+	h5_maxdims = h5_dims;
+	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
+
+	dset = H5D.create(grp,strcat('/g', num2str(i),'/',num2str(R),'_nearestIDs'), type_id,space_id,dcpl);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, listOfGroupIds );
+	H5D.close(dset);
+	H5S.close(space_id);	
+	
 %	hdf5write(savename,strcat( groups(i).name,'/data'), groups(i).trainData.data, strcat(groups(i).name,'/label'), [groups(i).trainData.label; groups(i).trainData.headpose]);
  
 end
@@ -256,6 +285,8 @@ fprintf('done\n\n');
 end
 
 
+
+
 function nearestGroup = find_nearest_group(headpose, groups)
   minDist = 100;
   nearestGroup = -1;   
@@ -276,6 +307,53 @@ function nearestGroup = find_nearest_group(headpose, groups)
 
 end
 
+
+function listOfGroupIds = find_R_nearest_groups(centerHor, centerVert, groups, timesLeft, listOfGroupIds)
+  minDist = 100;
+  nearestGroup = -1;   
+
+  for i =1:140
+     if isnt_in_the_list(i, listOfGroupIds) == 1    
+     	distHor = abs(groups(i).centerHor - centerHor);
+     	distVert = abs(groups(i).centerVert - centerVert);
+     	if  distHor < 0.2 && distVert < 0.2 
+	   dist =  sqrt( distHor^2 + distVert^2 );
+           if  dist < minDist
+	      minDist = dist;
+	      nearestGroup = i;
+	   end
+        
+	end
+     
+      end
+
+   end
+   
+  listOfGroupIds( length(listOfGroupIds)+1 ) = nearestGroup;
+  timesLeft = timesLeft - 1;
+
+  if timesLeft > 0
+        listOfGroupIds = find_R_nearest_groups(centerHor, centerVert, groups, timesLeft, listOfGroupIds);
+  end
+
+ 
+
+
+end
+
+
+
+function out = isnt_in_the_list(currGroup, listOfGroupIds)
+   
+   out = 1;
+   for i = 1:length(listOfGroupIds)
+      if currGroup == listOfGroupIds(i)
+         out =  0;
+        
+      end
+   end
+
+end
 
 
 
