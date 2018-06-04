@@ -4,23 +4,23 @@ clear;
 clc;
 
 
-NUM_OF_GROUPS = 10;
-
-centers = get_group_centers(NUM_OF_GROUPS);
+NUM_OF_GROUPS = 1400;
+centers = csvread('centers.txt');
 
 fprintf('File Path Ready!\n');
-group = [];
+groups = [];
 for group_i = 1:NUM_OF_GROUPS
-   group(group_i).trainData=[];
-   group(group_i).centerHor = centers(group_i,1);
-   group(group_i).centerVert = centers(group_i,2);
-   group(group_i).index = 0;
-   group(group_i).trainData.headpose = [];
-   group(group_i).trainData.data = [];
-   group(group_i).trainData.label = []; 
+   groups(group_i).trainData=[];
+   groups(group_i).centerHor = centers(group_i,1);
+   groups(group_i).centerVert = centers(group_i,2);
+   groups(group_i).index = 0;
+   groups(group_i).trainData.headpose = [];
+   groups(group_i).trainData.data = [];
+   groups(group_i).trainData.label = [];
+   groups(group_i).name = strcat( 'group', num2str(group_i) ); 
 end
 
-clear('centers');
+
 
 %%%training
 %trainData=[];
@@ -102,34 +102,6 @@ Pij = dirData(dirIndex);
         theta = asin(Zv(2));
         phi = atan2(Zv(1), Zv(3));
 
-	if theta > 0 && phi > 0 %range1
-		if theta < 0.5 && phi < 0.5
-			if theta < 0.25 && phi < 0.25
-				if theta > 0.25 && phi > 0.25
-					one = one + 1;	
-				elseif theta < 0.125 && phi > 0.125 %range2
-					two = two + 1;	
-				elseif theta < 0.125 && phi < 0.125 %range3
-					three = three + 1;
-				elseif theta > 0.125 && phi < 0.125 %range4
-					four = four + 1;
-				end
-			end
-		end
-	end
-
-% 	if theta < minPoseHoriz
-%	   minPoseHoriz = theta;
-%	end
-%        if theta > maxPoseHoriz
-%	   maxPoseHoriz = theta;
-%	end
-%	if phi < minPoseVert
-%	   minPoseVert = phi;
-%	end
-%	if phi > maxPoseVert
-%	   maxPoseVert = phi;
-%	end
 
         tempData.headpose(:,1) = [theta;phi];         
          
@@ -150,35 +122,6 @@ Pij = dirData(dirIndex);
         theta = asin(Zv(2));
        	phi = atan2(Zv(1), Zv(3));
         tempData.headpose(:,2) = [theta; (-1)*phi]; % flip the direction
-
-	
-	if theta > 0 && phi > 0 %range1
-		if theta < 0.5 && phi < 0.5
-			if theta < 0.25 && phi < 0.25
-				if theta > 0.25 && phi > 0.25
-					one = one + 1;	
-				elseif theta < 0.125 && phi > 0.125 %range2
-					two = two + 1;	
-				elseif theta < 0.125 && phi < 0.125 %range3
-					three = three + 1;
-				elseif theta > 0.125 && phi < 0.125 %range4
-					four = four + 1;
-				end
-			end
-		end
-	end
-%	if theta < minPoseHoriz
-%	   minPoseHoriz = theta;
-%	end
-%        if theta > maxPoseHoriz
-%	   maxPoseHoriz = theta;
-%	end
-%	if phi < minPoseVert
-%	   minPoseVert = phi;
-%	end
-%	if phi > maxPoseVert
-%	   maxPoseVert = phi;
-%	end
 	
 	if  curr_ratio == 3 %0
 		curr_ratio = 0;
@@ -203,16 +146,29 @@ Pij = dirData(dirIndex);
                 %%%%%%%%%%%%%%%
 
 		%copy left
-                trainindex = trainindex+1;
-                trainData.data(:, :, 1, trainindex) = tempData.data(:, :, 1,1);
-                trainData.label(:,trainindex) = tempData.label(:,1);
-                trainData.headpose(:,trainindex) = tempData.headpose(:,1);
+		groupID = find_nearest_group(tempData.headpose(:,1), groups);
+
+		groups(groupID).index = groups(groupID).index + 1;
+		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,1);
+		groups(groupID).trainData.label(:,groups(groupID).index) = tempData.label(:,1);
+		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,1);
+                %trainindex = trainindex+1;
+                %trainData.data(:, :, 1, trainindex) = tempData.data(:, :, 1,1);
+                %trainData.label(:,trainindex) = tempData.label(:,1);
+                %trainData.headpose(:,trainindex) = tempData.headpose(:,1);
+	
 
                 %copy right
-                trainindex = trainindex+1;
-                trainData.data(:, :, 1, trainindex) = tempData.data(:, :, 1, 2);
-                trainData.label(:,trainindex) =  tempData.label(:,2);
-                trainData.headpose(:,trainindex) = tempData.headpose(:,2);
+		groupID = find_nearest_group(tempData.headpose(:,2), groups);
+
+		groups(groupID).index = groups(groupID).index + 1;
+		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,2);
+		groups(groupID).trainData.label(:,groups(groupID).index) = tempData.label(:,2);
+		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,2);
+                %trainindex = trainindex+1;
+                %trainData.data(:, :, 1, trainindex) = tempData.data(:, :, 1, 2);
+                %trainData.label(:,trainindex) =  tempData.label(:,2);
+                %trainData.headpose(:,trainindex) = tempData.headpose(:,2);
 
 	end % training Or Test????
 
@@ -226,56 +182,63 @@ Pij = dirData(dirIndex);
 end  % for each pij
 fprintf('Saving\n');
 
-testData.data = testData.data/255; %normalize
-testData.data = single(testData.data); % must be single data, because caffe want float type
-testData.label = single(testData.label);
-testData.headpose = single(testData.headpose);
+%testData.data = testData.data/255; %normalize
+%testData.data = single(testData.data); % must be single data, because caffe want float type
+%testData.label = single(testData.label);
+%testData.headpose = single(testData.headpose);
 
 
-
-scatter( trainData.headpose(1,:), trainData.headpose(2,:), '*', 'b' );
-trainData.data = trainData.data/255; %normalize
-trainData.data = single(trainData.data); % must be single data, because caffe want
-trainData.label = single(trainData.label);
-trainData.headpose = single(trainData.headpose);
-
-
+%grid('ON');
+%scatter( trainData.headpose(1,:), trainData.headpose(2,:), '*', 'b' );
 
 savename = 'small_MPII_traindata.h5';
-%store2hdf5(savename, Data.data, Data.label, 1, 1); % the store2hdf5 function comes from https://github.com/BVLC/caffe/pull/1746
+for i = 1:140
+	groups(i).trainData.data = groups(i).trainData.data/255; %normalize
+	groups(i).trainData.data = single(groups(i).trainData.data); % must be single data, because caffe want
+	groups(i).trainData.label = single(groups(i).trainData.label);
+	groups(i).trainData.headpose = single(groups(i).trainData.headpose);
 
-hdf5write(savename,'/data', trainData.data, '/label',[trainData.label;
-trainData.headpose]); 
+	hdf5write(savename,strcat( groups(i).name,'/data'), trainData.data, strcat(groups(i).name,'/label'), [groups(i).trainData.label; groups(i).trainData.headpose]);
+ 
+end
+
+%hold on;
+%scatter(centers(:,1), centers(:,2), '*', 'r');
+%store2hdf5(savename, Data.data, Data.label, 1, 1); % the store2hdf5 function comes from https://github.com/BVLC/caffe/pull/1746
+%hdf5write(savename,'/data', trainData.data, '/label',[trainData.label; trainData.headpose]); 
 fprintf('done\n');
 
 
 savename = 'small_MPII_testdata.h5';
 %store2hdf5(savename, Data.data, Data.label, 1, 1); % the store2hdf5 function co
 %% You can also use the matlab function for hdf5 saving:
- hdf5write(savename,'/data', testData.data, '/label',[testData.label;
-testData.headpose]); 
-fprintf('done\n\n\n\n\n\n\n\n\n\n\n');
-minPoseHoriz
-minPoseVert
-maxPoseHoriz
-maxPoseVert
+hdf5write(savename,'/data', testData.data, '/label',[testData.label; testData.headpose]); 
+fprintf('done\n\n');
 
 
 
 end
 
 
+function nearestGroup = find_nearest_group(headpose, groups)
+  minDist = 100
+  nearestGroup = -1;   
 
-
-
-function centers = get_step_size( numOfGroups )
-
-
-
-
+  for i =1:140
+     distHor = abs(groups(i).centerHor - headpose(1));
+     distVert = abs(groups(i).centerVert - headpose(2));
+     if  distHor < 0.15 and distVert < 0.15 
+	dist =  sqrt( distHor^2 + distVert^2 );
+        if  dist < minDist
+	   minDist = dist;
+	   nearestGroup = i;
+	end
+     end
+  end
 
 
 end
+
 
 
 
