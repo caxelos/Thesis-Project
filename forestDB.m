@@ -40,9 +40,9 @@ end
 
 %test
 testData=[];
-testData.data = zeros(WIDTH,HEIGHT ,1, 15*375*2);%zeros(WIDTH,HEIGHT ,1, total_num*2);
-testData.label = zeros(2, 15*375*2);%zeros(2, total_num*2);
-testData.headpose = zeros(2, 15*375*2);%zeros(2, total_num*2);
+testData.data = zeros(WIDTH,HEIGHT ,1, 11166)%15*375*2);%zeros(WIDTH,HEIGHT ,1, total_num*2);
+testData.label = zeros(2, 11166);%15*375*2);%zeros(2, total_num*2);
+testData.headpose = zeros(2, 11166);%15*375*2);%zeros(2, total_num*2);S
 %testData.confidence = zeros(1, 15*375*2);%zeros(1, total_num*2);
 testindex = 0;
 
@@ -192,10 +192,6 @@ Pij = dirData(dirIndex);
 end  % for each pij
 fprintf('Saving\n');
 
-%testData.data = testData.data/255; %normalize
-%testData.data = single(testData.data); % must be single data, because caffe want float type
-%testData.label = single(testData.label);
-%testData.headpose = single(testData.headpose);
 
 
 %grid('ON');
@@ -272,22 +268,98 @@ for i = 1:140
 end
 H5F.close(fid);
 
+
+
 %hold on;
 %scatter(centers(:,1), centers(:,2), '*', 'r');
 %store2hdf5(savename, Data.data, Data.label, 1, 1); % the store2hdf5 function comes from https://github.com/BVLC/caffe/pull/1746
 %hdf5write(savename,'/data', trainData.data, '/label',[trainData.label; trainData.headpose]); 
-fprintf('done\n');
 
 
-savename = 'small_MPII_testdata.h5';
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%% TESTING %%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+testData.data = testData.data/255; %normalize
+testData.data = single(testData.data); % must be single data, because caffe want float type
+testData.label = single(testData.label);
+testData.headpose = single(testData.headpose);
+
+%savename = 'small_MPII_testdata.h5';
 %store2hdf5(savename, Data.data, Data.label, 1, 1); % the store2hdf5 function co
 %% You can also use the matlab function for hdf5 saving:
-hdf5write(savename,'/data', testData.data, '/label',[testData.label; testData.headpose]); 
+
+savename = 'myfileTEST.h5';
+for i = 1:(11166)
+	listOfGroupIds(i, :) = find_R_nearest_groups(testData.headpose(1,i),testData.headpose(2,i), groups, R, [] );
+end
+
+hdf5write(savename,'/data', testData.data, '/label',[testData.label; testData.headpose], strcat('/',num2str(R),'_nearestIDs'), listOfGroupIds ); 
+
+
+
+
+%fid = H5F.open('myfileTEST.h5', 'H5F_ACC_RDWR', 'H5P_DEFAULT')
+
+
+%%%%%% Dataset 1: numx1xHEIGHTxWIDTH image data %%%%	
+%	dims = [15*375*2 1  HEIGHT WIDTH];
+%	h5_dims = fliplr(dims);
+%	h5_maxdims = h5_dims;
+%	space_id = H5S.create_simple(4,h5_dims,h5_maxdims);
+
+%	dset = H5D.create(fid, '/data' ,type_id,space_id,dcpl);		
+%	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,groups(i).trainData.data);
+%	H5D.close(dset);
+%	H5S.close(space_id);
+
+
+
+%%%%%% Dataset 2: numx4 pose and gaze data %%%%	
+%	dims = [groups(i).index 4];
+%	h5_dims = fliplr(dims);
+%	h5_maxdims = h5_dims;
+%	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
+
+%	dset = H5D.create(grp, '/label', type_id,space_id,dcpl);	
+%	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,[groups(i).trainData.label; groups(i).trainData.headpose]);
+%	H5D.close(dset);
+%	H5S.close(space_id);
+
+
+
+%%%%%% Dataset 3: List of R-nearest groups %%%%
+
+
+ %  for i = 1:(15*375*2)
+%	listOfGroupIds(i,:) = find_R_nearest_groups(testData.headpose(1,i),testData.headpose(2,i), groups, R, [] );
+ %  end
+    
+%	dims = [15*375*2 R];%dims = [1 R];
+	%h5_dims = fliplr(dims);
+%	h5_maxdims = h5_dims;
+%	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
+%
+%	dset = H5D.create(fid,strcat('/',num2str(R),'_nearestIDs'), type_id,space_id,dcpl);
+%	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, listOfGroupIds );
+%	H5D.close(dset);
+%	H5S.close(space_id);	
+   
+%	H5F.close(fid);
+
+
+
+
 fprintf('done\n\n');
 
 
 
 end
+
+
+
+
+
 
 
 
