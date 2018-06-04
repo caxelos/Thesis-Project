@@ -4,6 +4,9 @@ clear;
 clc;
 
 
+WIDTH = 15;
+HEIGHT = 9;
+
 NUM_OF_GROUPS = 140;
 R = 5;
 centers = csvread('centers.txt');
@@ -29,7 +32,7 @@ end
 
 %%%training
 %trainData=[];
-%trainData.data = zeros(60,36,1, 15*1125*2);%zeros(60,36,1, total_num*2);
+%trainData.data = zeros(WIDTH,HEIGHT ,1, 15*1125*2);%zeros(WIDTH,HEIGHT ,1, total_num*2);
 %trainData.label = zeros(2, 15*1125*2);%zeros(2, total_num*2);
 %trainData.headpose = zeros(2, 15*1125*2);%zeros(2, total_num*2);
 %trainData.confidence = zeros(1, 15*1125*2);%zeros(1, total_num*2);
@@ -37,7 +40,7 @@ end
 
 %test
 testData=[];
-testData.data = zeros(60,36,1, 15*375*2);%zeros(60,36,1, total_num*2);
+testData.data = zeros(WIDTH,HEIGHT ,1, 15*375*2);%zeros(WIDTH,HEIGHT ,1, total_num*2);
 testData.label = zeros(2, 15*375*2);%zeros(2, total_num*2);
 testData.headpose = zeros(2, 15*375*2);%zeros(2, total_num*2);
 %testData.confidence = zeros(1, 15*375*2);%zeros(1, total_num*2);
@@ -45,7 +48,7 @@ testindex = 0;
 
 %temp
 tempData=[];
-tempData.data = zeros(60,36,1, 1*2);%zeros(60,36,1, total_num*2);
+tempData.data = zeros(WIDTH,HEIGHT ,1, 1*2);%zeros(WIDTH,HEIGHT ,1, total_num*2);
 tempData.label = zeros(2, 1*2);%zeros(2, total_num*2);
 tempData.headpose = zeros(2, 1*2);%zeros(2, total_num*2);
 %tempData.confidence = zeros(1, 1*2);%zeros(1, total_num*2);
@@ -92,8 +95,10 @@ Pij = dirData(dirIndex);
       	
 
 	% for left
-        img = temp.data.left.image(num_i, :,:);
-        img = reshape(img, 36,60);
+	% test with imshow(temp.data.left.image(num_i, 14:22, 23:37), [0 255])
+
+        img = temp.data.left.image(num_i, 14:22, 23:37);
+        img = reshape(img, HEIGHT ,WIDTH);
        	tempData.data(:, :, 1, 1) = img'; % filp the image
         
         Lable_left = temp.data.left.gaze(num_i, :)';
@@ -111,8 +116,8 @@ Pij = dirData(dirIndex);
         tempData.headpose(:,1) = [theta;phi];         
          
         % for right
-        img = temp.data.right.image(num_i, :,:);
-        img = reshape(img, 36,60);
+        img = temp.data.right.image(num_i, 14:22, 23:37);
+        img = reshape(img, HEIGHT ,WIDTH);
         tempData.data(:, :, 1, 2) = double(flip(img, 2))'; % filp the image
          
         Lable_right = temp.data.right.gaze(num_i,:)';
@@ -214,8 +219,8 @@ for i = 1:140
 	groups(i).trainData.headpose = single(groups(i).trainData.headpose);
 	grp = H5G.create(fid, strcat('g', num2str(i)) ,plist,plist,plist);
 	
-%%%%%% Dataset 1: numx1x36x60 image data %%%%	
-	dims = [groups(i).index 1 36 60];
+%%%%%% Dataset 1: numx1xHEIGHTxWIDTH image data %%%%	
+	dims = [groups(i).index 1  HEIGHT WIDTH];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
 	space_id = H5S.create_simple(4,h5_dims,h5_maxdims);
