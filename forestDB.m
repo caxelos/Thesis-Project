@@ -4,7 +4,7 @@ clear;
 clc;
 
 
-NUM_OF_GROUPS = 1400;
+NUM_OF_GROUPS = 140;
 centers = csvread('centers.txt');
 
 fprintf('File Path Ready!\n');
@@ -192,15 +192,43 @@ fprintf('Saving\n');
 %scatter( trainData.headpose(1,:), trainData.headpose(2,:), '*', 'b' );
 
 savename = 'small_MPII_traindata.h5';
+
+%start creating data file for training(HDF5)
+fid = H5F.create('myfile.h5');
+type_id = H5T.copy('H5T_NATIVE_DOUBLE');
+dcpl = 'H5P_DEFAULT';
+plist = 'H5P_DEFAULT';
+
+
 for i = 1:140
 	groups(i).trainData.data = groups(i).trainData.data/255; %normalize
 	groups(i).trainData.data = single(groups(i).trainData.data); % must be single data, because caffe want
 	groups(i).trainData.label = single(groups(i).trainData.label);
 	groups(i).trainData.headpose = single(groups(i).trainData.headpose);
 
-	hdf5write(savename,strcat( groups(i).name,'/data'), trainData.data, strcat(groups(i).name,'/label'), [groups(i).trainData.label; groups(i).trainData.headpose]);
+	
+	%h5_dims = fliplr(dims);
+	%h5_maxdims = h5_dims;
+	dims = [groups(i).index 1 36 60];
+	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
+
+
+	
+	g1 = H5G.create(fid, strcat('g', num2str(i)), ,plist,plist,plist);
+	dset = H5D.create(g1,'/data',type_id,space_id,dcpl);		
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,groups(i).trainData.data);
+	H5D.close(dset);
+
+
+	dset = H5D.create(g1,'/label',type_id,space_id,dcpl);	
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,[groups(i).trainData.label; groups(i).trainData.headpose]);
+
+
+
+%	hdf5write(savename,strcat( groups(i).name,'/data'), groups(i).trainData.data, strcat(groups(i).name,'/label'), [groups(i).trainData.label; groups(i).trainData.headpose]);
  
 end
+H5F.close(fid);
 
 %hold on;
 %scatter(centers(:,1), centers(:,2), '*', 'r');
@@ -221,13 +249,13 @@ end
 
 
 function nearestGroup = find_nearest_group(headpose, groups)
-  minDist = 100
+  minDist = 100;
   nearestGroup = -1;   
 
   for i =1:140
      distHor = abs(groups(i).centerHor - headpose(1));
      distVert = abs(groups(i).centerVert - headpose(2));
-     if  distHor < 0.15 and distVert < 0.15 
+     if  distHor < 0.2 && distVert < 0.2 
 	dist =  sqrt( distHor^2 + distVert^2 );
         if  dist < minDist
 	   minDist = dist;
@@ -235,6 +263,7 @@ function nearestGroup = find_nearest_group(headpose, groups)
 	end
      end
   end
+  %minDist
 
 
 end
