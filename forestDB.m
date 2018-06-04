@@ -60,7 +60,7 @@ dirData = dir(pwd);
 dirIndex = [dirData.isdir];
 Pij = dirData(dirIndex);
 %for each Pij...
- for num_Pij=3:length(Pij)
+ for num_Pij=3:5%length(Pij)
    filepath = strcat(Pij(num_Pij).name, '/'); %'p00/';%'MPIIGaze/';
  
   %%% LIST ALL FILES %%%
@@ -201,29 +201,37 @@ plist = 'H5P_DEFAULT';
 
 
 for i = 1:140
+	i 
+
 	groups(i).trainData.data = groups(i).trainData.data/255; %normalize
 	groups(i).trainData.data = single(groups(i).trainData.data); % must be single data, because caffe want
 	groups(i).trainData.label = single(groups(i).trainData.label);
 	groups(i).trainData.headpose = single(groups(i).trainData.headpose);
 
+	grp = H5G.create(fid, strcat('g', num2str(i)) ,plist,plist,plist);
 	
-	%h5_dims = fliplr(dims);
-	%h5_maxdims = h5_dims;
+%%%%%% Dataset 1: numx1x36x60 image data %%%%	
 	dims = [groups(i).index 1 36 60];
-	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
+	h5_dims = fliplr(dims);
+	h5_maxdims = h5_dims;
+	space_id = H5S.create_simple(4,h5_dims,h5_maxdims);
 
-
-	
-	g1 = H5G.create(fid, strcat('g', num2str(i)), ,plist,plist,plist);
-	dset = H5D.create(g1,'/data',type_id,space_id,dcpl);		
+	dset = H5D.create(grp,strcat('/g', num2str(i), '/data') ,type_id,space_id,dcpl);		
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,groups(i).trainData.data);
 	H5D.close(dset);
+	H5S.close(space_id);
 
 
-	dset = H5D.create(g1,'/label',type_id,space_id,dcpl);	
+%%%%%% Dataset 2: numx4 pose and gaze data %%%%	
+	dims = [groups(i).index 4];
+	h5_dims = fliplr(dims);
+	h5_maxdims = h5_dims;
+	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
+
+	dset = H5D.create(grp,strcat('/g', num2str(i),'/label'), type_id,space_id,dcpl);	
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,[groups(i).trainData.label; groups(i).trainData.headpose]);
-
-
+	H5D.close(dset);
+	H5S.close(space_id);
 
 %	hdf5write(savename,strcat( groups(i).name,'/data'), groups(i).trainData.data, strcat(groups(i).name,'/label'), [groups(i).trainData.label; groups(i).trainData.headpose]);
  
