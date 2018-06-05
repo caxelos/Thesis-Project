@@ -20,9 +20,9 @@ for group_i = 1:NUM_OF_GROUPS
    groups(group_i).centerHor = centers(group_i,1);
    groups(group_i).centerVert = centers(group_i,2);
    groups(group_i).index = 0;
-   groups(group_i).trainData.headpose = [];
-   groups(group_i).trainData.data = [];
-   groups(group_i).trainData.label = [];
+   %groups(group_i).trainData.headpose = [];
+   %groups(group_i).trainData.data = [];
+   %groups(group_i).trainData.label = [];
    groups(group_i).name = strcat( 'group', num2str(group_i) ); 
    groups(group_i).RnearestCenters = zeros(R,2);
    
@@ -115,6 +115,7 @@ Pij = dirData(dirIndex);
 
         tempData.headpose(:,1) = [theta;phi];         
          
+
         % for right
         img = temp.data.right.image(num_i, 14:22, 23:37);
         img = reshape(img, HEIGHT ,WIDTH);
@@ -125,6 +126,7 @@ Pij = dirData(dirIndex);
         phi = atan2((-1)*Lable_right(1), (-1)*Lable_right(3));
         tempData.label(:,2) = [theta; (-1)*phi];% flip the direction
 
+
         headpose = temp.data.right.pose(num_i, :); 
 
         M = rodrigues(headpose);
@@ -132,6 +134,7 @@ Pij = dirData(dirIndex);
         theta = asin(Zv(2));
        	phi = atan2(Zv(1), Zv(3));
         tempData.headpose(:,2) = [theta; (-1)*phi]; % flip the direction
+
 	
 	if  curr_ratio == 3 %0
 		curr_ratio = 0;
@@ -144,6 +147,8 @@ Pij = dirData(dirIndex);
 		testData.label(:,testindex) = tempData.label(:,1);
 		testData.headpose(:,testindex) = tempData.headpose(:,1);
 
+
+
 		%copy right
 		testindex = testindex+1;
 		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1, 2);
@@ -155,12 +160,17 @@ Pij = dirData(dirIndex);
                 % TRAINING DATA
                 %%%%%%%%%%%%%%%
 
+
+%tempData.headpose(:,1) = leftEye
+%tempData.headpose(:,2) = rightEye
+
 		%copy left
 		groupID = find_nearest_group(tempData.headpose(:,1), groups);
 
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,1);
-		groups(groupID).trainData.label(:,groups(groupID).index) = tempData.label(:,1);
+
+		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,1);
 		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,1);
                 %trainindex = trainindex+1;
                 %trainData.data(:, :, 1, trainindex) = tempData.data(:, :, 1,1);
@@ -173,12 +183,15 @@ Pij = dirData(dirIndex);
 
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,2);
-		groups(groupID).trainData.label(:,groups(groupID).index) = tempData.label(:,2);
+		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,2);
 		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,2);
+		
+
                 %trainindex = trainindex+1;
                 %trainData.data(:, :, 1, trainindex) = tempData.data(:, :, 1, 2);
                 %trainData.label(:,trainindex) =  tempData.label(:,2);
                 %trainData.headpose(:,trainindex) = tempData.headpose(:,2);
+
 
 	end % training Or Test????
 
@@ -191,6 +204,8 @@ Pij = dirData(dirIndex);
   end % for each file
 end  % for each pij
 fprintf('Saving\n');
+
+
 
 
 
@@ -209,10 +224,13 @@ plist = 'H5P_DEFAULT';
 for i = 1:140
 	
 	groups(i).trainData.data = groups(i).trainData.data/255; %normalize
+	
 	groups(i).trainData.data = single(groups(i).trainData.data); % must be single data, because caffe want
-	groups(i).trainData.label = single(groups(i).trainData.label);
+
+	groups(i).trainData.gaze = single(groups(i).trainData.gaze);
 	
 	groups(i).trainData.headpose = single(groups(i).trainData.headpose);
+
 	grp = H5G.create(fid, strcat('g', num2str(i)) ,plist,plist,plist);
 	
 %%%%%% Dataset 1: numx1xHEIGHTxWIDTH image data %%%%	
@@ -221,22 +239,40 @@ for i = 1:140
 	h5_maxdims = h5_dims;
 	space_id = H5S.create_simple(4,h5_dims,h5_maxdims);
 
-	dset = H5D.create(grp,strcat('/g', num2str(i), '/data') ,type_id,space_id,dcpl);		
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,groups(i).trainData.data);
+	dset = H5D.create(grp,strcat('/g', num2str(i), '/data') ,type_id,space_id,dcpl);
+			
+	%H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,groups(i).trainData.data);
 	H5D.close(dset);
 	H5S.close(space_id);
 
 
 %%%%%% Dataset 2: numx4 pose and gaze data %%%%	
-	dims = [groups(i).index 4];
+	dims = [groups(i).index 2];%[groups(i).index 4];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
 	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
 
-	dset = H5D.create(grp,strcat('/g', num2str(i),'/label'), type_id,space_id,dcpl);	
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,[groups(i).trainData.label; groups(i).trainData.headpose]);
+	%headpose
+	dset = H5D.create(grp,strcat('/g', num2str(i),'/headpose'), type_id,space_id,dcpl);
+
+	for p = 1:length(groups(i).trainData.headpose(1,:) )
+		groups(i).trainData.headpose(2,p);%all theta
+	end
+
+
+	%error('stop program now!!!!!!!!!!!!!!!\n');
+	
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.headpose(1,:) groups(i).trainData.headpose(2,:)]);
 	H5D.close(dset);
+
+
+	%gaze
+	dset = H5D.create(grp,strcat('/g', num2str(i),'/gaze'), type_id,space_id,dcpl);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.gaze(1,:) groups(i).trainData.gaze(2,:)]);
+	H5D.close(dset);
+
 	H5S.close(space_id);
+
 
 
 %%%%%% Dataset 3: headpose-center of each group  %%%%	
@@ -246,13 +282,14 @@ for i = 1:140
 	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
 
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/center'), type_id,space_id,dcpl);	
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,[groups(i).centerHor groups(i).centerVert] );
+	%H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,[groups(i).centerHor groups(i).centerVert] );
 	H5D.close(dset);
 	H5S.close(space_id);
 
 %%%%%% Dataset 4: List of R-nearest groups %%%%
 
-	listOfGroupIds = find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, [] );
+	listOfGroupIds = find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, [i] );
+	listOfGroupIds = listOfGroupIds(2:length(listOfGroupIds)); 
 	dims = [1 R];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
@@ -263,8 +300,7 @@ for i = 1:140
 	H5D.close(dset);
 	H5S.close(space_id);	
 	
-%	hdf5write(savename,strcat( groups(i).name,'/data'), groups(i).trainData.data, strcat(groups(i).name,'/label'), [groups(i).trainData.label; groups(i).trainData.headpose]);
- 
+
 end
 H5F.close(fid);
 
