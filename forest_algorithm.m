@@ -35,24 +35,40 @@ rnearest = H5D.read(rnearestID)
 
 
 %%%%%%%% Now Start building tree(i) %%%%%%%%%
-%i need: images, headposes, gazes -> data, label
 
+
+
+
+samplesInTree = 0;
 for i = 1:R 
 	localGrpIDs(i) = H5G.open(fid, strcat('/g', num2str( rnearest(i))   )); 
-	tempDataID(i) =  H5D.open( localGrpIDs(i),  strcat('/g', num2str( rnearest(i) ), '/label') );
+	tempDataID(i) =  H5D.open( localGrpIDs(i),  strcat('/g', num2str( rnearest(i) ), '/data') );
 
-	
-	tempData = H5D.read(tempDataID);
+
+	% here i read (N x 1) x (15 x 9 ) images	
+	tempData = H5D.read( tempDataID(i) );
+
+	samplesInGroup = length( tempData(:,1,1,1) ); 
+	contribOfGroup = ceil( sqrt( samplesInGroup ) );
+
+	j = 1;
+	contribOfGroup
+	while j <= contribOfGroup
+		samplesInTree = samplesInTree + 1;
+		treeData(samplesInTree, :, :) =  tempData( randi(samplesInGroup,1,1)  ,1, :, :);		
+		j = j + 1;		
+	end
+
 end
-tempData
 
+samplesInTree
 
-%%% doesnt run here
-for i = 1:R
+%%%%%%%%% Close Everything %%%%%%%%%%%%%%%%%%
+%for i = 1:R
 	H5D.close( tempDataID(i) );
 	H5G.close( localGrpIDs(i) ) ;
-end
-%%%%%%%%% Close Everything %%%%%%%%%%%%%%%%%%
+%end
+
 H5D.close(rnearestID);
 H5D.close(centerID);
 H5D.close(dataID);
