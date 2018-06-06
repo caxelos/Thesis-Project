@@ -3,8 +3,12 @@ function forest_algorithm()
 clear all;
 clc;
 
+addpath /home/trakis/Downloads/MPIIGaze/Data/Normalized%@tree
 
 R = 5;
+HEIGHT = 9;
+WIDTH = 15;
+
 
 
 %%%%%%%%%% Open HDF5 training file %%%%%%%%%%
@@ -15,7 +19,7 @@ fid = H5F.open('myfile.h5', 'H5F_ACC_RDONLY', 'H5P_DEFAULT');
 
 
 
-for i = 1:140 %for every tree
+for i = 1:140 %for each tree
 
 
 	samplesInTree(i) = 0;
@@ -54,9 +58,6 @@ for i = 1:140 %for every tree
 
 	%%%%%%%% Now, continue with the R-nearest %%%%%%%%%
 
-
-
-	
 	for k = 1:R 
 			
 		localGrpID  = H5G.open(fid, strcat('/g', num2str( curr_rnearest(k))   )); 
@@ -92,6 +93,51 @@ for i = 1:140 %for every tree
 
 	end
 
+
+	%%%%%%%% Now that we created each tree's data, lets implement the algorithm %%%%%%%%%
+	% - am really thankful to http://tinevez.github.io/matlab-tree/index.html
+	%
+	% - Each node is ( (px1,px2), thres) with variable name: depth   
+	%	
+	% - node(k) has:
+	%      a) parent node(k/2 ) 		
+	%      b) left child(2k)
+	%      c) right child(2k+1)
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	%root node
+	trees = tree('root');
+
+	px2_Hor = mod( (px1_Hor+1), WIDTH )
+	px2_Vert = px1_Vert + mod( (px1_Hor+1), WIDTH )
+
+	%for each node
+	for px1_vert = 1:HEIGHT
+	   for px1_hor = 1:WIDTH
+
+
+	   	% sorry for the huge equations below
+		% these equations are made in order to prevent 2 pixels
+		% to be examined twice
+		for px2_vert = ( px1_Vert + mod( (px1_Hor+1), WIDTH ) ):HEIGHT	
+		  for px2_vert = (mod( (px1_Hor+1), WIDTH )):WIDTH
+
+
+
+		     % check the performance for different thresholds
+		     for thres = 1:MAX
+			
+
+		     end			
+
+		   end
+		end
+
+
+	   end
+	end		
+
+
 	%%%%%%%%% Close Central Group %%%%%%%%%%%%%%%%%%
 	H5D.close(curr_rnearestID);
 	H5D.close(curr_centerID);
@@ -101,14 +147,11 @@ for i = 1:140 %for every tree
 
 	H5G.close(grpID);
 
-
-	
-
-
 end	
 
 
-treePoses(120, 1:(samplesInTree(120)+1), 1)
+%treeImgs (100, samplesInTree(i), HEIGHT, WIDTH)
+%treePoses(100, 1:samplesInTree(100), 1)
 
 
 H5F.close(fid);
