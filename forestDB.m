@@ -161,37 +161,22 @@ Pij = dirData(dirIndex);
                 %%%%%%%%%%%%%%%
 
 
-%tempData.headpose(:,1) = leftEye
-%tempData.headpose(:,2) = rightEye
 
 		%copy left
 		groupID = find_nearest_group(tempData.headpose(:,1), groups);
-
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,1);
-
 		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,1);
 		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,1);
-                %trainindex = trainindex+1;
-                %trainData.data(:, :, 1, trainindex) = tempData.data(:, :, 1,1);
-                %trainData.label(:,trainindex) = tempData.label(:,1);
-                %trainData.headpose(:,trainindex) = tempData.headpose(:,1);
-	
+           
 
                 %copy right
 		groupID = find_nearest_group(tempData.headpose(:,2), groups);
-
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,2);
 		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,2);
 		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,2);
 		
-
-                %trainindex = trainindex+1;
-                %trainData.data(:, :, 1, trainindex) = tempData.data(:, :, 1, 2);
-                %trainData.label(:,trainindex) =  tempData.label(:,2);
-                %trainData.headpose(:,trainindex) = tempData.headpose(:,2);
-
 
 	end % training Or Test????
 
@@ -223,17 +208,19 @@ plist = 'H5P_DEFAULT';
 
 for i = 1:140
 	
-	groups(i).trainData.data = groups(i).trainData.data/255; %normalize
-	
+	groups(i).trainData.data = groups(i).trainData.data;%/255; %normalize
 	groups(i).trainData.data = single(groups(i).trainData.data); % must be single data, because caffe want
-
-	groups(i).trainData.gaze = single(groups(i).trainData.gaze);
-	
+	groups(i).trainData.gaze = single(groups(i).trainData.gaze);	
 	groups(i).trainData.headpose = single(groups(i).trainData.headpose);
 
 	grp = H5G.create(fid, strcat('g', num2str(i)) ,plist,plist,plist);
 	
+
+
+
 %%%%%% Dataset 1: numx1xHEIGHTxWIDTH image data %%%%	
+
+
 	dims = [groups(i).index 1  HEIGHT WIDTH];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
@@ -241,12 +228,14 @@ for i = 1:140
 
 	dset = H5D.create(grp,strcat('/g', num2str(i), '/data') ,type_id,space_id,dcpl);
 			
-	%H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,groups(i).trainData.data);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,groups(i).trainData.data);
 	H5D.close(dset);
 	H5S.close(space_id);
 
 
 %%%%%% Dataset 2: numx4 pose and gaze data %%%%	
+
+
 	dims = [groups(i).index 2];%[groups(i).index 4];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
@@ -254,19 +243,9 @@ for i = 1:140
 
 	%headpose
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/headpose'), type_id,space_id,dcpl);
-
-	for p = 1:length(groups(i).trainData.headpose(1,:) )
-		groups(i).trainData.headpose(2,p);%all theta
-	end
-
-
-	%error('stop program now!!!!!!!!!!!!!!!\n');
-	
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.headpose(1,:) groups(i).trainData.headpose(2,:)]);
 	H5D.close(dset);
 
-
-	%gaze
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/gaze'), type_id,space_id,dcpl);
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.gaze(1,:) groups(i).trainData.gaze(2,:)]);
 	H5D.close(dset);
@@ -282,7 +261,7 @@ for i = 1:140
 	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
 
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/center'), type_id,space_id,dcpl);	
-	%H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,[groups(i).centerHor groups(i).centerVert] );
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,[groups(i).centerHor groups(i).centerVert] );
 	H5D.close(dset);
 	H5S.close(space_id);
 
@@ -425,11 +404,14 @@ function listOfGroupIds = find_R_nearest_groups(centerHor, centerVert, groups, t
   minDist = 100;
   nearestGroup = -1;   
 
+  MAX_HORIZONTAL_DIST = 0.4;
+  MAX_VERTICAL_DIST = 0.4;
+
   for i =1:140
      if isnt_in_the_list(i, listOfGroupIds) == 1    
      	distHor = abs(groups(i).centerHor - centerHor);
      	distVert = abs(groups(i).centerVert - centerVert);
-     	if  distHor < 0.2 && distVert < 0.2 
+     	if  distHor < MAX_HORIZONTAL_DIST && distVert < MAX_VERTICAL_DIST 
 	   dist =  sqrt( distHor^2 + distVert^2 );
            if  dist < minDist
 	      minDist = dist;

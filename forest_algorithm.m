@@ -99,6 +99,8 @@ for i = 1:140 %for each tree
 	clear('curr_imgs');
 	clear('curr_gazes');
 	clear('curr_poses');
+end
+i = 1;
 
 	%%%%%%%% Now that we created each tree's data, lets implement the algorithm %%%%%%%%%
 	% - am really thankful to http://tinevez.github.io/matlab-tree/index.html
@@ -130,13 +132,8 @@ for i = 1:140 %for each tree
 	[trees node2] = trees.addnode(node1, 'meanLeftGaze');
 	[trees node3] = trees.addnode(node1, 'meanRightGaze');
 
-	l = 0;
-	r = 0;
 	
-	meanLeftGazeTheta = 0;
-	meanLeftGazePhi = 0;
-	meanRightGazeTheta = 0;
-	meanRightGazePhi = 0;
+	
 	if (i == 1)
 	   disp(trees.tostring);
 	end
@@ -161,35 +158,45 @@ for i = 1:140 %for each tree
 	minPx2_hor =     10000; % and here 
 	for px1_vert = 1:HEIGHT
 	   for px1_hor = 1:WIDTH
-
-
 	   	% sorry for the huge equations below
 		% these equations are made in order to prevent 2 pixels
 		% to be examined twice
-		for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT	
-		  for px2_hor = (mod( (px1_hor+1), WIDTH )):WIDTH
-		     for thres = 0.0005:0.001:0.0005
-	
+		 
+		for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
+		  for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
+                    if  sqrt( (px1_vert-px2_vert)^2+(px1_hor-px2_hor)^2) < 6.5             
+		     for thres = 1:50
+			
+
+
+			l = 0;
+			r = 0;			
+			meanLeftGaze = [0 0];
+			meanRightGaze = [0 0];
 			for j = 1:samplesInTree(i)
-			   if (treeImgs(i, j, px1_vert, px1_hor) - treeImgs(i,j,px2_vert, px2_hor) ) < thres 
+                            	
+			   if  abs(treeImgs(i, j, px1_vert, px1_hor) - treeImgs(i,j,px2_vert, px2_hor))  < thres 
 			      %left child
 
 			      l = l + 1;
 			      lChild( l ).gazes = treeGazes(i, j, :); 		
-			      meanLeftGaze = meanLeftGaze + treeGazes(i,j,:);		
-			     
+			      meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(i,j,1);		
+			      meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(i,j,2);	
 			   else
 			      %right child
 
 			      r = r + 1;
 			      rChild( r ).gazes = treeGazes(i, j, :); 
-
-			      meanRightGaze = meanRightGaze + treeGazes(i,j,:);		
-			    				
+			      meanRightGaze(1) = meanRightGaze(1) + treeGazes(i,j,1);		
+			      meanRightGaze(2) = meanRightGaze(2) + treeGazes(i,j,2);			
 			   end
+
+
 			end
 		
 			
+
+
 			meanLeftGaze = meanLeftGaze  / l;
 			meanRightGaze = meanRightGaze/ r;
 
@@ -206,17 +213,20 @@ for i = 1:140 %for each tree
 			   minPx1_vert =    px1_vert; % something random here
 			   minPx1_hor =     px1_hor; % also here
 			   minPx2_vert=     px2_vert; % and here..
-			   minPx2_hor =     px2_hor; % and here 
+			   minPx2_hor =     px2_hor; % and here
 			end
-
-s
-		     end			
-		   end
-		end
-
+ 			 		 	
+		     end%thres
+		    end%end if < 6.5
+		
+		   end%px2_hor
+		end%px2_vers
+ 	
 	   end
 	end		
-
+%(1,1)->(1,2)
+        minPx2_vert
+	minPx2_hor 
 
 	%%%%%%%%% Close Central Group %%%%%%%%%%%%%%%%%%
 	H5D.close(curr_rnearestID);
@@ -227,7 +237,7 @@ s
 
 	H5G.close(grpID);
 
-end	
+%end i-loop	
 
 
 %treeImgs (100, samplesInTree(i), HEIGHT, WIDTH)
