@@ -94,24 +94,71 @@ for i = 1:140 %for each tree
 	end
 
 
+	clear('curr_rnearest');
+	clear('curr_center');
+	clear('curr_imgs');
+	clear('curr_gazes');
+	clear('curr_poses');
+
 	%%%%%%%% Now that we created each tree's data, lets implement the algorithm %%%%%%%%%
 	% - am really thankful to http://tinevez.github.io/matlab-tree/index.html
 	%
-	% - Each node is ( (px1,px2), thres) with variable name: depth   
+	% - Each node:
+	%      a) is named '(px1,px2), thres'
+	%      b) has variable name: node(k)  
 	%	
-	% - node(k) has:
+	% - node(k) can have:
 	%      a) parent node(k/2 ) 		
 	%      b) left child(2k)
 	%      c) right child(2k+1)
+	% - Leaves can have:
+	%      d) left 2d gaze angle
+	%      e) right 2d gaze angle	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-	%root node
-	trees = tree('root');
 
-	px2_Hor = mod( (px1_Hor+1), WIDTH )
-	px2_Vert = px1_Vert + mod( (px1_Hor+1), WIDTH )
+
+
+
+
+
+
+	%%%%%% start by creating the root node of the tree %%%%%%%%%%%%%%%%%%%%
+
+	trees = tree(strcat('RegressionTree_', num2str(i) ));
+	[trees node1] = trees.addnode(1, 'NULL');
+	[trees node2] = trees.addnode(node1, 'meanLeftGaze');
+	[trees node3] = trees.addnode(node1, 'meanRightGaze');
+
+	l = 0;
+	r = 0;
+	
+	meanLeftGazeTheta = 0;
+	meanLeftGazePhi = 0;
+	meanRightGazeTheta = 0;
+	meanRightGazePhi = 0;
+	if (i == 1)
+	   disp(trees.tostring);
+	end
+
+
+
+
+	
+	%treeGazes(i, samplesInTree(i), :) = tempGazes( random, :);%, :);
+	%treePoses(i, samplesInTree(i), :) = tempPoses( random, :);
+
+	%nodeImgs
+	%node
+
+
 
 	%for each node
+	minSquareError = 10000; % a huge value
+	minPx1_vert =    10000; % something random here
+	minPx1_hor =     10000; % also here
+	minPx2_vert=     10000; % and here..
+	minPx2_hor =     10000; % and here 
 	for px1_vert = 1:HEIGHT
 	   for px1_hor = 1:WIDTH
 
@@ -119,20 +166,53 @@ for i = 1:140 %for each tree
 	   	% sorry for the huge equations below
 		% these equations are made in order to prevent 2 pixels
 		% to be examined twice
-		for px2_vert = ( px1_Vert + mod( (px1_Hor+1), WIDTH ) ):HEIGHT	
-		  for px2_vert = (mod( (px1_Hor+1), WIDTH )):WIDTH
+		for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT	
+		  for px2_hor = (mod( (px1_hor+1), WIDTH )):WIDTH
+		     for thres = 0.0005:0.001:0.0005
+	
+			for j = 1:samplesInTree(i)
+			   if (treeImgs(i, j, px1_vert, px1_hor) - treeImgs(i,j,px2_vert, px2_hor) ) < thres 
+			      %left child
 
+			      l = l + 1;
+			      lChild( l ).gazes = treeGazes(i, j, :); 		
+			      meanLeftGaze = meanLeftGaze + treeGazes(i,j,:);		
+			     
+			   else
+			      %right child
 
+			      r = r + 1;
+			      rChild( r ).gazes = treeGazes(i, j, :); 
 
-		     % check the performance for different thresholds
-		     for thres = 1:MAX
+			      meanRightGaze = meanRightGaze + treeGazes(i,j,:);		
+			    				
+			   end
+			end
+		
 			
+			meanLeftGaze = meanLeftGaze  / l;
+			meanRightGaze = meanRightGaze/ r;
 
+			squareError = 0;
+			for j = 1:r
+			   squareError=squareError + (meanRightGaze(1)-rChild(j).gazes(1))^2 + (meanRightGaze(2)-rChild(j).gazes(2))^2;	
+			end
+			for j = 1:l
+			   squareError=squareError + (meanLeftGaze(1)-lChild(j).gazes(1))^2 + (meanLeftGaze(2)-lChild(j).gazes(2))^2;	
+			end
+
+			if squareError < minSquareError
+			   minSquareError = squareError;			
+			   minPx1_vert =    px1_vert; % something random here
+			   minPx1_hor =     px1_hor; % also here
+			   minPx2_vert=     px2_vert; % and here..
+			   minPx2_hor =     px2_hor; % and here 
+			end
+
+s
 		     end			
-
 		   end
 		end
-
 
 	   end
 	end		
