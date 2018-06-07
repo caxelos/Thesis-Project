@@ -132,23 +132,6 @@ i = 1;
 	[trees node2] = trees.addnode(node1, 'meanLeftGaze');
 	[trees node3] = trees.addnode(node1, 'meanRightGaze');
 
-	
-	
-	if (i == 1)
-	   disp(trees.tostring);
-	end
-
-
-
-
-	
-	%treeGazes(i, samplesInTree(i), :) = tempGazes( random, :);%, :);
-	%treePoses(i, samplesInTree(i), :) = tempPoses( random, :);
-
-	%nodeImgs
-	%node
-
-
 
 	%for each node
 	minSquareError = 10000; % a huge value
@@ -156,6 +139,8 @@ i = 1;
 	minPx1_hor =     10000; % also here
 	minPx2_vert=     10000; % and here..
 	minPx2_hor =     10000; % and here 
+	bestThres  =     10000; % ah, and here
+	
 	for px1_vert = 1:HEIGHT
 	   for px1_hor = 1:WIDTH
 	   	% sorry for the huge equations below
@@ -174,26 +159,33 @@ i = 1;
 			meanLeftGaze = [0 0];
 			meanRightGaze = [0 0];
 			for j = 1:samplesInTree(i)
-                            	
+                           
 			   if  abs(treeImgs(i, j, px1_vert, px1_hor) - treeImgs(i,j,px2_vert, px2_hor))  < thres 
 			      %left child
 
 			      l = l + 1;
-			      lChild( l ).gazes = treeGazes(i, j, :); 		
+			      ltree_temp( l ).gazes = treeGazes(i, j, :);
+			      lImgs(l) = j; 
+			       				      
+			      
+				
 			      meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(i,j,1);		
 			      meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(i,j,2);	
 			   else
 			      %right child
 
 			      r = r + 1;
-			      rChild( r ).gazes = treeGazes(i, j, :); 
+			      rtree_temp( r ).gazes = treeGazes(i, j, :);
+			      rImgs(r) = j;  				      
+			      
+ 
 			      meanRightGaze(1) = meanRightGaze(1) + treeGazes(i,j,1);		
 			      meanRightGaze(2) = meanRightGaze(2) + treeGazes(i,j,2);			
 			   end
 
 
 			end
-		
+		        
 			
 
 
@@ -202,10 +194,10 @@ i = 1;
 
 			squareError = 0;
 			for j = 1:r
-			   squareError=squareError + (meanRightGaze(1)-rChild(j).gazes(1))^2 + (meanRightGaze(2)-rChild(j).gazes(2))^2;	
+			   squareError=squareError + (meanRightGaze(1)-rtree_temp(j).gazes(1))^2 + (meanRightGaze(2)-rtree_temp(j).gazes(2))^2;	
 			end
 			for j = 1:l
-			   squareError=squareError + (meanLeftGaze(1)-lChild(j).gazes(1))^2 + (meanLeftGaze(2)-lChild(j).gazes(2))^2;	
+			   squareError=squareError + (meanLeftGaze(1)-ltree_temp(j).gazes(1))^2 + (meanLeftGaze(2)-ltree_temp(j).gazes(2))^2;	
 			end
 
 			if squareError < minSquareError
@@ -214,6 +206,19 @@ i = 1;
 			   minPx1_hor =     px1_hor; % also here
 			   minPx2_vert=     px2_vert; % and here..
 			   minPx2_hor =     px2_hor; % and here
+			   bestThres  =     thres;
+			   for o = 1:r
+			      best_rImgs(o) = rImgs(o);
+			   end
+			   for o = 1:l
+			      best_lImgs(o) = lImgs(o);
+			   end				
+			   ltree.size = l;
+			   rtree.size = r;
+			   
+
+                           rtree.mGaze = meanRightGaze;
+			   ltree.mGaze = meanLeftGaze;
 			end
  			 		 	
 		     end%thres
@@ -224,9 +229,26 @@ i = 1;
  	
 	   end
 	end		
-%(1,1)->(1,2)
-        minPx2_vert
-	minPx2_hor 
+
+	for o = 1:rtree.size
+	   rtree.Imgs(o , :, :) = treeImgs(best_rImgs(o), o, :, :);
+	   rtree.gaze(o,:) = treeGazes(i,best_rImgs(o),:);
+	end
+	for o = 1:ltree.size
+	   ltree.Imgs(o, :, :) = treeImgs(best_lImgs(o), o, :, :);
+	   ltree.gaze(o,:) = treeGazes(i,best_rImgs(o),:);
+	end
+	
+	
+	%%%%%%% now that we now the best threshold, px1, px2...we can build node %%%%%%    
+	
+
+trees=trees.set(node1,strcat('Samples:',num2str(samplesInTree(i)),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));
+
+trees=trees.set(node2, strcat('Samples:',num2str(ltree.size),'(', num2str(meanLeftGaze(1)), ',', num2str(meanLeftGaze(2)), ')'));
+trees=trees.set(node3, strcat('Samples:',num2str(rtree.size),'(', num2str(meanRightGaze(1)), ',', num2str(meanRightGaze(2)), ')'));
+
+	disp(trees.tostring);
 
 	%%%%%%%%% Close Central Group %%%%%%%%%%%%%%%%%%
 	H5D.close(curr_rnearestID);
