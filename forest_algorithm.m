@@ -121,17 +121,32 @@ i = 1;
 
 
 
+	trees = tree(strcat('RegressionTree_', num2str(1) ));
+	[trees node_i] = trees.addnode(1, 'NULL');
+
+	trees = buildRegressionTree( samplesInTree(i), treeImgs(i,:,:,:),  treeGazes(i,:,:), HEIGHT, WIDTH, trees, node_i );
+	disp(trees.tostring);
+	%%%%%%%%% Close Central Group %%%%%%%%%%%%%%%%%%
+	H5D.close(curr_rnearestID);
+	H5D.close(curr_centerID);
+	H5D.close(curr_imgsID);
+	H5D.close(curr_gazesID);
+	H5D.close(curr_posesID);
+
+	H5G.close(grpID);
+
+
+
+H5F.close(fid);
+
+
+end
 
 
 
 
-	%%%%%% start by creating the root node of the tree %%%%%%%%%%%%%%%%%%%%
 
-	trees = tree(strcat('RegressionTree_', num2str(i) ));
-	[trees node1] = trees.addnode(1, 'NULL');
-	[trees node2] = trees.addnode(node1, 'meanLeftGaze');
-	[trees node3] = trees.addnode(node1, 'meanRightGaze');
-
+function trees = buildRegressionTree( samplesInTree, treeImgs,  treeGazes, HEIGHT, WIDTH, trees, node_i)
 
 	%for each node
 	minSquareError = 10000; % a huge value
@@ -158,29 +173,29 @@ i = 1;
 			r = 0;			
 			meanLeftGaze = [0 0];
 			meanRightGaze = [0 0];
-			for j = 1:samplesInTree(i)
-                           
-			   if  abs(treeImgs(i, j, px1_vert, px1_hor) - treeImgs(i,j,px2_vert, px2_hor))  < thres 
+			for j = 1:samplesInTree		
+			                            
+			   if  abs(treeImgs(1, j, px1_vert, px1_hor) - treeImgs(1, j,px2_vert, px2_hor))  < thres 
 			      %left child
 
 			      l = l + 1;
-			      ltree_temp( l ).gazes = treeGazes(i, j, :);
+			      ltree_temp( l ).gazes = treeGazes(1,j, :);
 			      lImgs(l) = j; 
 			       				      
 			      
 				
-			      meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(i,j,1);		
-			      meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(i,j,2);	
+			      meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(1,j,1);		
+			      meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(1,j,2);	
 			   else
 			      %right child
 
 			      r = r + 1;
-			      rtree_temp( r ).gazes = treeGazes(i, j, :);
+			      rtree_temp( r ).gazes = treeGazes(1,j, :);
 			      rImgs(r) = j;  				      
 			      
  
-			      meanRightGaze(1) = meanRightGaze(1) + treeGazes(i,j,1);		
-			      meanRightGaze(2) = meanRightGaze(2) + treeGazes(i,j,2);			
+			      meanRightGaze(1) = meanRightGaze(1) + treeGazes(1,j,1);		
+			      meanRightGaze(2) = meanRightGaze(2) + treeGazes(1,j,2);			
 			   end
 
 
@@ -230,45 +245,50 @@ i = 1;
 	   end
 	end		
 
+	% exit-condition:
+	if (rtree.size == 0 || ltree.size == 0)
+	   %fprintf('no more split. Return\n');
+	   return;
+	end
+
+
 	for o = 1:rtree.size
-	   rtree.Imgs(o , :, :) = treeImgs(best_rImgs(o), o, :, :);
-	   rtree.gaze(o,:) = treeGazes(i,best_rImgs(o),:);
+	   rtree.Imgs(1,o , :, :) = treeImgs(1,best_rImgs(o), :, :);
+	   rtree.gazes(1,o,:) = treeGazes(1,best_rImgs(o),:);
 	end
 	for o = 1:ltree.size
-	   ltree.Imgs(o, :, :) = treeImgs(best_lImgs(o), o, :, :);
-	   ltree.gaze(o,:) = treeGazes(i,best_rImgs(o),:);
+	   ltree.Imgs(1, o, :, :) = treeImgs(1,best_lImgs(o), :, :);
+	   ltree.gazes(1, o,:) = treeGazes(1,best_rImgs(o),:);
 	end
 	
 	
 	%%%%%%% now that we now the best threshold, px1, px2...we can build node %%%%%%    
 	
-
-trees=trees.set(node1,strcat('Samples:',num2str(samplesInTree(i)),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));
-
-trees=trees.set(node2, strcat('Samples:',num2str(ltree.size),'(', num2str(meanLeftGaze(1)), ',', num2str(meanLeftGaze(2)), ')'));
-trees=trees.set(node3, strcat('Samples:',num2str(rtree.size),'(', num2str(meanRightGaze(1)), ',', num2str(meanRightGaze(2)), ')'));
-
-	disp(trees.tostring);
-
-	%%%%%%%%% Close Central Group %%%%%%%%%%%%%%%%%%
-	H5D.close(curr_rnearestID);
-	H5D.close(curr_centerID);
-	H5D.close(curr_imgsID);
-	H5D.close(curr_gazesID);
-	H5D.close(curr_posesID);
-
-	H5G.close(grpID);
-
-%end i-loop	
+	
+	
+	[trees lnode] = trees.addnode(node_i, 'NULL');
+	[trees rnode] = trees.addnode(node_i, 'NULL');
 
 
-%treeImgs (100, samplesInTree(i), HEIGHT, WIDTH)
-%treePoses(100, 1:samplesInTree(100), 1)
+	trees=trees.set(node_i,strcat('Samples:',num2str(samplesInTree),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));
+	
+
+	trees=trees.set(lnode, strcat('(', num2str(meanLeftGaze(1)), ',', num2str(meanLeftGaze(2)), ')'));
+	trees=trees.set(rnode, strcat('(', num2str(meanRightGaze(1)), ',', num2str(meanRightGaze(2)), ')'));
+	%trees=trees.set(lnode, strcat('Samples:',num2str(ltree.size),'(', num2str(meanLeftGaze(1)), ',', num2str(meanLeftGaze(2)), ')'));
+	%trees=trees.set(rnode, strcat('Samples:',num2str(rtree.size),'(', num2str(meanRightGaze(1)), ',', num2str(meanRightGaze(2)), ')'));
+	
 
 
-H5F.close(fid);
-
+	
+	%%%%%%% Start Recursion. The "exit-condition is some lines up %%%%%%%
+	trees = buildRegressionTree( rtree.size, rtree.Imgs,  rtree.gazes, HEIGHT, WIDTH, trees, rnode);
+	trees = buildRegressionTree( ltree.size, ltree.Imgs,  ltree.gazes, HEIGHT, WIDTH, trees, lnode);
+	
+	
+	
+	  
+	
+	
 
 end
-
-%H5G.get_info(grpID) 
