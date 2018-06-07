@@ -146,7 +146,7 @@ end
 
 
 
-function trees = buildRegressionTree( samplesInTree, treeImgs,  treeGazes, HEIGHT, WIDTH, trees, node_i)
+function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, WIDTH, trees, node_i)
 
 	%for each node
 	minSquareError = 10000; % a huge value
@@ -156,8 +156,8 @@ function trees = buildRegressionTree( samplesInTree, treeImgs,  treeGazes, HEIGH
 	minPx2_hor =     10000; % and here 
 	bestThres  =     10000; % ah, and here
 	
-	for px1_vert = 1:HEIGHT
-	   for px1_hor = 1:WIDTH
+	for px1_vert = 1:2%HEIGHT
+	   for px1_hor = 1:2%WIDTH
 	   	% sorry for the huge equations below
 		% these equations are made in order to prevent 2 pixels
 		% to be examined twice
@@ -173,7 +173,7 @@ function trees = buildRegressionTree( samplesInTree, treeImgs,  treeGazes, HEIGH
 			r = 0;			
 			meanLeftGaze = [0 0];
 			meanRightGaze = [0 0];
-			for j = 1:samplesInTree		
+			for j = 1:fatherSize	
 			                            
 			   if  abs(treeImgs(1, j, px1_vert, px1_hor) - treeImgs(1, j,px2_vert, px2_hor))  < thres 
 			      %left child
@@ -222,6 +222,7 @@ function trees = buildRegressionTree( samplesInTree, treeImgs,  treeGazes, HEIGH
 			   minPx2_vert=     px2_vert; % and here..
 			   minPx2_hor =     px2_hor; % and here
 			   bestThres  =     thres;
+			   
 			   for o = 1:r
 			      best_rImgs(o) = rImgs(o);
 			   end
@@ -231,9 +232,9 @@ function trees = buildRegressionTree( samplesInTree, treeImgs,  treeGazes, HEIGH
 			   ltree.size = l;
 			   rtree.size = r;
 			   
-
-                           rtree.mGaze = meanRightGaze;
-			   ltree.mGaze = meanLeftGaze;
+			
+                           rtree.meanGaze = meanRightGaze;
+			   ltree.meanGaze = meanLeftGaze;
 			end
  			 		 	
 		     end%thres
@@ -245,50 +246,34 @@ function trees = buildRegressionTree( samplesInTree, treeImgs,  treeGazes, HEIGH
 	   end
 	end		
 
-	% exit-condition:
-	if (rtree.size == 0 || ltree.size == 0)
-	   %fprintf('no more split. Return\n');
-	   return;
+
+	
+	if (ltree.size > 0 && rtree.size > 0)
+         	trees=trees.set(node_i,strcat('Samples:',num2str(fatherSize),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));  
+
+	   for o = 1:rtree.size
+	      rtree.Imgs(1,o , :, :) = treeImgs(1,best_rImgs(o), :, :);
+	      rtree.gazes(1,o,:) = treeGazes(1,best_rImgs(o),:);
+	   end	
+	   for o = 1:ltree.size
+	      ltree.Imgs(1, o, :, :) = treeImgs(1,best_lImgs(o), :, :);
+	      ltree.gazes(1, o,:) = treeGazes(1,best_lImgs(o),:);
+	   end
+ 	
+	   [trees lnode] = trees.addnode(node_i, strcat('(', num2str(ltree.meanGaze(1)), ',', num2str(ltree.meanGaze(2)), ')'));
+	   [trees rnode] = trees.addnode(node_i, strcat('(', num2str(rtree.meanGaze (1)), ',', num2str(rtree.meanGaze (2)), ')'));
+	   trees = buildRegressionTree( rtree.size, rtree.Imgs,  rtree.gazes, HEIGHT, WIDTH, trees, rnode);
+	   trees = buildRegressionTree( ltree.size, ltree.Imgs,  ltree.gazes, HEIGHT, WIDTH, trees, lnode );	
 	end
+	%else if	rtree.size > 0
 
 
-	for o = 1:rtree.size
-	   rtree.Imgs(1,o , :, :) = treeImgs(1,best_rImgs(o), :, :);
-	   rtree.gazes(1,o,:) = treeGazes(1,best_rImgs(o),:);
-	end
-	for o = 1:ltree.size
-	   ltree.Imgs(1, o, :, :) = treeImgs(1,best_lImgs(o), :, :);
-	   ltree.gazes(1, o,:) = treeGazes(1,best_rImgs(o),:);
-	end
-	
-	
-	%%%%%%% now that we now the best threshold, px1, px2...we can build node %%%%%%    
-	
-	
-	
-	[trees lnode] = trees.addnode(node_i, 'NULL');
-	[trees rnode] = trees.addnode(node_i, 'NULL');
+	%else
 
 
-	trees=trees.set(node_i,strcat('Samples:',num2str(samplesInTree),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));
-	
-
-	trees=trees.set(lnode, strcat('(', num2str(meanLeftGaze(1)), ',', num2str(meanLeftGaze(2)), ')'));
-	trees=trees.set(rnode, strcat('(', num2str(meanRightGaze(1)), ',', num2str(meanRightGaze(2)), ')'));
-	%trees=trees.set(lnode, strcat('Samples:',num2str(ltree.size),'(', num2str(meanLeftGaze(1)), ',', num2str(meanLeftGaze(2)), ')'));
-	%trees=trees.set(rnode, strcat('Samples:',num2str(rtree.size),'(', num2str(meanRightGaze(1)), ',', num2str(meanRightGaze(2)), ')'));
-	
+	%end
 
 
-	
-	%%%%%%% Start Recursion. The "exit-condition is some lines up %%%%%%%
-	trees = buildRegressionTree( rtree.size, rtree.Imgs,  rtree.gazes, HEIGHT, WIDTH, trees, rnode);
-	trees = buildRegressionTree( ltree.size, ltree.Imgs,  ltree.gazes, HEIGHT, WIDTH, trees, lnode);
-	
-	
-	
-	  
-	
-	
 
+	fprintf('poulo\n');
 end
