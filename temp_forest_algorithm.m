@@ -265,6 +265,10 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	%save_l_brotherGazes = zeros(MAX_DEPTH, 1, fatherSize, 2); 
 	currPtrs = zeros(fatherSize);
 	savePtrs = zeros(MAX_DEPTH, fatherSize) ;
+	currPtrs(1) = 1;
+	for i = 2:fatherSize
+	   currPtrs(i) = currPtrs(i-1) + 1;
+	end
 
    while 1 %3
 	%for each node
@@ -298,8 +302,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			      %left child
 
 			      l = l + 1;
-			      ltree_tempGazes( l ) = treeGazes(1,j);
-				 
+			      ltree_tempGazes( l ) = treeGazes(1, currPtrs(j) );
 			      lImgs(l) = currPtrs(j); 
 			       				      
 			      
@@ -325,8 +328,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 			end
 		        
-			
-
+	
 
 			meanLeftGaze = meanLeftGaze  / l;
 			meanRightGaze = meanRightGaze/ r;
