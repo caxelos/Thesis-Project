@@ -236,7 +236,7 @@ end
 function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, WIDTH, trees, node_i)
 
 	turn = 1;
-	MAX_DEPTH = 40;
+	MAX_DEPTH = 100;
 	stackindex = 0;
 
 
@@ -265,7 +265,12 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	rtree.gazes = zeros(1, fatherSize, 2);	
 
 
-   while 1
+	%%% recursion staff %%%
+	saved_l_brotherSize = zeros(MAX_DEPTH);
+	save_l_brotherImgs = zeros(MAX_DEPTH, 1, fatherSize, HEIGHT, WIDTH);
+	save_l_brotherGazes = zeros(MAX_DEPTH, 1, fatherSize, 1); 
+
+   while 1 %3
 	for px1_vert = 1:HEIGHT		
 	   for px1_hor = 1:WIDTH
 	   	% sorry for the huge equations below
@@ -411,8 +416,9 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	         treeImgs(1,best_rImgs(o), :, :) = rtree.Imgs(1,o , :, :);
 	         treeGazes(1,best_rImgs(o),:) =  rtree.gazes(1,o,:);
 	      end	
+	   end
 
-	else 
+	else %2
 	   if turn
 	      % GET left brother and prepare his iteration data
 	      children = tree.getchildren( tree.getparent(node_i) )
@@ -425,8 +431,11 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	         treeGazes(1,best_rImgs(o),:) =  save_l_brotherGazes(stackindex,1, o, :); 
 	      end	
 	      turn = 0;
-	   else
+	   else%1
 	      if stackindex > 0
+
+
+
 	         %%% load your grandpa's left child %%%
 	         children = tree.getchildren( tree.getparent(tree.getparent(node_i)) );
 	         node_id = children(1);
@@ -438,15 +447,15 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	            treeImgs(1,best_rImgs(o), :, :) =  save_l_brotherImgs(index, 1,o,:,:);
 	            treeGazes(1,best_rImgs(o),:) =  save_l_brotherGazes(index,1, o, :); 
 	         end
-	
-	         turn = 0;
+		    
 	      else
+		 fprintf('exiting\n');
 	         break;
 	      end
 
-	   end
-	end	
-   end
+	   end%1
+	end %2	
+   end %3
 
 
 end
