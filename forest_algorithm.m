@@ -170,6 +170,8 @@ end
 	   for k = 1:(R+1)%each samples, run the R+1 trees
 	  	
 	   	gaze_predict = gaze_predict + testSampleInTree(trees(test_rnearest(1,k)), 1, test_imgs(1,1,:,:), test_gazes(1,:) );
+		gaze_predict
+	  	test_gazes(1,:)
 		%testSampleInTree(trees(test_rnearest(1,k)), 1, test_imgs(1,1,:,:), test_gazes(1,:) );
 
 	   end
@@ -202,7 +204,7 @@ function val = testSampleInTree(tree, node, test_img, gaze )
 
 
    if tree.isleaf(node) 
-      val = sscanf(tree.get(node),'(%f,%f)')
+      val = sscanf(tree.get(node),'(%f,%f)');
 	
    else
      
@@ -217,8 +219,10 @@ function val = testSampleInTree(tree, node, test_img, gaze )
       data= sscanf(tree.get(node),'Samples:%f,px1(%f,%f)-px2(%f,%f)>=%f');
       childs = tree.getchildren(node);
       if abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5))) >= data(6)
+	  abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
          val = testSampleInTree(tree,childs(2) , test_img, gaze );
       else
+	  abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
          val = testSampleInTree(tree, childs(1), test_img, gaze );
       end
       
@@ -246,6 +250,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	rtree_tempGazes = zeros(fatherSize,2);
 	lImgs = zeros(fatherSize);
 	rImgs = zeros(fatherSize);
+
 	for px1_vert = 1:HEIGHT
 
 		
@@ -257,7 +262,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 		for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
 		  for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
                     if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2) < 6.5             
-		     for thres = 1:2
+		     for thres = 1:50
 			
 			
 
