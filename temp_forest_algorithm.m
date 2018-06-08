@@ -241,16 +241,10 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 
 
-	%for each node
-	minSquareError = 10000; % a huge value
-	minPx1_vert =    10000; % something random here
-	minPx1_hor =     10000; % also here
-	minPx2_vert=     10000; % and here..
-	minPx2_hor =     10000; % and here 
-	bestThres  =     10000; % ah, and here
+	
 	
 
-
+	
 	ltree_tempGazes = zeros(fatherSize,2);
 	rtree_tempGazes = zeros(fatherSize,2);
 	lImgs = zeros(fatherSize);
@@ -258,19 +252,29 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 	best_rImgs = zeros(fatherSize);
 	best_lImgs = zeros(fatherSize);
-	ltree.Imgs = zeros(1,fatherSize, HEIGHT, WIDTH);
-	ltree.gazes = zeros(1, fatherSize, 2);%prosekse stis anatheseis
+	%ltree.Imgs = zeros(1,fatherSize, HEIGHT, WIDTH);
+	%ltree.gazes = zeros(1, fatherSize, 2);%prosekse stis anatheseis
 
-	rtree.Imgs = zeros(1, fatherSize, HEIGHT, WIDTH);
-	rtree.gazes = zeros(1, fatherSize, 2);	
+	%rtree.Imgs = zeros(1, fatherSize, HEIGHT, WIDTH);
+	%rtree.gazes = zeros(1, fatherSize, 2);	
 
 
 	%%% recursion staff %%%
 	saved_l_brotherSize = zeros(MAX_DEPTH);
-	save_l_brotherImgs = zeros(MAX_DEPTH, 1, fatherSize, HEIGHT, WIDTH);
-	save_l_brotherGazes = zeros(MAX_DEPTH, 1, fatherSize, 1); 
+	%save_l_brotherImgs = zeros(MAX_DEPTH, 1, fatherSize, HEIGHT, WIDTH);
+	%save_l_brotherGazes = zeros(MAX_DEPTH, 1, fatherSize, 2); 
+	currPtrs = zeros(fatherSize);
+	savePtrs = zeros(MAX_DEPTH, fatherSize) ;
 
    while 1 %3
+	%for each node
+	minSquareError = 10000; % a huge value
+	minPx1_vert =    10000; % something random here
+	minPx1_hor =     10000; % also here
+	minPx2_vert=     10000; % and here..
+	minPx2_hor =     10000; % and here 
+	bestThres  =     10000; % ah, and here
+
 	for px1_vert = 1:HEIGHT		
 	   for px1_hor = 1:WIDTH
 	   	% sorry for the huge equations below
@@ -290,17 +294,17 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			meanRightGaze = [0 0];
 			for j = 1:fatherSize
 			   	                    
-			   if  abs(treeImgs(1, j, px1_vert, px1_hor) - treeImgs(1, j,px2_vert, px2_hor))  < thres 
+			   if  abs(treeImgs(1, currPtrs(j), px1_vert, px1_hor) - treeImgs(1, currPtrs(j),px2_vert, px2_hor))  < thres 
 			      %left child
 
 			      l = l + 1;
 			      ltree_tempGazes( l ) = treeGazes(1,j);
 				 
-			      lImgs(l) = j; 
+			      lImgs(l) = currPtrs(j); 
 			       				      
 			      
-			      meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(1,j,1);%,:);
-			      meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(1,j,2);%,:);	
+			      meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
+			      meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(1,currPtrs(j),2);%,:);	
 			  
 
 			 %meanLeftGaze = meanLeftGaze + treeGazes(1,j);%,:);	
@@ -308,12 +312,12 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			      %right child
 
 			      r = r + 1;
-			      rtree_tempGazes(r) = treeGazes(1,j);
-			      rImgs(r) = j;  				      
+			      rtree_tempGazes(r) = treeGazes(1,currPtrs(j) );
+			      rImgs(r) = currPtrs(j);  				      
 			      
  
-			      meanRightGaze(1) = meanRightGaze(1) + treeGazes(1,j,1);%,:);
-			      meanRightGaze(2) = meanRightGaze(2) + treeGazes(1,j,2);
+			      meanRightGaze(1) = meanRightGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
+			      meanRightGaze(2) = meanRightGaze(2) + treeGazes(1,currPtrs(j),2);
 			 %meanRightGaze = meanRightGaze + treeGazes(1,j);	
 			 			
 			   end
@@ -381,16 +385,18 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	
 
 	if (ltree.size > 0 && rtree.size > 0)
-         	trees=trees.set(node_i,strcat('Samples:',num2str(fatherSize),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));  
+  	   turn = 1;
 
-	   for o = 1:rtree.size
-	      rtree.Imgs(1,o , :, :) = treeImgs(1,best_rImgs(o), :, :);
-	      rtree.gazes(1,o,:) = treeGazes(1,best_rImgs(o),:);
-	   end	
-	   for o = 1:ltree.size
-	      ltree.Imgs(1, o, :, :) = treeImgs(1,best_lImgs(o), :, :);
-	      ltree.gazes(1, o,:) = treeGazes(1,best_lImgs(o),:);
-	   end
+           trees=trees.set(node_i,strcat('Samples:',num2str(fatherSize),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));  
+
+	%   for o = 1:rtree.size
+	%      rtree.Imgs(1,o , :, :) = treeImgs(1,best_rImgs(o), :, :);
+	%      rtree.gazes(1,o,:) = treeGazes(1,best_rImgs(o),:);
+	%   end	
+	%   for o = 1:ltree.size
+	%      ltree.Imgs(1, o, :, :) = treeImgs(1,best_lImgs(o), :, :);
+	%      ltree.gazes(1, o,:) = treeGazes(1,best_lImgs(o),:);
+	%   end
 
 
 	   [trees lnode] = trees.addnode(node_i, strcat('(', num2str(ltree.meanGaze(1)), ',', num2str(ltree.meanGaze(2)), ')'));
@@ -398,14 +404,13 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 
 	   %%%% prepare recursion convertion %%%
-	   if turn%do right recursion
+	%   if turn%do right recursion
 
 	      % start saving the left brother
 	      stackindex = stackindex + 1;
 	      saved_l_brotherSize(stackindex) = ltree.size; 
 	      for o = 1:ltree.size%SWSE INDEXES ANTI GIA DATA!!!
-	         save_l_brotherImgs(stackindex,1,o,:,:) = ltree.Imgs(1,o , :, :);
-	         save_l_brotherGazes(stackindex,1, o, :) =  ltree.gazes(1,o,:);
+	         savePtrs(stackindex,o) = best_lImgs(o);
 	      end
 
 
@@ -413,22 +418,27 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	      node_i = rnode;
 	      fatherSize = rtree.size;
 	      for o = 1:rtree.size
-	         treeImgs(1,best_rImgs(o), :, :) = rtree.Imgs(1,o , :, :);
-	         treeGazes(1,best_rImgs(o),:) =  rtree.gazes(1,o,:);
+		 currPtrs(o) = best_rImgs(o);
+	
+	         %treeImgs(1,, :, :) = rtree.Imgs(1,o , :, :);
+	         %treeGazes(1,best_rImgs(o),:) =  rtree.gazes(1,o,:);
 	      end	
-	   end
+	 %  end
 
 	else %2
 	   if turn
 	      % GET left brother and prepare his iteration data
-	      children = tree.getchildren( tree.getparent(node_i) )
+	      parent = trees.getparent(node_i);
+	      children = trees.getchildren(parent);
 	      node_i = children(1);
-	  
+
+	      %%%   prepare next iteration data %%%
 	      stackindex = stackindex - 1;
 	      fatherSize = saved_l_brotherSize(stackindex);
 	      for o = 1:fatherSize
-	         treeImgs(1,best_rImgs(o), :, :) =  save_l_brotherImgs(stackindex, 1,o,:,:);
-	         treeGazes(1,best_rImgs(o),:) =  save_l_brotherGazes(stackindex,1, o, :); 
+	         currPtrs(o) = savePtrs(stackindex,o) ;
+		 %treeImgs(1,best_rImgs(o), :, :) =  save_l_brotherImgs(stackindex, 1,o,:,:);
+	         %treeGazes(1,best_rImgs(o),:) =  save_l_brotherGazes(stackindex,1, o, :); 
 	      end	
 	      turn = 0;
 	   else%1
@@ -437,15 +447,18 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 
 	         %%% load your grandpa's left child %%%
-	         children = tree.getchildren( tree.getparent(tree.getparent(node_i)) );
+		 parent = trees.getparent(node_i);
+		 grandParent = trees.getparent(parent);
+	         children = trees.getchildren( trees.getparent(grandParent) );
 	         node_id = children(1);
 
 	         %%% prepare its data %%%
-	         index = index - 1;
-	         fatherSize = saved_l_brotherSize(index);
+	         stackindex = stackindex - 1;
+	         fatherSize = saved_l_brotherSize(stackindex);
 	         for o = 1:fatherSize
-	            treeImgs(1,best_rImgs(o), :, :) =  save_l_brotherImgs(index, 1,o,:,:);
-	            treeGazes(1,best_rImgs(o),:) =  save_l_brotherGazes(index,1, o, :); 
+		    currPtrs(o) = savePtrs(stackindex,o) ;
+	            %treeImgs(1,best_rImgs(o), :, :) =  save_l_brotherImgs(stackindex, 1,o,:,:);
+	            %treeGazes(1,best_rImgs(o),:) =  save_l_brotherGazes(stackindex,1, o, :); 
 	         end
 		    
 	      else
@@ -455,6 +468,9 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 	   end%1
 	end %2	
+	stackindex
+   fprintf('poulo\n');
+	turn
    end %3
 
 
