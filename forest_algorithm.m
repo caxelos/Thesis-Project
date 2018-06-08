@@ -109,7 +109,7 @@ for i = 1:140 %for each tree
 	clear('curr_gazes');
 	clear('curr_poses');
 end
-i = 1;
+
 
 	%%%%%%%% Now that we created each tree's data, lets implement the algorithm %%%%%%%%%
 	% - am really thankful to http://tinevez.github.io/matlab-tree/index.html
@@ -128,19 +128,18 @@ i = 1;
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+	for i = 1:140
+	   if i == 128 || i == 32 || i == 129 || i == 91 || i == 130 || i == 126
+	      trees(i) = tree(strcat('RegressionTree_', num2str(i) ));
+	      trees(i) = buildRegressionTree( samplesInTree(i), treeImgs(i,:,:,:),  treeGazes(i,:,:), HEIGHT, WIDTH, trees(i), 1 );
+	      disp(trees(i).tostring);
+           end
 
+	end
 
-	trees = tree(strcat('RegressionTree_', num2str(1) ));
-	%[trees node_i] = trees.addnode(1, 'NULL');
-
-	
-	trees = buildRegressionTree( samplesInTree(i), treeImgs(i,:,:,:),  treeGazes(i,:,:), HEIGHT, WIDTH, trees, 1 );
-	
-	%trees.get(5)
+%%%% end of training %%%%	
 	
 	
-	disp(trees.tostring);
-
 
 
 
@@ -165,9 +164,14 @@ i = 1;
 
 	ntestsamples = length( test_imgs(:,1,1,1) );
 	%for j = 1:ntestsamples
-	   %for each samples, run the R+1 trees
-	     testSampleInTree(trees, 1, test_imgs(1,1,:,:), test_gazes(1,:) )
-%	end
+	   
+	   gaze_predict = [0 0];  
+	   for k = 1:(R+1)%each samples, run the R+1 trees
+	    % gaze_predict = gaze_predict + testSampleInTree(trees(test_rnearest(1,k)), 1, test_imgs(1,1,:,:), test_gazes(1,:) );
+		test_rnearest(1,k)
+		testSampleInTree(trees(test_rnearest(1,k)), 1, test_imgs(1,1,:,:), test_gazes(1,:) );
+
+	   end
 	
 	H5D.close(test_rnearestID);
 	H5D.close(test_imgsID);
@@ -189,12 +193,11 @@ H5F.close(fid);
 end
 
 
-function absError = testSampleInTree(tree, node, test_img, gaze )
+function val = testSampleInTree(tree, node, test_img, gaze )
 	
    if tree.isleaf(node) 
-      data = sscanf(tree.get(node),'(%f,%f)')
-      gaze
-       
+      val = sscanf(tree.get(node),'(%f,%f)');
+
    else
      
       %'Samples:29,px1(1,2)-px2(5,7)>=3'
@@ -208,8 +211,9 @@ function absError = testSampleInTree(tree, node, test_img, gaze )
       data= sscanf(tree.get(node),'Samples:%f,px1(%f,%f)-px2(%f,%f)>=%f');
       childs = tree.getchildren(node);
       if abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5))) >= data(6)
-         testSampleInTree(tree,childs(2) , test_img, gaze );
 	 abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
+         testSampleInTree(tree,childs(2) , test_img, gaze );
+	
       else
 	 abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
          testSampleInTree(tree, childs(1), test_img, gaze );
@@ -248,7 +252,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 		for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
 		  for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
                     if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2) < 6.5             
-		     for thres = 1:100
+		     for thres = 1:5
 			
 			
 
@@ -305,12 +309,12 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			   minPx2_hor =     px2_hor; % and here
 			   bestThres  =     thres;
 			   
-			    best_rImgs = rImgs;
-			  % for o = 1:r
-			  %    best_rImgs(o) = rImgs(o);%%%%%%%%%%%%
-			  % end
+		
+			   for o = 1:r
+			      best_rImgs(o) = rImgs(o);%%%%%%%%%%%%
+			   end
 
-			  %best_lImgs = lImgs;
+			 
 			   for o = 1:l
 			      best_lImgs(o) = lImgs(o);%%%%%%%%%%%%
 			   end				
