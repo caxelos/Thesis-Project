@@ -192,7 +192,9 @@ end
 function absError = testSampleInTree(tree, node, test_img, gaze )
 	
    if tree.isleaf(node) 
-      
+      data = sscanf(tree.get(node),'(%f,%f)')
+      gaze
+       
    else
      
       %'Samples:29,px1(1,2)-px2(5,7)>=3'
@@ -202,12 +204,17 @@ function absError = testSampleInTree(tree, node, test_img, gaze )
       % data(4) = px2Vert
       % data(5) = px2Hor
       % data(6) = thres
-      data= sscanf(tree.get(node),'Samples:%f,px1(%f,%f)-px2(%f,%f)>=%f');
-      if test_img(data(2),data(3)) - test_img(data(4),data(5)) >= data(6)
-       
-      end
 
-     
+      data= sscanf(tree.get(node),'Samples:%f,px1(%f,%f)-px2(%f,%f)>=%f');
+      childs = tree.getchildren(node);
+      if abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5))) >= data(6)
+         testSampleInTree(tree,childs(2) , test_img, gaze );
+	 abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
+      else
+	 abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
+         testSampleInTree(tree, childs(1), test_img, gaze );
+      end
+      
    end
 
 
@@ -241,7 +248,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 		for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
 		  for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
                     if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2) < 6.5             
-		     for thres = 1:5
+		     for thres = 1:100
 			
 			
 
