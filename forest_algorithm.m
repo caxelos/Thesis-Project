@@ -19,7 +19,7 @@ fid = H5F.open('myfile.h5', 'H5F_ACC_RDONLY', 'H5P_DEFAULT');
 
 
 
-%samplesInTree = zeros(140);
+samplesInTree = zeros(140);
 
 for i = 1:140 %for each tree
 
@@ -103,12 +103,9 @@ for i = 1:140 %for each tree
 	end
 
 
-	clear('curr_rnearest');
-	clear('curr_center');
-	clear('curr_imgs');
-	clear('curr_gazes');
-	clear('curr_poses');
+	
 end
+
 
 
 	%%%%%%%% Now that we created each tree's data, lets implement the algorithm %%%%%%%%%
@@ -127,11 +124,15 @@ end
 	%      e) right 2d gaze angle	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-	for i = 1:140
+	
+	% xtise mono 6 gia logous oikonomias. Meta vgale tin if
+	for i = 1:140 
+	   
 	   if i == 128 || i == 32 || i == 129 || i == 91 || i == 130 || i == 126
+	      
 	      trees(i) = tree(strcat('RegressionTree_', num2str(i) ));
 	      trees(i) = buildRegressionTree( samplesInTree(i), treeImgs(i,:,:,:),  treeGazes(i,:,:), HEIGHT, WIDTH, trees(i), 1 );
+	
 	      disp(trees(i).tostring);
            end
 
@@ -165,13 +166,16 @@ end
 	ntestsamples = length( test_imgs(:,1,1,1) );
 	%for j = 1:ntestsamples
 	   
-	   gaze_predict = [0 0];  
+	   gaze_predict = [0 0]';  
 	   for k = 1:(R+1)%each samples, run the R+1 trees
-	    % gaze_predict = gaze_predict + testSampleInTree(trees(test_rnearest(1,k)), 1, test_imgs(1,1,:,:), test_gazes(1,:) );
-		test_rnearest(1,k)
-		testSampleInTree(trees(test_rnearest(1,k)), 1, test_imgs(1,1,:,:), test_gazes(1,:) );
+	  	
+	   	gaze_predict = gaze_predict + testSampleInTree(trees(test_rnearest(1,k)), 1, test_imgs(1,1,:,:), test_gazes(1,:) );
+		%testSampleInTree(trees(test_rnearest(1,k)), 1, test_imgs(1,1,:,:), test_gazes(1,:) );
 
 	   end
+	   gaze_predict = gaze_predict/(R+1)
+
+
 	
 	H5D.close(test_rnearestID);
 	H5D.close(test_imgsID);
@@ -194,10 +198,12 @@ end
 
 
 function val = testSampleInTree(tree, node, test_img, gaze )
-	
-   if tree.isleaf(node) 
-      val = sscanf(tree.get(node),'(%f,%f)');
+   val = [100000 100000];	
 
+
+   if tree.isleaf(node) 
+      val = sscanf(tree.get(node),'(%f,%f)')
+	
    else
      
       %'Samples:29,px1(1,2)-px2(5,7)>=3'
@@ -211,12 +217,9 @@ function val = testSampleInTree(tree, node, test_img, gaze )
       data= sscanf(tree.get(node),'Samples:%f,px1(%f,%f)-px2(%f,%f)>=%f');
       childs = tree.getchildren(node);
       if abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5))) >= data(6)
-	 abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
-         testSampleInTree(tree,childs(2) , test_img, gaze );
-	
+         val = testSampleInTree(tree,childs(2) , test_img, gaze );
       else
-	 abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
-         testSampleInTree(tree, childs(1), test_img, gaze );
+         val = testSampleInTree(tree, childs(1), test_img, gaze );
       end
       
    end
@@ -237,10 +240,12 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	bestThres  =     10000; % ah, and here
 	
 
-	tic
+	%tic
 
 	ltree_tempGazes = zeros(fatherSize,2);
 	rtree_tempGazes = zeros(fatherSize,2);
+	lImgs = zeros(fatherSize);
+	rImgs = zeros(fatherSize);
 	for px1_vert = 1:HEIGHT
 
 		
@@ -252,7 +257,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 		for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
 		  for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
                     if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2) < 6.5             
-		     for thres = 1:5
+		     for thres = 1:2
 			
 			
 
@@ -260,18 +265,22 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			r = 0;			
 			meanLeftGaze = [0 0];
 			meanRightGaze = [0 0];
-			for j = 1:fatherSize	
-			                            
+			for j = 1:fatherSize
+			   	                    
 			   if  abs(treeImgs(1, j, px1_vert, px1_hor) - treeImgs(1, j,px2_vert, px2_hor))  < thres 
 			      %left child
 
 			      l = l + 1;
 			      ltree_tempGazes( l ) = treeGazes(1,j);
+				 
 			      lImgs(l) = j; 
 			       				      
 			      
-			      meanLeftGaze = meanLeftGaze + treeGazes(1,j);%,:);	
-			  	
+			      meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(1,j,1);%,:);
+			      meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(1,j,2);%,:);	
+			  
+
+			 %meanLeftGaze = meanLeftGaze + treeGazes(1,j);%,:);	
 			   else
 			      %right child
 
@@ -280,10 +289,12 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			      rImgs(r) = j;  				      
 			      
  
-			      meanRightGaze = meanRightGaze + treeGazes(1,j);%,:);		
+			      meanRightGaze(1) = meanRightGaze(1) + treeGazes(1,j,1);%,:);
+			      meanRightGaze(2) = meanRightGaze(2) + treeGazes(1,j,2);
+			 %meanRightGaze = meanRightGaze + treeGazes(1,j);	
 			 			
 			   end
-
+			
 
 			end
 		        
@@ -300,7 +311,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			for j = 1:l
 			   squareError=squareError + (meanLeftGaze(1)-ltree_tempGazes(j,1) )^2 + (meanLeftGaze(2)-ltree_tempGazes(j,2))^2;	
 			end
-
+		
 			if squareError < minSquareError
 			   minSquareError = squareError;			
 			   minPx1_vert =    px1_vert; % something random here
@@ -309,12 +320,12 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			   minPx2_hor =     px2_hor; % and here
 			   bestThres  =     thres;
 			   
-		
+			   best_rImgs = zeros(r);
 			   for o = 1:r
 			      best_rImgs(o) = rImgs(o);%%%%%%%%%%%%
 			   end
 
-			 
+			   best_lImgs = zeros(l);
 			   for o = 1:l
 			      best_lImgs(o) = lImgs(o);%%%%%%%%%%%%
 			   end				
@@ -336,8 +347,15 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	   end	
 		
         end
-   	toc 
+
+   	%toc 
 	%gia ena node: 42.062913 
+
+	ltree.Imgs = zeros(1,ltree.size, HEIGHT, WIDTH);
+	ltree.gazes = zeros(1, ltree.size, 2);%prosekse stis anatheseis
+
+	rtree.Imgs = zeros(1,rtree.size, HEIGHT, WIDTH);
+	rtree.gazes = zeros(1,rtree.size, 2);	
 
 	if (ltree.size > 0 && rtree.size > 0)
          	trees=trees.set(node_i,strcat('Samples:',num2str(fatherSize),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));  
@@ -350,7 +368,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	      ltree.Imgs(1, o, :, :) = treeImgs(1,best_lImgs(o), :, :);
 	      ltree.gazes(1, o,:) = treeGazes(1,best_lImgs(o),:);
 	   end
- 	
+
 	   [trees lnode] = trees.addnode(node_i, strcat('(', num2str(ltree.meanGaze(1)), ',', num2str(ltree.meanGaze(2)), ')'));
 	   [trees rnode] = trees.addnode(node_i, strcat('(', num2str(rtree.meanGaze (1)), ',', num2str(rtree.meanGaze (2)), ')'));
 	  
