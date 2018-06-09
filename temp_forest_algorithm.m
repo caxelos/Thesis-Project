@@ -262,30 +262,29 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	end	
         turn = 1;
 
+labindex	
+	minSquareError = zeros(1,3);
 	
+	%minSquareError = parallel.pool.Constant(minSquareErrorX) 	
 	c = parcluster;
 	c.NumWorkers = 3;
 	saveProfile(c);
-        mypool = parpool('local',3); 
+        mypool =  parpool('local',3);%gcp('nocreate');% 
 
-	w = Composite(3);  % One element per worker in the pool
-     	w{1} = 1;
-	w{2} = 2;
-	w{3} = 3;
+	wnum = Composite(3);  % One element per worker in the pool
+     	wnum{1} = 1;
+	wnum{2} = 2;
+	wnum{3} = 3;
+ spmd;
+	
+       
+       poulo = 0;
+       while poulo == 0 %3
 
-
-
-
-
-
-
- 
-
-       while 1 %3
-	   spmd;  
-        
+	  
 	   %for each node
-	   temp_minSquareError = 10000; % a huge value
+	   temp_minSquareError = distributed(zeros(1)); % a huge value
+	   temp_minSquareError = 10000;
 	   minPx1_vert =    10000; % something random here
 	   minPx1_hor =     10000; % also here
 	   minPx2_vert=     10000; % and here..
@@ -302,7 +301,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 	   for px1_vert = 1:HEIGHT		
 	         for px1_horz = 0:(WIDTH-3):3
-	            px1_hor = px1_horz + labindex;
+	            px1_hor = px1_horz + wnum;
 
 	            %for px1_hor = 1:WIDTH
 	   	    % sorry for the huge equations below
@@ -347,7 +346,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			        end
 		
 			        if squareError < temp_minSquareError
-			           temp_minSquareError = squareError;	
+			           minSquareError(wnum) = squareError;	
 		
 			           minPx1_vert =    px1_vert; % something random here
 			           minPx1_hor =     px1_hor; % also here
@@ -377,6 +376,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	         end %px1_hor
            end %endof px1_vert
 
+
 	   %%% store the workers results %%%
 	   %lImgs(w,:) = temp_lImgs;
 	   %rImgs(w,:) = temp_rImgs;
@@ -386,14 +386,27 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	   %rtreeSize(w) = temp_rtreeSize;
 	   %rtree_meanGaze(w) =  temp_rtree_meanGaze;
 	   %ltree_meanGaze(w) =  temp_ltree_meanGaze;
-	   minSquareError(labindex) = temp_minSquareError;			
-	   %minPx1_vert(w) = temp_minPx1_vert; 
-	   %minPx1_hor(w) = temp_minPx1_hor; 
-	   %minPx2_vert(w) = temp_minPx2_vert 
-	   %minPx2_hor(w) = temp_minPx2_hor; 
-	   %bestThres(w) = temp_bestThres;
+ 
 
+	   labBarrier;
+	 	
+          %dataReceived = labSendReceive(rcvWkrIdx,srcWkrIdx,dataSent)
+
+	 
+	   
+	   %receive from right
+	   minSquareError(1+mod(wnum,3)) = labSendReceive(1+ mod(wnum-2,3) , 1+mod(wnum,3)    ,minSquareError(wnum) );
+
+	   labBarrier;
+	   %receive from left
+	   minSquareError(1+ mod(wnum-2,3)) = labSendReceive( 1+mod(wnum,3), 1+ mod(wnum-2,3) ,minSquareError(wnum) );
+	   
+labBarrier;
+	   %minSquareError(wnum) =  minSquareError(wnum) + temp_minSquareError
 	
+
+
+
 	   %%% sychronize before finding the best worker %%%
 	   labBarrier;
 	 	
@@ -401,15 +414,14 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	   bestWorker = 1;
 	   minError = minSquareError(1);	
 	   for k = 2:3
-	   %   if minSquareError(k) < minError
-	   %      minError = minSquareError(k);
- %		 bestWorker = k;
-%	      end
+	      if minSquareError(k) < minError
+	         minError = minSquareError(k);
+ 		 bestWorker = k;
+	      end
 	   end
+	
 
-
-	end
-        if bestWorker == labindex
+        if bestWorker == wnum
 
 	   %%%%%% Recursion starts here %%%%%	
 	   if (ltreeSize > 0 && rtreeSize > 0)
@@ -439,27 +451,28 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 		 currPtrs(o) = final_rImgs(o);
 	      end	
  
-           else %2
+           else  %2
 	      if stackindex == 0 
 		 delete( mypool );
-		
-	         return;
-	      end 
-	      %%%   prepare next iteration data %%%  
-	      %fprintf('pop:\n'); 
-	      fatherSize = savedSize(stackindex);
-	      node_i = savedNode(stackindex);
- 	      %node_i
-	      for o = 1:fatherSize
-	         currPtrs(o) = savePtrs(stackindex,o);
-	      end
-	      stackindex = stackindex - 1;	
 
-	      if turn 
-	         turn = 0;
-	      else%1 
-	         %ftiakse node2
-	      end%1
+		 poulo = 1;		         
+	      else 
+	         %%%   prepare next iteration data %%%  
+	         %fprintf('pop:\n'); 
+	         fatherSize = savedSize(stackindex);
+	         node_i = savedNode(stackindex);
+ 	         %node_i
+	         for o = 1:fatherSize
+	            currPtrs(o) = savePtrs(stackindex,o);
+	         end
+	         stackindex = stackindex - 1;	
+
+	         if turn 
+	            turn = 0;
+	         else%1 
+	            %ftiakse node2
+	         end%1
+	      end
 	   end %2	
 	   %stackindex
 	   %turn
@@ -471,5 +484,6 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	labBarrier;
    end %while loop
 
+   end
 end
 
