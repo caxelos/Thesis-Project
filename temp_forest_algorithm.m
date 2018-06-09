@@ -259,14 +259,33 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	currPtrs(1) = 1;
 	for i = 2:fatherSize
 	   currPtrs(i) = currPtrs(i-1) + 1;
-	end
+	end	
+        turn = 1;
 
-       turn = 1;
+	
+	c = parcluster;
+	c.NumWorkers = 3;
+	saveProfile(c);
+        mypool = parpool('local',3); 
 
-       parfor w = 1:3
+	w = Composite(3);  % One element per worker in the pool
+     	w{1} = 1;
+	w{2} = 2;
+	w{3} = 3;
+
+
+
+
+
+
+
+ 
+
        while 1 %3
+	   spmd;  
+        
 	   %for each node
-	   minSquareError = 10000; % a huge value
+	   temp_minSquareError = 10000; % a huge value
 	   minPx1_vert =    10000; % something random here
 	   minPx1_hor =     10000; % also here
 	   minPx2_vert=     10000; % and here..
@@ -274,16 +293,16 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	   bestThres  =     10000; % ah, and here
 	
 	 
-	   temp_lImgs= zeros(1,fatherSize);
-	   temp_rImgs = zeros(1,fatherSize);
-	   temp_final_rImgs = zeros(1,fatherSize);
-	   temp_final_lImgs = zeros(1,fatherSize);			           
+	   lImgs= zeros(1,fatherSize);
+	   rImgs = zeros(1,fatherSize);
+	   final_rImgs = zeros(1,fatherSize);
+	   final_lImgs = zeros(1,fatherSize);			           
 	   
 
 
 	   for px1_vert = 1:HEIGHT		
 	         for px1_horz = 0:(WIDTH-3):3
-	            px1_hor = px1_horz + w
+	            px1_hor = px1_horz + labindex;
 
 	            %for px1_hor = 1:WIDTH
 	   	    % sorry for the huge equations below
@@ -302,14 +321,14 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			              %left child
 
 			              l = l + 1;
-			              temp_lImgs(l) = currPtrs(j); 
+			              lImgs(l) = currPtrs(j); 
 			      	            
 			              meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
 			              meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(1,currPtrs(j),2);%,:);	
 			           else
 			              %right child
 			              r = r + 1;
-			              temp_rImgs(r) = currPtrs(j);  				      
+			              rImgs(r) = currPtrs(j);  				      
 			      
 			              meanRightGaze(1) = meanRightGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
 			              meanRightGaze(2) = meanRightGaze(2) + treeGazes(1,currPtrs(j),2);
@@ -321,45 +340,41 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 			        squareError = 0;
 			        for j = 1:r
-	 		           squareError=squareError + (meanRightGaze(1)-treeGazes(1,temp_rImgs(r), 1))^2 + (meanRightGaze(2)-treeGazes(1,temp_rImgs(r), 2))^2;
+	 		           squareError=squareError + (meanRightGaze(1)-treeGazes(1,rImgs(r), 1))^2 + (meanRightGaze(2)-treeGazes(1,rImgs(r), 2))^2;
 		                end
 			        for j = 1:l	
-  			           squareError=squareError + (meanLeftGaze(1)-treeGazes(1,temp_lImgs(l), 1))^2 + (meanRightGaze(2)-treeGazes(1,temp_lImgs(l), 2))^2;	
+  			           squareError=squareError + (meanLeftGaze(1)-treeGazes(1,lImgs(l), 1))^2 + (meanRightGaze(2)-treeGazes(1,lImgs(l), 2))^2;	
 			        end
 		
-			        if squareError < minSquareError
-			           temp_minSquareError = squareError;			
-			           temp_minPx1_vert =    px1_vert; % something random here
-			           temp_minPx1_hor =     px1_hor; % also here
-			   	   temp_minPx2_vert=     px2_vert; % and here..
-			   	   temp_minPx2_hor =     px2_hor; % and here
-			   	   temp_bestThres  =     thres;
+			        if squareError < temp_minSquareError
+			           temp_minSquareError = squareError;	
+		
+			           minPx1_vert =    px1_vert; % something random here
+			           minPx1_hor =     px1_hor; % also here
+			   	   minPx2_vert=     px2_vert; % and here..
+			   	   Px2_hor =     px2_hor; % and here
+			   	   bestThres  =     thres;
 			   
 			   
 			   	   for o = 1:r
-			              temp_final_rImgs(o) = rImgs(o);%%%%%%%%%%%%
+			              final_rImgs(o) = rImgs(o);%%%%%%%%%%%%
 			           end
 
 			   	   for o = 1:l
-			              temp_final_lImgs(o) = lImgs(o);%%%%%%%%%%%%
+			              final_lImgs(o) = lImgs(o);%%%%%%%%%%%%
 			           end				
 
-			   	   temp_ltreeSize = l;
-			   	   temp_rtreeSize = r;
+			   	   ltreeSize = l;
+			   	   rtreeSize = r;
 		
-                           	   temp_rtree_meanGaze = meanRightGaze;
-			   	   temp_ltree_meanGaze = meanLeftGaze;
+                           	   rtree_meanGaze = meanRightGaze;
+			   	   ltree_meanGaze = meanLeftGaze;
 				end	 	
 		             end%thres
 		          end%end if < 6.5	
 		       end%px2_hor
 		    end%px2_vers 	
-
-	         end %px1_hor 
-
-	        
-	      end %end of parfor
-			
+	         end %px1_hor
            end %endof px1_vert
 
 	   %%% store the workers results %%%
@@ -371,7 +386,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	   %rtreeSize(w) = temp_rtreeSize;
 	   %rtree_meanGaze(w) =  temp_rtree_meanGaze;
 	   %ltree_meanGaze(w) =  temp_ltree_meanGaze;
-	   minSquareError(w) = temp_minSquareError;			
+	   minSquareError(labindex) = temp_minSquareError;			
 	   %minPx1_vert(w) = temp_minPx1_vert; 
 	   %minPx1_hor(w) = temp_minPx1_hor; 
 	   %minPx2_vert(w) = temp_minPx2_vert 
@@ -381,17 +396,20 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	
 	   %%% sychronize before finding the best worker %%%
 	   labBarrier;
-	
+	 	
+
 	   bestWorker = 1;
 	   minError = minSquareError(1);	
 	   for k = 2:3
-	      if minSquareError(k) < minError
-	         minError = minSquareError(k)
-		 bestWorker = k;
-	      end
+	   %   if minSquareError(k) < minError
+	   %      minError = minSquareError(k);
+ %		 bestWorker = k;
+%	      end
 	   end
 
-   if bestWorker == w   
+
+	end
+        if bestWorker == labindex
 
 	   %%%%%% Recursion starts here %%%%%	
 	   if (ltreeSize > 0 && rtreeSize > 0)
@@ -399,8 +417,8 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
  
               trees=trees.set(node_i,strcat('Samples:',num2str(fatherSize),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));  
 
-	      [trees lnode] = trees.addnode(node_i, strcat('(', num2str(ltree.meanGaze(1)), ',', num2str(ltree.meanGaze(2)), ')'));
-	      [trees rnode] = trees.addnode(node_i, strcat('(', num2str(rtree.meanGaze (1)), ',', num2str(rtree.meanGaze (2)), ')'));
+	      [trees lnode] = trees.addnode(node_i, strcat('(', num2str(ltree_meanGaze(1)), ',', num2str(ltree_meanGaze(2)), ')'));
+	      [trees rnode] = trees.addnode(node_i, strcat('(', num2str(rtree_meanGaze (1)), ',', num2str(rtree_meanGaze (2)), ')'));
 
 	      % start saving the left brother
 	      
@@ -423,7 +441,9 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
  
            else %2
 	      if stackindex == 0 
-	         break;
+		 delete( mypool );
+		
+	         return;
 	      end 
 	      %%%   prepare next iteration data %%%  
 	      %fprintf('pop:\n'); 
@@ -443,15 +463,13 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	   end %2	
 	   %stackindex
 	   %turn
-          stackindex 
+         
 
-	 end 
+        end %if bestWorker == labindex 
 
 	%%% sychronize all threads before the next loop %%%	
 	labBarrier;
-
-
    end %while loop
- 
+
 end
 
