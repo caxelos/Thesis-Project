@@ -1,4 +1,4 @@
-function forest_algorithm()
+function tempforest
 
 clear all;
 clc;
@@ -204,7 +204,7 @@ function val = testSampleInTree(tree, node, test_img, gaze )
 
 
    if tree.isleaf(node) 
-      val = sscanf(tree.get(node),'(%f,%f)');
+      val = sscanf(tree.get(node),'(%f,%f)')
 	
    else
      
@@ -240,10 +240,6 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	stackindex = 0;
 
 
-
-		
-	ltree_tempGazes = zeros(fatherSize,2);
-	rtree_tempGazes = zeros(fatherSize,2);
 	lImgs = zeros(fatherSize);
 	rImgs = zeros(fatherSize);
 
@@ -278,10 +274,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 		for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
 		  for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
                     if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2) < 6.5             
-		     for thres = 1:50
-			
-			
-
+		     for thres = 1:25
 			l = 0;
 			r = 0;			
 			meanLeftGaze = [0 0];
@@ -294,17 +287,16 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 			      l = l + 1;
 			      ltree_tempGazes( l ) = treeGazes(1, currPtrs(j) );
 			      lImgs(l) = currPtrs(j); 
-			       				      
-			      
+			 	            
 			      meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
 			      meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(1,currPtrs(j),2);%,:);	
-			  
+			     
 	
 			   else
 			      %right child
 
 			      r = r + 1;
-			      rtree_tempGazes(r) = treeGazes(1,currPtrs(j) );
+			      %rtree_tempGazes(r) = treeGazes(1,currPtrs(j) );
 			      rImgs(r) = currPtrs(j);  				      
 			      
 			      meanRightGaze(1) = meanRightGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
@@ -317,10 +309,13 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 			squareError = 0;
 			for j = 1:r
-			   squareError=squareError + (meanRightGaze(1)-rtree_tempGazes(j,1))^2 + (meanRightGaze(2)-rtree_tempGazes(j,2))^2;	
+			   %squareError=squareError + (meanRightGaze(1)-rtree_tempGazes(j,1))^2 + (meanRightGaze(2)-rtree_tempGazes(j,2))^2;
+	 		   squareError=squareError + (meanRightGaze(1)-treeGazes(1,rImgs(r), 1))^2 + (meanRightGaze(2)-treeGazes(1,rImgs(r), 2))^2;
 			end
 			for j = 1:l
-			   squareError=squareError + (meanLeftGaze(1)-ltree_tempGazes(j,1) )^2 + (meanLeftGaze(2)-ltree_tempGazes(j,2))^2;	
+			  % squareError=squareError + (meanLeftGaze(1)-ltree_tempGazes(j,1) )^2 + (meanLeftGaze(2)-ltree_tempGazes(j,2))^2;	
+  			   squareError=squareError + (meanLeftGaze(1)-treeGazes(1,lImgs(l), 1))^2 + (meanRightGaze(2)-treeGazes(1,lImgs(l), 2))^2;	
+
 			end
 		
 			if squareError < minSquareError
@@ -342,10 +337,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 			   ltree.size = l;
 			   rtree.size = r;
-			   if node_i == 2
-			       ltree.size 
-			   rtree.size 
-			   end		
+		
                            rtree.meanGaze = meanRightGaze;
 			   ltree.meanGaze = meanLeftGaze;
 			end
@@ -374,11 +366,11 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	      % start saving the left brother
 	      
 	      stackindex = stackindex + 1;
-	      fprintf('push:\n');
+	      %fprintf('push:\n');
 	      savedSize(stackindex) = ltree.size;
 	      %savedSize(stackindex)
 	      savedNode(stackindex) = lnode;
-		lnode
+		
 	      for o = 1:ltree.size
 	         savePtrs(stackindex,o) = final_lImgs(o);
 	      end
@@ -395,10 +387,10 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	         break;
 	   end 
 	   %%%   prepare next iteration data %%%  
-	   fprintf('pop:\n'); 
+	   %fprintf('pop:\n'); 
 	   fatherSize = savedSize(stackindex);
 	   node_i = savedNode(stackindex);
- 		node_i
+ 	   %node_i
 	   for o = 1:fatherSize
 	      currPtrs(o) = savePtrs(stackindex,o);
 	   end
@@ -407,12 +399,16 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	   if turn 
 	      turn = 0;
 	   else%1 
-	      
+	      %ftiakse node2
 	   end%1
 	end %2	
 	%stackindex
 	%turn
+
+       stackindex 
    end %3
+ 
 
 
 end
+
