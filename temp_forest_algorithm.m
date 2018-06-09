@@ -239,12 +239,12 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	MAX_DEPTH = 100;
 	stackindex = 0;
 
+	
+	lImgs = zeros(3,fatherSize);
+	rImgs = zeros(3,fatherSize);
 
-	lImgs = zeros(fatherSize);
-	rImgs = zeros(fatherSize);
-
-	final_rImgs = zeros(fatherSize);
-	final_lImgs = zeros(fatherSize);
+	final_rImgs = zeros(3, fatherSize);
+	final_lImgs = zeros(3, fatherSize);
 
 	%%% recursion staff %%%
 	savedSize = zeros(MAX_DEPTH);
@@ -256,112 +256,117 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	   currPtrs(i) = currPtrs(i-1) + 1;
 	end
 
-   turn = 1;
-   while 1 %3
-	%for each node
-	minSquareError = 10000; % a huge value
-	minPx1_vert =    10000; % something random here
-	minPx1_hor =     10000; % also here
-	minPx2_vert=     10000; % and here..
-	minPx2_hor =     10000; % and here 
-	bestThres  =     10000; % ah, and here
-
-	for px1_vert = 1:HEIGHT		
-	   for px1_hor = 1:WIDTH
-	   	% sorry for the huge equations below
-		% these equations are made in order to prevent 2 pixels
-		% to be examined twice
-		for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
-		  for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
-                    if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2) < 6.5             
-		     for thres = 1:25
-			l = 0;
-			r = 0;			
-			meanLeftGaze = [0 0];
-			meanRightGaze = [0 0];
-			for j = 1:fatherSize
-			   	                    
-			   if  abs(treeImgs(1, currPtrs(j), px1_vert, px1_hor) - treeImgs(1, currPtrs(j),px2_vert, px2_hor))  < thres 
-			      %left child
-
-			      l = l + 1;
-			      ltree_tempGazes( l ) = treeGazes(1, currPtrs(j) );
-			      lImgs(l) = currPtrs(j); 
-			 	            
-			      meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
-			      meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(1,currPtrs(j),2);%,:);	
-			     
+       turn = 1;
+       while 1 %3
+	   %for each node
+	   minSquareError = 10000; % a huge value
+	   minPx1_vert =    10000; % something random here
+	   minPx1_hor =     10000; % also here
+	   minPx2_vert=     10000; % and here..
+	   minPx2_hor =     10000; % and here 
+	   bestThres  =     10000; % ah, and here
 	
-			   else
-			      %right child
+	 parfor w = 1:3
+	   temp_lImgs= zeros(1,fatherSize);
+	   temp_rImgs = zeros(1,fatherSize);
+	   temp_final_rImgs = zeros(1,fatherSize);
+	   temp_final_lImgs = zeros(1,fatherSize);			           
 
-			      r = r + 1;
-			      %rtree_tempGazes(r) = treeGazes(1,currPtrs(j) );
-			      rImgs(r) = currPtrs(j);  				      
+
+
+	   for px1_vert = 1:HEIGHT		
+	         for px1_horz = 0:(WIDTH-3):3
+	            px1_hor = px1_horz + w
+
+	            %for px1_hor = 1:WIDTH
+	   	    % sorry for the huge equations below
+		    % these equations are made in order to prevent 2 pixels
+		    % to be examined twice
+		    for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
+		       for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
+                          if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2) < 6.5             
+		             for thres = 1:25
+			        l = 0;
+			        r = 0;			
+			        meanLeftGaze = [0 0];
+			        meanRightGaze = [0 0];
+			        for j = 1:fatherSize
+			   	   if  abs(treeImgs(1, currPtrs(j), px1_vert, px1_hor) - treeImgs(1, currPtrs(j),px2_vert, px2_hor))  < thres 
+			              %left child
+
+			              l = l + 1;
+			              temp_lImgs(l) = currPtrs(j); 
+			      	            
+			              meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
+			              meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(1,currPtrs(j),2);%,:);	
+			           else
+			              %right child
+			              r = r + 1;
+			              temp_rImgs(r) = currPtrs(j);  				      
 			      
-			      meanRightGaze(1) = meanRightGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
-			      meanRightGaze(2) = meanRightGaze(2) + treeGazes(1,currPtrs(j),2);
-			   end
-			end
+			              meanRightGaze(1) = meanRightGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
+			              meanRightGaze(2) = meanRightGaze(2) + treeGazes(1,currPtrs(j),2);
+			           end
+			        end
 	
-			meanLeftGaze = meanLeftGaze  / l;
-			meanRightGaze = meanRightGaze/ r;
+			        meanLeftGaze = meanLeftGaze  / l;
+			        meanRightGaze = meanRightGaze/ r;
 
-			squareError = 0;
-			for j = 1:r
-			   %squareError=squareError + (meanRightGaze(1)-rtree_tempGazes(j,1))^2 + (meanRightGaze(2)-rtree_tempGazes(j,2))^2;
-	 		   squareError=squareError + (meanRightGaze(1)-treeGazes(1,rImgs(r), 1))^2 + (meanRightGaze(2)-treeGazes(1,rImgs(r), 2))^2;
-			end
-			for j = 1:l
-			  % squareError=squareError + (meanLeftGaze(1)-ltree_tempGazes(j,1) )^2 + (meanLeftGaze(2)-ltree_tempGazes(j,2))^2;	
-  			   squareError=squareError + (meanLeftGaze(1)-treeGazes(1,lImgs(l), 1))^2 + (meanRightGaze(2)-treeGazes(1,lImgs(l), 2))^2;	
-
-			end
+			        squareError = 0;
+			        for j = 1:r
+	 		           squareError=squareError + (meanRightGaze(1)-treeGazes(1,rImgs(r), 1))^2 + (meanRightGaze(2)-treeGazes(1,rImgs(r), 2))^2;
+		                end
+			        for j = 1:l	
+  			           squareError=squareError + (meanLeftGaze(1)-treeGazes(1,lImgs(l), 1))^2 + (meanRightGaze(2)-treeGazes(1,lImgs(l), 2))^2;	
+			        end
 		
-			if squareError < minSquareError
-			   minSquareError = squareError;			
-			   minPx1_vert =    px1_vert; % something random here
-			   minPx1_hor =     px1_hor; % also here
-			   minPx2_vert=     px2_vert; % and here..
-			   minPx2_hor =     px2_hor; % and here
-			   bestThres  =     thres;
+			        if squareError < minSquareError
+			           minSquareError = squareError;			
+			           minPx1_vert =    px1_vert; % something random here
+			           minPx1_hor =     px1_hor; % also here
+			   	   minPx2_vert=     px2_vert; % and here..
+			   	   minPx2_hor =     px2_hor; % and here
+			   	   bestThres  =     thres;
 			   
 			   
-			   for o = 1:r
-			      final_rImgs(o) = rImgs(o);%%%%%%%%%%%%
-			   end
+			   	   for o = 1:r
+			              temp_final_rImgs(o) = rImgs(o);%%%%%%%%%%%%
+			           end
 
-			   for o = 1:l
-			      final_lImgs(o) = lImgs(o);%%%%%%%%%%%%
-			   end				
+			   	   for o = 1:l
+			              temp_final_lImgs(o) = lImgs(o);%%%%%%%%%%%%
+			           end				
 
-			   ltree.size = l;
-			   rtree.size = r;
+			   	   ltree.size = l;
+			   	   rtree.size = r;
 		
-                           rtree.meanGaze = meanRightGaze;
-			   ltree.meanGaze = meanLeftGaze;
-			end
- 			 		 	
-		     end%thres
-		    end%end if < 6.5
-		
-		   end%px2_hor
-		end%px2_vers
- 	
-	   end	
-		
-        end
+                           	   rtree.meanGaze = meanRightGaze;
+			   	   ltree.meanGaze = meanLeftGaze;
+				end	 	
+		             end%thres
+		          end%end if < 6.5	
+		       end%px2_hor
+		    end%px2_vers 	
 
-	%%%%%% Recursion starts here %%%%%	
-	if (ltree.size > 0 && rtree.size > 0)
-  	   turn = 1;
+	         end %px1_hor 
+
+	        
+	      end %end of parfor
+			
+           end %endof px1_vert
+	   lImgs(w,:) = temp_lImgs;
+	   rImgs(w,:) = temp_rImgs;
+	   final_rImgs(w,:) = temp_final_rImgs(o);
+	   final_lImgs(w,:) = temp_final_Imgs(o);
+
+	   %%%%%% Recursion starts here %%%%%	
+	   if (ltree.size > 0 && rtree.size > 0)
+  	      turn = 1;
  
-           trees=trees.set(node_i,strcat('Samples:',num2str(fatherSize),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));  
+              trees=trees.set(node_i,strcat('Samples:',num2str(fatherSize),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));  
 
-
-
-	   [trees lnode] = trees.addnode(node_i, strcat('(', num2str(ltree.meanGaze(1)), ',', num2str(ltree.meanGaze(2)), ')'));
-	   [trees rnode] = trees.addnode(node_i, strcat('(', num2str(rtree.meanGaze (1)), ',', num2str(rtree.meanGaze (2)), ')'));
+	      [trees lnode] = trees.addnode(node_i, strcat('(', num2str(ltree.meanGaze(1)), ',', num2str(ltree.meanGaze(2)), ')'));
+	      [trees rnode] = trees.addnode(node_i, strcat('(', num2str(rtree.meanGaze (1)), ',', num2str(rtree.meanGaze (2)), ')'));
 
 	      % start saving the left brother
 	      
@@ -381,34 +386,31 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	      for o = 1:rtree.size
 		 currPtrs(o) = final_rImgs(o);
 	      end	
-
-	else %2
-	   if stackindex == 0 
-	         break;
-	   end 
-	   %%%   prepare next iteration data %%%  
-	   %fprintf('pop:\n'); 
-	   fatherSize = savedSize(stackindex);
-	   node_i = savedNode(stackindex);
- 	   %node_i
-	   for o = 1:fatherSize
-	      currPtrs(o) = savePtrs(stackindex,o);
-	   end
-	   stackindex = stackindex - 1;	
-
-	   if turn 
-	      turn = 0;
-	   else%1 
-	      %ftiakse node2
-	   end%1
-	end %2	
-	%stackindex
-	%turn
-
-       stackindex 
-   end %3
  
+           else %2
+	      if stackindex == 0 
+	         break;
+	      end 
+	      %%%   prepare next iteration data %%%  
+	      %fprintf('pop:\n'); 
+	      fatherSize = savedSize(stackindex);
+	      node_i = savedNode(stackindex);
+ 	      %node_i
+	      for o = 1:fatherSize
+	         currPtrs(o) = savePtrs(stackindex,o);
+	      end
+	      stackindex = stackindex - 1;	
 
-
+	      if turn 
+	         turn = 0;
+	      else%1 
+	         %ftiakse node2
+	      end%1
+	   end %2	
+	   %stackindex
+	   %turn
+          stackindex 
+        end %3
+ 
 end
 
