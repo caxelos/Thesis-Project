@@ -286,7 +286,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	poulo = zeros(1);	
 	bestworker = zeros(1);
 	container = [];
-	container.data = zeros(1,15);
+	container.data = zeros(1,16);
 	%container.trees = [];
 	container.currPtrs = zeros(1,fatherSize);
 	container.savedPtrs = zeros(1,fatherSize);
@@ -512,7 +512,9 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	    if state == 1
 		minPx1_vert, minPx2_hor, minPx2_vert, minPx2_hor, bestThres 
 
-	       container.data = [state poulo stackindex fatherSize node_i savedNode(stackindex) savedSize(stackindex) minPx1_vert minPx2_hor minxPx2_vert minPx2_hor bestThres rtree_meanGaze(1) rtree_meanGaze(2) ltree_meanGaze(1) ltree_meanGaze(2)   ];
+	       container.data = [state poulo  stackindex  fatherSize  node_i  savedNode(stackindex)  savedSize(stackindex)  minPx1_vert    minPx1_hor  minPx2_vert  minPx2_hor  bestThres  ltree_meanGaze(1)  ltree_meanGaze(2)  rtree_meanGaze(1)  rtree_meanGaze(2) ];
+
+
 
 
 	       for o = 1:fatherSize
@@ -522,7 +524,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	          container.savedPtrs(o) = final_lImgs(o);
 	       end
 	      
-	       container.trees = trees;
+	      % container.trees = trees;
 		  
 	    elseif state == 2
 	       container.data(1) = 2;
@@ -551,9 +553,10 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 
 
 
-	       [trees lnode] = trees.addnode(node_i, strcat('(', num2str(container.data(13) ), ',', num2str(container.data(14)), ')'));
-	       [trees rnode] = trees.addnode(node_i, strcat('(', num2str(container.data(15)), ',', num2str(rtree_meanGaze (container.data(16))), ')'));
+	       [trees lnode] = trees.addnode(node_i, strcat('(', num2str(container.data(13)) , ',', num2str(container.data(14)), ')'));
+	       [trees rnode] = trees.addnode(node_i, strcat('(', num2str(container.data(15)) , ',', num2str(container.data(16)), ')'));
 
+	
 
 	       stackindex = container.data(3);
 	       fatherSize = container.data(4);
