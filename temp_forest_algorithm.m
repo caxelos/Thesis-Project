@@ -452,7 +452,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	      for o = 1:ltreeSize
 	         savedPtrs(stackindex,o) = final_lImgs(o);
 	      end
-
+	 
 	      %%%   prepare data for right son %%%
 	      node_i = rnode;
 	      fatherSize = rtreeSize;
@@ -476,12 +476,11 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	         node_i = savedNode(stackindex);
 		
  	         %node_i
-	         for o = 1:fatherSize
-	           
+	         for o = 1:fatherSize  
 	            currPtrs(o) = savedPtrs(stackindex,o);
 	         end
+		 currPtrs(1:fatherSize)
 		
-		 %savedPtrs(stackindex,:)
 	         stackindex = stackindex - 1;	
 
 	         if turn 
@@ -538,7 +537,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	       savedNode(stackindex) = container.data(6);
 	       savedSize(stackindex) = container.data(7);%ltreeSize
 	   	       
-	       for o = 1:savedSize(stackindex+1)      
+	       for o = 1:savedSize(stackindex)      
 	         savedPtrs(stackindex,o) = container.savedPtrs(o);
 		
 	       end
