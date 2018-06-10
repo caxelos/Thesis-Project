@@ -238,7 +238,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	turn = 1;
 	MAX_DEPTH = 100;
 	stackindex = 0;
-timez = zeros(1,3);
+
 
 	%%% parallel staff %%%	
 	%lImgs = zeros(3,fatherSize);
@@ -487,7 +487,9 @@ timez = zeros(1,3);
         end 
 	%%% sychronize all threads before the next loop %%%
 	%labBroadcast(bestworker)	
-	labBarrier;
+
+
+	
 	if labindex == bestworker
 	    if state == 1
 	       container.data = [state poulo stackindex fatherSize node_i savedNode(stackindex) savedSize(stackindex)];
@@ -495,8 +497,8 @@ timez = zeros(1,3);
 	          container.currPtrs(y) = currPtrs(y);
 	       end
 	       container.trees = trees;
-	       labBroadcast(bestworker,  container);
-	    else if state == 2
+	    
+	    elseif state == 2
 	       container.data(1) = 2;
 	    else
 	       container.data = [state poulo stackindex fatherSize node_i  turn];
@@ -504,8 +506,10 @@ timez = zeros(1,3);
 	          container.currPtrs(y) = savePtrs(stackindex+1,y);
 	       end
 	    end
-	    
-	else
+	end
+	        
+	labBarrier;
+	if labindex ~= bestworker
 	    container = labBroadcast(bestworker);
 	    if container.data(1) == 1 %state = 1
                turn = 1;
@@ -522,7 +526,7 @@ timez = zeros(1,3);
 
 	    else if container.data(1) == 2
 	       poulo = 1;   
-	    else if container.data(1) == 3
+	    else container.data(1) == 3
 	       stackindex = container.data(3);
 	       fatherSize = container.data(4);
 	       node_i = container.data(5);
@@ -531,11 +535,11 @@ timez = zeros(1,3);
 	       for y = 1:fatherSize
 	          currPtrs(y) = container.currPtrs(stackindex+1 , y);
 	       end
-	       
-
 	    end	    
 	    
-	end     
+	else
+	   labBroadcast(bestworker, container);  
+	end
 
 	labBarrier;
 
