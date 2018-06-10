@@ -255,7 +255,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	savedSize = zeros(MAX_DEPTH);
 	savedNode = zeros(MAX_DEPTH);
 	currPtrs = zeros(fatherSize);
-	savePtrs = zeros(MAX_DEPTH, fatherSize) ;
+	savedPtrs = zeros(MAX_DEPTH, fatherSize) ;
 	currPtrs(1) = 1;
 	for i = 2:fatherSize
 	   currPtrs(i) = currPtrs(i-1) + 1;
@@ -282,6 +282,12 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	container.data = zeros(10);
 	container.trees = [];
 	container.currPtrs = zeros(fatherSize);
+	container.savedPtrs = zeros(fatherSize);
+
+	lImgs= zeros(1,fatherSize);
+	rImgs = zeros(1,fatherSize);
+	final_rImgs = zeros(1,fatherSize);
+	final_lImgs = zeros(1,fatherSize);	
 
        while poulo == 0 %3
 
@@ -295,10 +301,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	   bestThres  =     10000; % ah, and here
 	
 	 
-	   lImgs= zeros(1,fatherSize);
-	   rImgs = zeros(1,fatherSize);
-	   final_rImgs = zeros(1,fatherSize);
-	   final_lImgs = zeros(1,fatherSize);			           
+	 		           
 	   
 
 
@@ -443,7 +446,7 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	      savedNode(stackindex) = lnode;
 		
 	      for o = 1:ltreeSize
-	         savePtrs(stackindex,o) = final_lImgs(o);
+	         savefPtrs(stackindex,o) = final_lImgs(o);
 	      end
 
 	      %%%   prepare data for right son %%%
@@ -459,18 +462,18 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 		 state = 2;
  
 	 	 fprintf('EXIIIIIIIIIIT\n');
-			 poulo = 1;
-	 	 %labBroadcast(bestworker,1);		         
+		 poulo = 1;
+			         
 	      else 
 		state = 3;
 	
-	         %%%   prepare next iteration data %%%  
+	        
 	         %fprintf('pop:\n'); 
 	         fatherSize = savedSize(stackindex);
 	         node_i = savedNode(stackindex);
  	         %node_i
 	         for o = 1:fatherSize
-	            currPtrs(o) = savePtrs(stackindex,o);
+	            currPtrs(o) = savedPtrs(stackindex,o);
 	         end
 	         stackindex = stackindex - 1;	
 
@@ -485,27 +488,30 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	   %stackindex
 	   %turn
         end 
-	%%% sychronize all threads before the next loop %%%
-	%labBroadcast(bestworker)	
-
-
 	
 	if labindex == bestworker
 	    if state == 1
 	       container.data = [state poulo stackindex fatherSize node_i savedNode(stackindex) savedSize(stackindex)];
-	       for y = 1:fatherSize
-	          container.currPtrs(y) = currPtrs(y);
+	       for o = 1:fatherSize
+	          container.currPtrs(o) = currPtrs(o);
 	       end
+	       for o = 1:ltreeSize
+	          container.savedPtrs(o) = final_lImgs(o);
+	       end
+	       
 	       container.trees = trees;
 	    
 	    elseif state == 2
 	       container.data(1) = 2;
-	    else
+	    elseif state == 3
 	       container.data = [state poulo stackindex fatherSize node_i  turn];
-	       for y = 1:fatherSize
-	          container.currPtrs(y) = savePtrs(stackindex+1,y);
+	       for o = 1:fatherSize
+	          container.currPtrs(o) = currPtrs(o);
 	       end
+	    else 
+	       fprintf('problemaaaaaaaaaaaaaaaaa\n');
 	    end
+
 	end
 	        
 	labBarrier;
@@ -519,24 +525,33 @@ function trees = buildRegressionTree( fatherSize, treeImgs,  treeGazes, HEIGHT, 
 	       savedNode(stackindex) = container.data(6);
 	       savedSize(stackindex) = container.data(7);%ltreeSize
 	   	       
-	       for y = 1:savedSize(stackindex)
-	         savePtrs(stackindex,y) = container.currPtrs(y);
+	       for o = 1:savedSize(stackindex)      
+	         savedPtrs(stackindex,o) = container.savedPtrs(o);
+		
 	       end
+	       for o = 1:fatherSize
+	          currPtrs(o) = container.currPtrs(o);
+	       end
+
+
 	       trees = container.trees;
 
-	    else if container.data(1) == 2
-	       poulo = 1;   
-	    else container.data(1) == 3
+	    elseif container.data(1) == 2
+	       state = 1;   
+
+
+	    elseif  container.data(1) == 3 %[state poulo stackindex fatherSize node_i  turn];
 	       stackindex = container.data(3);
 	       fatherSize = container.data(4);
 	       node_i = container.data(5);
 	       turn = container.data(6);
 
-	       for y = 1:fatherSize
-	          currPtrs(y) = container.currPtrs(stackindex+1 , y);
+	       for o = 1:fatherSize
+	          currPtrs(o) = container.currPtrs(stackindex+1 , o);
 	       end
-	    end	    
-	    
+	    else
+	       fprintf('problemaaaaaaaaaaa2222222222\n');    
+	    end
 	else
 	   labBroadcast(bestworker, container);  
 	end
