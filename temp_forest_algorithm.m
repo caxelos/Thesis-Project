@@ -248,14 +248,14 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	NUM_OF_WORKERS = 3;
 	MAX_FATHER_SIZE = 200;	
 	
-	treeGazes = Composite();
-	fatherSizeTrees = Composite();
-	treeImgs = Composite();
-	HEIGHT = Composite();
-	WIDTH = Composite();
-	fatherSize = Composite();
+	treeGazes = Composite(NUM_OF_WORKERS);
+	fatherSizeTrees = Composite(NUM_OF_WORKERS);
+	treeImgs = Composite(NUM_OF_WORKERS);
+	HEIGHT = Composite(NUM_OF_WORKERS);
+	WIDTH = Composite(NUM_OF_WORKERS);
+	fatherSize = Composite(NUM_OF_WORKERS);
 
-	turn = 1;
+	
 	
 	for w=1:NUM_OF_WORKERS
 	   treeGazes{w} = treeGazesX;
@@ -264,6 +264,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	   HEIGHT{w} = HEIGHTX;
 	   WIDTH{w} = WIDTHX;
 	   currPtrs{w} = [1:MAX_FATHER_SIZE];
+	   turn{w} = 1;
 	end
 
 	
@@ -309,13 +310,12 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 		
 
 
-   for i = 1:140 % for every tree
+   for i = 1:2 % for every tree
     
        stackindex = 0;
        state = 1;	
        trees(i) = tree(strcat('RegressionTree_', num2str(i) ));
        node_i = 1;
-
        turn = 1;
        currPtrs = [1:fatherSize(i)];
        while state ~= 2 %3
@@ -348,7 +348,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	       for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
 	          for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
                      if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2 ) < 6.5             
-		        for thres = 1:50
+		        for thres = 1:2%50
 			   l = 0;
 			   r = 0;			
 			   meanLeftGaze = [0 0];
@@ -387,9 +387,6 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 		
 			       if squareError < minSquareError(labindex)
 			           minSquareError(labindex) = squareError;
-				   if labindex == 1
-				     minSquareError(labindex)
-				   end	
 			           minPx1_vert =    px1_vert; % something random here
 			           minPx1_hor =     px1_hor; % also here
 			   	   minPx2_vert=     px2_vert; % and here..
@@ -437,7 +434,8 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	     %%% take data from the right %%%
 	     minSquareError(rcvWkrIdx) = labSendReceive(srcWkrIdx,rcvWkrIdx,minSquareError(labindex));
 
-	   elseif numlabs == 4
+	    labBarrier;
+	   elseif numlabs == 2 || numlabs == 4
 	      
 	      for o = 1:numlabs
 	         labBarrier;
@@ -447,9 +445,10 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 		    minSquareError(o) = labBroadcast(o);
 		 end
 	      end
+	      labBarrier;
 	   end 
 
-	   labBarrier;
+	   
 
 	    
 
@@ -637,6 +636,12 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
  
    end %treeCompleted
 
-   end
+
+  
+   end%end of spmd
+
+   treesMy = trees{1};
+
+
 end
 
