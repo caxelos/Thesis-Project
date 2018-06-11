@@ -3,6 +3,12 @@ function forestDB()
 clear;
 clc;
 
+if exist('myfile.h5', 'file') == 2
+  delete('myfile.h5');
+end
+if exist('mytest.h5', 'file') == 2
+  delete('mytest.h5');
+end
 
 WIDTH = 15;
 HEIGHT = 9;
@@ -22,12 +28,12 @@ for group_i = 1:NUM_OF_GROUPS
    groups(group_i).centerVert = centers(group_i,2);
    groups(group_i).index = 0;
 
-
+   groups(group_i).trainData.gaze = zeros(2, MAX_SIZE_PER_GROUP);
    groups(group_i).trainData.headpose = zeros(2, MAX_SIZE_PER_GROUP);
    groups(group_i).trainData.data = zeros(WIDTH, HEIGHT, 1, MAX_SIZE_PER_GROUP);
-  
+   
    groups(group_i).name = strcat( 'group', num2str(group_i) ); 
-   groups(group_i).RnearestCenters = zeros(R,2);
+   groups(group_i).RnearestCenters = zeros(  R, MAX_SIZE_PER_GROUP);
    
 end
 
@@ -72,7 +78,7 @@ dirData = dir(pwd);
 dirIndex = [dirData.isdir];
 Pij = dirData(dirIndex);
 %for each Pij...
- for num_Pij=3:length(Pij)
+ for num_Pij=3:7%length(Pij)
    filepath = strcat(Pij(num_Pij).name, '/'); %'p00/';%'MPIIGaze/';
  
   %%% LIST ALL FILES %%%
@@ -102,8 +108,10 @@ Pij = dirData(dirIndex);
 	% test with imshow(temp.data.left.image(num_i, 14:22, 23:37), [0 255])
 
         img = temp.data.left.image(num_i, 14:22, 23:37);
+
         img = reshape(img, HEIGHT ,WIDTH);
        	tempData.data(:, :, 1, 1) = img'; % filp the image
+
         
         Lable_left = temp.data.left.gaze(num_i, :)';
         theta = asin((-1)*Lable_left(2));
@@ -121,10 +129,14 @@ Pij = dirData(dirIndex);
          
 
         % for right
+       
+		
         img = temp.data.right.image(num_i, 14:22, 23:37);
         img = reshape(img, HEIGHT ,WIDTH);
         tempData.data(:, :, 1, 2) = double(flip(img, 2))'; % filp the image
-         
+	         
+
+
         Lable_right = temp.data.right.gaze(num_i,:)';
         theta = asin((-1)*Lable_right(2));
         phi = atan2((-1)*Lable_right(1), (-1)*Lable_right(3));
@@ -175,14 +187,23 @@ Pij = dirData(dirIndex);
 		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,1);
 		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,1);
            
+		if groupID == 1 && groups(groupID).index == 1
+			ok = tempData.data(:,:,1,1)
+		end
+		
 
                 %copy right
 		groupID = find_nearest_group(tempData.headpose(:,2), groups);
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,2);
+
+		
+
+		
 		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,2);
 		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,2);
 		
+	
 
 	end % training Or Test????
 
@@ -200,16 +221,25 @@ fprintf('Saving\n');
 
 
 
+
 %grid('ON');
 %scatter( trainData.headpose(1,:), trainData.headpose(2,:), '*', 'b' );
 
 savename = 'small_MPII_traindata.h5';
 
 %start creating data file for training(HDF5)
+
+
 fid = H5F.create('myfile.h5');
 type_id = H5T.copy('H5T_NATIVE_DOUBLE');
 dcpl = 'H5P_DEFAULT';
 plist = 'H5P_DEFAULT';
+
+%( groups(1).trainData.data(:,:,1,1) )
+
+  %15           9           1        2000
+
+
 
 
 for i = 1:140
@@ -219,31 +249,46 @@ for i = 1:140
 	groups(i).trainData.gaze = single(groups(i).trainData.gaze);	
 	groups(i).trainData.headpose = single(groups(i).trainData.headpose);
 
-	grp = H5G.create(fid, strcat('g', num2str(i)) ,plist,plist,plist);
-	
 
+	grp = H5G.create(fid, strcat('g', num2str(i)) ,plist,plist,plist);
 
 
 %%%%%% Dataset 1: numx1xHEIGHTxWIDTH image data %%%%	
 
+	
 
-	dims = [groups(i).index 1  HEIGHT WIDTH];
+	dims = [WIDTH HEIGHT 1  groups(i).index];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
 	space_id = H5S.create_simple(4,h5_dims,h5_maxdims);
 
 
+
 	dset = H5D.create(grp,strcat('/g', num2str(i), '/data') ,type_id,space_id,dcpl);
-			
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,groups(i).trainData.data(:,:,1,1:groups(i).index) );
+	
+	%height, width, 1, index		
+
+	
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,   groups(i).trainData.data(:,:,1,1:groups(i).index) );
+
+	datak = H5D.read(dset); 
+	if i == 1
+		dims;
+		h5_dims;
+	        size( groups(1).trainData.data(:,:,:,1:groups(1).index) ); 
+		size( datak(:,:,:,:) );
+		datak(:,:,1)
+		groups(1).trainData.data(:,:,1,1)
+	end 
+	
+
 	H5D.close(dset);
 	H5S.close(space_id);
-
 
 %%%%%% Dataset 2: numx4 pose and gaze data %%%%	
 
 
-	dims = [groups(i).index 2];%[groups(i).index 4];
+	dims =  [2 groups(i).index];%[groups(i).index 4];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
 	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
@@ -252,6 +297,7 @@ for i = 1:140
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/headpose'), type_id,space_id,dcpl);
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.headpose(1,1:groups(i).index) groups(i).trainData.headpose(2,1:groups(i).index)]);
 	H5D.close(dset);
+
 
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/gaze'), type_id,space_id,dcpl);
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.gaze(1,1:groups(i).index) groups(i).trainData.gaze(2,1:groups(i).index)]);
@@ -262,7 +308,7 @@ for i = 1:140
 
 
 %%%%%% Dataset 3: headpose-center of each group  %%%%	
-	dims = [1 2];
+	dims = [2 1];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
 	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
@@ -275,8 +321,9 @@ for i = 1:140
 %%%%%% Dataset 4: List of R-nearest groups %%%%
 
 	listOfGroupIds = find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, [i] );
-	listOfGroupIds = listOfGroupIds(2:length(listOfGroupIds)); 
-	dims = [1 R];
+	listOfGroupIds = listOfGroupIds(2:length(listOfGroupIds));
+	
+	dims = [R 1];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
 	space_id = H5S.create_simple(2,h5_dims,h5_maxdims);
@@ -302,12 +349,10 @@ H5F.close(fid);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%% TESTING %%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-testData.data = testData.data; %normalize
+testData.data = testData.data;%/255; %normalize
 testData.data = single(testData.data); % must be single data, because caffe want float type
 testData.gaze = single(testData.gaze);
 testData.headpose = single(testData.headpose);
-
-
 
 
 fid = H5F.create('mytest.h5');
