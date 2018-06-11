@@ -78,7 +78,7 @@ dirData = dir(pwd);
 dirIndex = [dirData.isdir];
 Pij = dirData(dirIndex);
 %for each Pij...
- for num_Pij=3:7%length(Pij)
+ for num_Pij=3:length(Pij)
    filepath = strcat(Pij(num_Pij).name, '/'); %'p00/';%'MPIIGaze/';
  
   %%% LIST ALL FILES %%%
@@ -159,7 +159,7 @@ Pij = dirData(dirIndex);
 		%%%%%%%%%%%%%%%
 		%copy left
 		testindex = testindex+1;
-		testData.nTrees(testindex,1) = find_nearest_group(testData.headpose(:,1), groups);		
+		testData.nTrees(testindex,1) = find_nearest_group(testData.headpose(:,1), groups, NUM_OF_GROUPS);		
 		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1,1);
 		testData.gaze(:,testindex) = tempData.label(:,1);
 		testData.headpose(:,testindex) = tempData.headpose(:,1);
@@ -168,7 +168,7 @@ Pij = dirData(dirIndex);
 
 		%copy right
 		testindex = testindex+1;
-		testData.nTrees(testindex,1) = find_nearest_group(testData.headpose(:,1), groups);
+		testData.nTrees(testindex,1) = find_nearest_group(testData.headpose(:,1), groups, NUM_OF_GROUPS);
 		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1, 2);
 		testData.gaze(:,testindex) = tempData.label(:,2);
 		testData.headpose(:,testindex) = tempData.headpose(:,2);
@@ -181,19 +181,15 @@ Pij = dirData(dirIndex);
 
 
 		%copy left
-		groupID = find_nearest_group(tempData.headpose(:,1), groups);
+		groupID = find_nearest_group(tempData.headpose(:,1), groups, NUM_OF_GROUPS);
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,1);
 		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,1);
 		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,1);
-           
-		if groupID == 1 && groups(groupID).index == 1
-			ok = tempData.data(:,:,1,1)
-		end
 		
 
                 %copy right
-		groupID = find_nearest_group(tempData.headpose(:,2), groups);
+		groupID = find_nearest_group(tempData.headpose(:,2), groups, NUM_OF_GROUPS);
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,2);
 
@@ -235,14 +231,9 @@ type_id = H5T.copy('H5T_NATIVE_DOUBLE');
 dcpl = 'H5P_DEFAULT';
 plist = 'H5P_DEFAULT';
 
-%( groups(1).trainData.data(:,:,1,1) )
-
-  %15           9           1        2000
 
 
-
-
-for i = 1:140
+for i = 1:NUM_OF_GROUPS
 	
 	groups(i).trainData.data = groups(i).trainData.data;%/255; %normalize
 	groups(i).trainData.data = single(groups(i).trainData.data); % must be single data, because caffe want
@@ -272,19 +263,18 @@ for i = 1:140
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,   groups(i).trainData.data(:,:,1,1:groups(i).index) );
 
 	datak = H5D.read(dset); 
-	if i == 1
-		dims;
-		h5_dims;
-	        size( groups(1).trainData.data(:,:,:,1:groups(1).index) ); 
-		size( datak(:,:,:,:) );
-		datak(:,:,1)
-		groups(1).trainData.data(:,:,1,1)
-	end 
+	%if i == 2
+%	dims;
+%		h5_dims;
+%	        size( groups(1).trainData.data(:,:,:,1:groups(1).index) ); 
+%		size( datak(:,:,:,:) );
+%		datak(:,:,1)
+%		groups(1).trainData.data(:,:,1,1)
+%	end 
 	
 
 	H5D.close(dset);
 	H5S.close(space_id);
-
 %%%%%% Dataset 2: numx4 pose and gaze data %%%%	
 
 
@@ -320,7 +310,7 @@ for i = 1:140
 
 %%%%%% Dataset 4: List of R-nearest groups %%%%
 
-	listOfGroupIds = find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, [i] );
+	listOfGroupIds = find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, [i], NUM_OF_GROUPS );
 	listOfGroupIds = listOfGroupIds(2:length(listOfGroupIds));
 	
 	dims = [R 1];
@@ -399,7 +389,7 @@ fid = H5F.create('mytest.h5');
 %%%%%% Dataset 3: List of R-nearest groups %%%%
 	for o = 1:testindex
 
-	   testData.nTrees(o,1:(R+1)) =find_R_nearest_groups( groups(testData.nTrees(o,1)).centerHor, groups(testData.nTrees(o,1)).centerVert, groups, R, [testData.nTrees(o,1)] );
+	   testData.nTrees(o,1:(R+1)) =find_R_nearest_groups( groups(testData.nTrees(o,1)).centerHor, groups(testData.nTrees(o,1)).centerVert, groups, R, [testData.nTrees(o,1)], NUM_OF_GROUPS);
 	end
 
 %find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, [i] );
@@ -426,14 +416,16 @@ end
 
 
 
-function nearestGroup = find_nearest_group(headpose, groups)
+function nearestGroup = find_nearest_group(headpose, groups, NUM_OF_GROUPS)
   minDist = 100;
   nearestGroup = -1;   
+  MAX_HORIZONTAL_DIST = 0.5;
+  MAX_VERTICAL_DIST = 0.5;
 
-  for i =1:140
+  for i =1:NUM_OF_GROUPS
      distHor = abs(groups(i).centerHor - headpose(1));
      distVert = abs(groups(i).centerVert - headpose(2));
-     if  distHor < 0.2 && distVert < 0.2 
+     if  distHor < MAX_HORIZONTAL_DIST && distVert < MAX_VERTICAL_DIST 
 	dist =  sqrt( distHor^2 + distVert^2 );
         if  dist < minDist
 	   minDist = dist;
@@ -447,14 +439,14 @@ function nearestGroup = find_nearest_group(headpose, groups)
 end
 
 
-function listOfGroupIds = find_R_nearest_groups(centerHor, centerVert, groups, timesLeft, listOfGroupIds)
+function listOfGroupIds = find_R_nearest_groups(centerHor, centerVert, groups, timesLeft, listOfGroupIds, NUM_OF_GROUPS)
   minDist = 100;
   nearestGroup = -1;   
 
-  MAX_HORIZONTAL_DIST = 0.4;
-  MAX_VERTICAL_DIST = 0.4;
+  MAX_HORIZONTAL_DIST = 0.5;
+  MAX_VERTICAL_DIST = 0.5;
 
-  for i =1:140
+  for i =1:NUM_OF_GROUPS
      if isnt_in_the_list(i, listOfGroupIds) == 1    
      	distHor = abs(groups(i).centerHor - centerHor);
      	distVert = abs(groups(i).centerVert - centerVert);
@@ -475,7 +467,7 @@ function listOfGroupIds = find_R_nearest_groups(centerHor, centerVert, groups, t
   timesLeft = timesLeft - 1;
 
   if timesLeft > 0
-        listOfGroupIds = find_R_nearest_groups(centerHor, centerVert, groups, timesLeft, listOfGroupIds);
+        listOfGroupIds = find_R_nearest_groups(centerHor, centerVert, groups, timesLeft, listOfGroupIds, NUM_OF_GROUPS);
   end
 
  
