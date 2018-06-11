@@ -225,14 +225,6 @@ function val = testSampleInTree(tree, node, test_img, gaze )
       val = sscanf(tree.get(node),'(%f,%f)')
 	
    else
-     
-      %'Samples:29,px1(1,2)-px2(5,7)>=3'
-      % data(1) = samples
-      % data(2) = px1Vert
-      % data(3) = px1Hor
-      % data(4) = px2Vert
-      % data(5) = px2Hor
-      % data(6) = thres
 
       data= sscanf(tree.get(node),'Samples:%f,px1(%f,%f)-px2(%f,%f)>=%f');
       childs = tree.getchildren(node);
@@ -272,7 +264,6 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	   HEIGHT{w} = HEIGHTX;
 	   WIDTH{w} = WIDTHX;
 	   currPtrs{w} = [1:MAX_FATHER_SIZE];
-	 
 	end
 
 	
@@ -299,7 +290,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	px1_hor = zeros(1);
 	px2_vert = zeros(1);
 	px2_hor = zeros(1);
-	
+	counter = zeros(1);
 	
 
 	minSquareError = zeros(1,3);
@@ -340,71 +331,65 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	   minPx2_vert=     10000; % and here..
 	   minPx2_hor =     10000; % and here 
 	   bestThres  =     10000; % ah, and here
-	   
-	  
-	   for px1_vert = 1:HEIGHT		
-	      for px1_horz = 0:(WIDTH-3):numlabs
-	        px1_hor = px1_horz + labindex;
+	 
+	
+          
+	   counter = labindex;
+	   while (counter <= HEIGHT*WIDTH-1)
+		
+	
+	        px1_vert = ceil( (counter/WIDTH));
+	        px1_hor =  1 +  mod(counter-1, (WIDTH) );
 
-	   	    % sorry for the huge equations below
-		    % these equations are made in order to prevent 2 pixels
-		    % to be examined twice
+      	       % sorry for the huge equations below
+	       % these equations are made in order to prevent 2 pixels
+	       % to be examined twice
 
-		    for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
-		       for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
-                          if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2 ) < 6.5             
-		             for thres = 1:50
-			        l = 0;
-			        r = 0;			
-			        meanLeftGaze = [0 0];
-			        meanRightGaze = [0 0];
-			        for j = 1:fatherSize(i)
-			   	   %if  abs(treeImgs(1, currPtrs(j), px1_vert, px1_hor) - treeImgs(1, currPtrs(j),px2_vert, px2_hor))  < thres 
-				   if  abs(treeImgs(i, px1_vert, px1_hor, 1, currPtrs(j) ) - treeImgs(i,px2_vert, px2_hor,1, currPtrs(j)))  < thres   
+	       for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
+	          for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
+                     if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2 ) < 6.5             
+		        for thres = 1:50
+			   l = 0;
+			   r = 0;			
+			   meanLeftGaze = [0 0];
+			   meanRightGaze = [0 0];
+			   for j = 1:fatherSize(i)
+ 
+			      if  abs(treeImgs(i, px1_vert, px1_hor, 1, currPtrs(j) ) - treeImgs(i,px2_vert, px2_hor,1, currPtrs(j)))  < thres   
 			              %left child
 
-			              l = l + 1;
-			              lImgs(l) = currPtrs(j); 
+			         l = l + 1;
+			         lImgs(l) = currPtrs(j); 
 			      	           
-			              %meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(1,currPtrs(j),1);
-				      meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(i,1,currPtrs(j));
-
-			              %meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(1,currPtrs(j),2);	
-				      meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(i,2,currPtrs(j));	
-			           else
-			              %right child
-			              r = r + 1;
-			              rImgs(r) = currPtrs(j);  				      
-			      
-			              %meanRightGaze(1) = meanRightGaze(1) + treeGazes(1,currPtrs(j),1);%,:);
-				      meanRightGaze(1) = meanRightGaze(1) + treeGazes(i,2,currPtrs(j));%,:);
+				 meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(i,1,currPtrs(j));			       
+				 meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(i,2,currPtrs(j));	
+			         else
+			            %right child
+			            r = r + 1;
+			            rImgs(r) = currPtrs(j);  				      
+				    meanRightGaze(1) = meanRightGaze(1) + treeGazes(i,2,currPtrs(j));%,:);
+				    meanRightGaze(2) = meanRightGaze(2) + treeGazes(i,2,currPtrs(j));
+			          end
+			       end
 	
-			              %meanRightGaze(2) = meanRightGaze(2) + treeGazes(1,currPtrs(j),2);
-				      meanRightGaze(2) = meanRightGaze(2) + treeGazes(i,2,currPtrs(j));
-			           end
-			        end
-	
-			        meanLeftGaze = meanLeftGaze  / l;
-			        meanRightGaze = meanRightGaze/ r;
+			       meanLeftGaze = meanLeftGaze  / l;
+			       meanRightGaze = meanRightGaze/ r;
 
-			        squareError = 0;
-			        for j = 1:r
-	 		          % squareError=squareError + (meanRightGaze(1)-treeGazes(1,rImgs(r), 1))^2 + (meanRightGaze(2)-treeGazes(1,rImgs(r), 2))^2;
+			       squareError = 0;
+			       for j = 1:r
 				   squareError=squareError + (meanRightGaze(1)-treeGazes(i,1,rImgs(r)))^2 + (meanRightGaze(2)-treeGazes(i,2, rImgs(r)))^2;
 	
-		                end
-			        for j = 1:l	
-  			          % squareError=squareError + (meanLeftGaze(1)-treeGazes(1,lImgs(l), 1))^2 + (meanLeftGaze(2)-treeGazes(1,lImgs(l), 2))^2;	
+		               end
+			       for j = 1:l	
+  	
 				   squareError=squareError + (meanLeftGaze(1)-treeGazes(i,1, lImgs(l)))^2 + (meanLeftGaze(2)-treeGazes(i,2,lImgs(l)))^2;	
-			        end
+			       end
 		
-			        if squareError < minSquareError(labindex)
-
+			       if squareError < minSquareError(labindex)
+			           minSquareError(labindex) = squareError;
 				   if labindex == 1
-                                     
-				   end
-			           minSquareError(labindex) = squareError;	
-		
+				     minSquareError(labindex)
+				   end	
 			           minPx1_vert =    px1_vert; % something random here
 			           minPx1_hor =     px1_hor; % also here
 			   	   minPx2_vert=     px2_vert; % and here..
@@ -430,76 +415,58 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 		          end%end if < 6.5	
 		       end%px2_hor
 		    end%px2_vers 	
-	         end %px1_hor
+	         %end %px1_hor
+		 counter = counter + numlabs;
            end %endof px1_vert
 	if labindex== 1
 	   toc
 	end
 
 
-     if numlabs == 4
-	%--------------------
-	  labBarrier;
-	  if labindex == 1
-	    labBroadcast(1, minSquareError(1));
-	  else
-	    minSquareError(1) = labBroadcast(1);
-	  end
-	%---------------------
-	  labBarrier;
-	  if labindex == 2
-	     labBroadcast(2, minSquareError(2));
-	  else
-	    minSquareError(2) = labBroadcast(2);
-	  end
-	%----------------------
-	  labBarrier;
-	  if labindex == 3
-	     labBroadcast(3, minSquareError(3));
-	  else
-	     minSquareError(3) = labBroadcast(3);
-	  end
-   	  labBarrier;
+	   
+	  if numlabs == 3
+             rcvWkrIdx = mod(labindex, numlabs) + 1; % one worker to the right
+	     srcWkrIdx = mod(labindex - 2, numlabs) + 1; % one worker to the left
 
-     elseif numlabs == 3
+	     labBarrier;	 
+	     %%% take data from the left and give to the right %%%
+	     minSquareError( srcWkrIdx ) = labSendReceive(rcvWkrIdx,srcWkrIdx, minSquareError(labindex) );
 
 
-	  rcvWkrIdx = mod(labindex, numlabs) + 1; % one worker to the right
-	  srcWkrIdx = mod(labindex - 2, numlabs) + 1; % one worker to the left
+	     labBarrier;
+	     %%% take data from the right %%%
+	     minSquareError(rcvWkrIdx) = labSendReceive(srcWkrIdx,rcvWkrIdx,minSquareError(labindex));
 
-	  labBarrier;	 
-	  %%% take data from the left and give to the right %%%
-	  minSquareError( srcWkrIdx ) = labSendReceive(rcvWkrIdx,srcWkrIdx, minSquareError(labindex) );
+	   elseif numlabs == 4
+	      
+	      for o = 1:numlabs
+	         labBarrier;
+                 if o == labindex
+		    labBroadcast(o,minSquareError(o));	
+		 else
+		    minSquareError(o) = labBroadcast(o);
+		 end
+	      end
+	   end 
 
-
-	  labBarrier;
-	  %%% take data from the right %%%
-	  minSquareError(rcvWkrIdx) = labSendReceive(srcWkrIdx,rcvWkrIdx,minSquareError(labindex));
-
-	  labBarrier;
-     end
-          
-
+	   labBarrier;
 
 	    
 
 
 
-	   %%% sychronize before finding the best worker %%%
-	  
-	 	
-
-	   bestworker = 1;
-	   minError = minSquareError(1);	
-	   for k = 2:3
-	      if minSquareError(k) < minError
-	         minError = minSquareError(k);
- 		 bestworker = k;
-	      end
-	   end
+	 %%% sychronize before finding the best worker %%%
+	 bestworker = 1;
+	 minError = minSquareError(1);	
+	 for k = 2:numlabs
+	    if minSquareError(k) < minError
+	       minError = minSquareError(k);
+ 	       bestworker = k;
+	    end
+	 end
 	
 
-        if bestworker == labindex
+         if bestworker == labindex
 
 	   %%%%%% Recursion starts here %%%%%	
 	   if (ltreeSize > 0 && rtreeSize > 0)
@@ -643,7 +610,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	   labBroadcast(bestworker, container); 
 	end
 
-	   
+       
    end %while loop
 
      
@@ -667,7 +634,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
         pause(1)
       end  
 
-
+ 
    end %treeCompleted
 
    end
