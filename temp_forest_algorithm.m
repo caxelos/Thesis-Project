@@ -426,8 +426,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 			        if squareError < minSquareError(labindex)
 
 				   if labindex == 1
-                                     squareError
-				     pause(1);
+                                     
 				   end
 			           minSquareError(labindex) = squareError;	
 		
@@ -664,36 +663,37 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 
 	labBarrier;
 	
-	if labindex == 1
-       disp(trees.tostring);
-	pause(1);
-     else
-        pause(1)
-     end
+	%if labindex == 1
+         %  disp(trees.tostring); fprintf('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n');
+	   
+        %end
 
+        labBarrier;
+   end %while loop
+     
+   
+     
+     if labindex == 1
+           disp(trees.tostring); fprintf('\n\n\n\n\n\n\n\n\n\n');
+     else
+	   pause(1);
+     end
+	
      if labindex == 2
        disp(trees.tostring);
-	pause(1);
+	printf('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\');
      else
         pause(1);
      end
 
       if labindex == 3
-       disp(trees.tostring);
-	pause(1);
+	disp(trees.tostring);
+	printf('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\');      
       else
         pause(1)
       end
-      fprintf('\n');   
-     
-   if labindex == 1
-                        fprintf('mpouloooooooo\n');
-				   end
-
-   end %while loop
-     
-   
-     
+       
+          
 
 
   toc
