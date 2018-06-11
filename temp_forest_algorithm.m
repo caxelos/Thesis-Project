@@ -355,7 +355,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 
 	  tic
 	   %for each node
-	   temp_minSquareError = 10000;
+	   minSquareError = [10000 10000 10000];
 	   minPx1_vert =    10000; % something random here
 	   minPx1_hor =     10000; % also here
 	   minPx2_vert=     10000; % and here..
@@ -365,16 +365,18 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	  
 	   for px1_vert = 1:HEIGHT		
 	      for px1_horz = 0:(WIDTH-3):3
-	       px1_hor = px1_horz + labindex;
-		for px2_vert = 1:HEIGHT
-		  for px2_hor = 1:WIDTH
+	        px1_hor = px1_horz + labindex;
+		%for px2_vert = 1:HEIGHT
+		%  for px2_hor = 1:WIDTH
 	            %for px1_hor = 1:WIDTH
+
+
 	   	    % sorry for the huge equations below
 		    % these equations are made in order to prevent 2 pixels
 		    % to be examined twice
 
-		 %   for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
-		 %      for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
+		    for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
+		       for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
                           if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2 ) < 6.5             
 		             for thres = 1:50
 			        l = 0;
@@ -421,7 +423,12 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 				   squareError=squareError + (meanLeftGaze(1)-treeGazes(1,1, lImgs(l)))^2 + (meanLeftGaze(2)-treeGazes(1,2,lImgs(l)))^2;	
 			        end
 		
-			        if squareError < temp_minSquareError
+			        if squareError < minSquareError(labindex)
+
+				   if labindex == 1
+                                     squareError
+				     pause(1);
+				   end
 			           minSquareError(labindex) = squareError;	
 		
 			           minPx1_vert =    px1_vert; % something random here
@@ -679,6 +686,10 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
       end
       fprintf('\n');   
      
+   if labindex == 1
+                        fprintf('mpouloooooooo\n');
+				   end
+
    end %while loop
      
    
