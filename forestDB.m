@@ -257,19 +257,17 @@ for i = 1:NUM_OF_GROUPS
 
 	%headpose
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/headpose'), type_id,space_id,dcpl);
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.headpose(:,1:groups(i).index)]);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, groups(i).trainData.headpose(:,1:groups(i).index));
 	H5D.close(dset);
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, testData.headpose(:,1:testindex));
+
 
 
 	%gaze
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/gaze'), type_id,space_id,dcpl);
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.gaze(:,1:groups(i).index)]);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, groups(i).trainData.gaze(:,1:groups(i).index));
 	H5D.close(dset);
 
 	H5S.close(space_id);
-
-
 
 %%%%%% Dataset 3: headpose-center of each group  %%%%	
 	dims = [2 1];
