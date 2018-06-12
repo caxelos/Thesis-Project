@@ -148,18 +148,6 @@ end
 
 	
 	trees = buildRegressionTree( samplesInTree, treeImgs,  treeGazes, HEIGHT, WIDTH);
-	for i = 1:NUM_OF_GROUPS 
-	   if i == 128 || i == 32 || i == 129 || i == 91 || i == 130 || i == 126      
-	      %trees(i) = tree(strcat('RegressionTree_', num2str(i) ));
-	   end
-	end
-	
-	disp(trees(1).tostring);
-
-%%%% end of training %%%%	
-	
-	
-
 
 
  
@@ -181,20 +169,19 @@ end
 	test_gazes    = H5D.read(test_gazesID);
 	test_poses    = H5D.read(test_posesID);
 
-	ntestsamples = length( test_imgs(:,1,1,1) );
-	%for j = 1:ntestsamples
-	   
+	ntestsamples = length( test_imgs(:,:,:,:) );
+	for j = 1:ntestsamples
 	   gaze_predict = [0 0]';  
 	   for k = 1:(R+1)%each samples, run the R+1 trees
 	  	
-	   	gaze_predict = gaze_predict + testSampleInTree(trees(test_rnearest(1,k)), 1, test_imgs(1,1,:,:), test_gazes(1,:) );
-		gaze_predict
-	  	test_gazes(1,:)
-		%testSampleInTree(trees(test_rnearest(1,k)), 1, test_imgs(1,1,:,:), test_gazes(1,:) );
+		gaze_predict = gaze_predict + testSampleInTree( trees(test_rnearest(k,j) ), 1, test_imgs(:,:,1,j), test_gazes(:,j) );
+	
 
 	   end
 	   gaze_predict = gaze_predict/(R+1)
-
+	   test_gazes(:,j)
+	   fprintf('\n\n\n*******************\n\n\n')
+	end
 
 	
 	H5D.close(test_rnearestID);
@@ -228,11 +215,11 @@ function val = testSampleInTree(tree, node, test_img, gaze )
 
       data= sscanf(tree.get(node),'Samples:%f,px1(%f,%f)-px2(%f,%f)>=%f');
       childs = tree.getchildren(node);
-      if abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5))) >= data(6)
-	  abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
+      if abs(test_img(data(2), data(3), 1, 1) - test_img(data(4), data(5), 1,1)) >= data(6)
+	  %abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
          val = testSampleInTree(tree,childs(2) , test_img, gaze );
       else
-	  abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
+	 abs(test_img(data(2), data(3), 1,1) - test_img(data(4), data(5), 1,1 ))
          val = testSampleInTree(tree, childs(1), test_img, gaze );
       end
       
@@ -310,7 +297,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 		
 
 
-   for i = 1:2 % for every tree
+   for i = 1:140 % for every tree
     
        stackindex = 0;
        state = 1;	
@@ -320,10 +307,6 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
        currPtrs = [1:fatherSize(i)];
        while state ~= 2 %3
 	
-
-	   if labindex == 1
-		tic
-	   end
 	   %for each node
 	   minSquareError = [10000 10000 10000];
 	   minPx1_vert =    10000; % something random here
@@ -332,7 +315,6 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	   minPx2_hor =     10000; % and here 
 	   bestThres  =     10000; % ah, and here
 	 
-	
           
 	   counter = labindex;
 	   while (counter <= HEIGHT*WIDTH-1)
@@ -348,7 +330,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	       for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
 	          for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
                      if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2 ) < 6.5             
-		        for thres = 1:2%50
+		        for thres = 1:50
 			   l = 0;
 			   r = 0;			
 			   meanLeftGaze = [0 0];
@@ -415,10 +397,6 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	         %end %px1_hor
 		 counter = counter + numlabs;
            end %endof px1_vert
-	if labindex== 1
-	   toc
-	end
-
 
 	   
 	  if numlabs == 3
@@ -498,9 +476,6 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
            else  %2
 	      if stackindex == 0
 		 state = 2;
- 
-	 	 fprintf('EXIIIIIIIIIIT\n');
-		 
 			         
 	      else 
 		state = 3;        
@@ -612,26 +587,29 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
        
    end %while loop
 
-     
-    if labindex == 1
-           disp(trees(i).tostring); fprintf('\n\n\n\n\n\n\n\n\n\n');
-     else
-	   pause(1);
-     end
-	
-     if labindex == 2
-       disp(trees(i).tostring);
-	fprintf('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n');
-     else
-        pause(1);
-     end
 
-      if labindex == 3
-	disp(trees(i).tostring);
-	fprintf('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n');      
-      else
-        pause(1)
-      end  
+
+
+     
+  %  if labindex == 1
+  %         disp(trees(i).tostring); fprintf('\n\n\n\n\n\n\n\n\n\n');
+  %   else
+%	   pause(1);
+%     end
+	
+ %    if labindex == 2
+  %     disp(trees(i).tostring);
+%	fprintf('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n');
+ %    else
+  %      pause(1);
+   %  end
+
+    %  if labindex == 3
+	%disp(trees(i).tostring);
+	%fprintf('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n');      
+      %else
+      %  pause(1)
+     % end  
 
  
    end %treeCompleted
