@@ -40,19 +40,6 @@ for i = 1:NUM_OF_GROUPS %for each tree
 	curr_poses    = H5D.read(curr_posesID);
 
 
-	%size( curr_imgs)
-	%15,9,1,4
-
-%	size(curr_rnearest)
-%	5,1
-
-%	size(curr_gazes)
-%	2,4
-	
-	
-	
-	
-
 	samplesInGroup = length( curr_imgs(1,1,1,:) );
 	contribOfGroup = ceil( sqrt( samplesInGroup ) );
 	
@@ -159,18 +146,23 @@ end
 	test_poses    = H5D.read(test_posesID);
 
 	ntestsamples = length( test_imgs(:,:,:,:) );
+	final_error = 0;
 	for j = 1:ntestsamples
 	   gaze_predict = [0 0]';  
 	   for k = 1:(R+1)%each samples, run the R+1 trees
-	  	
+
+		trees(test_rnearest(k,j))
 		gaze_predict = gaze_predict + testSampleInTree( trees(test_rnearest(k,j) ), 1, test_imgs(:,:,1,j), test_gazes(:,j) );
-	
 
 	   end
 	   gaze_predict = gaze_predict/(R+1)
 	   test_gazes(:,j)
+
+	   final_error = final_error + abs(test_gazes(1,j) - gaze_predict(1) ) + abs( test_gazes(2,j) -gaze_predict(2) );
 	   fprintf('\n\n\n*******************\n\n\n')
 	end
+	final_error = final_error/(2*ntestsamples);
+	rad2deg(final_error)
 
 	
 	H5D.close(test_rnearestID);
@@ -192,23 +184,20 @@ H5F.close(fid);
 
 end
 
-
 function val = testSampleInTree(tree, node, test_img, gaze )
    val = [100000 100000];	
 
 
    if tree.isleaf(node) 
-      val = sscanf(tree.get(node),'(%f,%f)')
+      val = sscanf(tree.get(node),'(%f,%f)');
 	
    else
 
       data= sscanf(tree.get(node),'Samples:%f,px1(%f,%f)-px2(%f,%f)>=%f');
       childs = tree.getchildren(node);
       if abs(test_img(data(2), data(3), 1, 1) - test_img(data(4), data(5), 1,1)) >= data(6)
-	  %abs(test_img(1,1,data(2),data(3)) - test_img(1,1,data(4),data(5)))
          val = testSampleInTree(tree,childs(2) , test_img, gaze );
       else
-	 abs(test_img(data(2), data(3), 1,1) - test_img(data(4), data(5), 1,1 ))
          val = testSampleInTree(tree, childs(1), test_img, gaze );
       end
       
@@ -286,7 +275,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 
 
  for i = 1:140 % for every tree
-    if i ==   94 || i == 90 || i == 91 || i == 32 || i == 126 || i == 128
+    %if i ==   134 || i == 123 || i == 133 || i == 102 || i == 139 || i == 55
        stackindex = 0;
        state = 1;	
        trees(i) = tree(strcat('RegressionTree_', num2str(i) ));
@@ -317,7 +306,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	       for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
 	          for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
                      if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2 ) < 6.5             
-		        for thres = 1:50
+		        for thres = 1:1%50
 			   l = 0;
 			   r = 0;			
 			   meanLeftGaze = [0 0];
@@ -502,14 +491,12 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	    elseif state == 2
 	       container.data(1) = 2;
 	   
-	    elseif state == 3
+	    else %state == 3
 	       container.data = [state poulo stackindex fatherSize(i) node_i ];
 	       for o = 1:fatherSize(i)
 	          container.currPtrs(o) = currPtrs(o);
 	       end
 		
-	    else 
-	       fprintf('problemaaaaaaaaaaaaaaaaa\n');
 	    end
 	
 	end
@@ -541,7 +528,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	       state = 2;   
 
 
-	    elseif  container.data(1) == 3 %[state poulo stackindex fatherSize node_i ];
+	    else  container.data(1) == 3 %[state poulo stackindex fatherSize node_i ];
 		state = 3;
 
 	        %%% o stackindex erxetai meiwmenos kata 1 %%%
@@ -553,9 +540,6 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	          currPtrs(o) = container.currPtrs(o);
 	       end
 
-
-	    else
-	       fprintf('problemaaaaaaaaaaa2222222222\n');    
 	    end
 	else
 	   labBroadcast(bestworker, container); 
@@ -569,10 +553,10 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 
 
 
-   disp(trees(i).tostring); fprintf('\n\n\n\n\n\n\n\n\n\n');
+   %disp(trees(i).tostring); fprintf('\n\n\n\n\n\n\n\n\n\n');
 
     i 
-  end % if i = 32,13,33,22,25,55
+  %end % if i = 32,13,33,22,25,55
  
  
    end %treeCompleted
