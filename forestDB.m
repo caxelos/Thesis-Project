@@ -22,7 +22,6 @@ groups = [];
 
 MAX_SIZE_PER_GROUP = 2000;
 TEST_SIZE = 11166;
-R_NEAREST = 5;
 
 for group_i = 1:NUM_OF_GROUPS
    groups(group_i).trainData= [];
@@ -46,7 +45,7 @@ testData=[];
 testData.data = zeros(WIDTH,HEIGHT ,1, TEST_SIZE);
 testData.gaze = zeros(2, TEST_SIZE);%15*375*2);%zeros(2, total_num*2);
 testData.headpose = zeros(2, TEST_SIZE);%15*375*2);%zeros(2, total_num*2);S
-testData.nTrees = zeros( R_NEAREST+1, TEST_SIZE);
+testData.nTrees = zeros( R+1, TEST_SIZE);
 %testData.confidence = zeros(1, 15*375*2);%zeros(1, total_num*2);
 testindex = 0;
 
@@ -157,12 +156,12 @@ Pij = dirData(dirIndex);
 		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1,1);
 		testData.gaze(:,testindex) = tempData.label(:,1);
 		testData.headpose(:,testindex) = tempData.headpose(:,1);
-
+	 
 
 
 		%copy right
 		testindex = testindex+1;
-		testData.nTrees(1, testindex) = find_nearest_group(testData.headpose(:,1), groups, NUM_OF_GROUPS);
+		testData.nTrees(1, testindex) = find_nearest_group(testData.headpose(:,2), groups, NUM_OF_GROUPS);
 		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1, 2);
 		testData.gaze(:,testindex) = tempData.label(:,2);
 		testData.headpose(:,testindex) = tempData.headpose(:,2);
@@ -171,8 +170,6 @@ Pij = dirData(dirIndex);
 		%%%%%%%%%%%%%%%
                 % TRAINING DATA
                 %%%%%%%%%%%%%%%
-
-
 
 		%copy left
 		groupID = find_nearest_group(tempData.headpose(:,1), groups, NUM_OF_GROUPS);
@@ -186,10 +183,6 @@ Pij = dirData(dirIndex);
 		groupID = find_nearest_group(tempData.headpose(:,2), groups, NUM_OF_GROUPS);
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,2);
-
-		
-
-		
 		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,2);
 		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,2);
 		
@@ -323,7 +316,7 @@ fid = H5F.create('mytest.h5');
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
 	space_id = H5S.create_simple(4,h5_dims,h5_maxdims);
-s
+
 	dset = H5D.create(fid, '/data' ,type_id,space_id,dcpl);
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,testData.data(:,:,1,1:testindex) );
 
@@ -336,6 +329,13 @@ s
 
 %%%%%% Dataset 2: numx4 pose and gaze data %%%%	
 
+
+
+
+
+
+
+
 	dims = [2 testindex];%[groups(i).index 4];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
@@ -343,8 +343,18 @@ s
 
 	%headpose
 	dset = H5D.create(fid, '/headpose', type_id,space_id,dcpl);
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [testData.headpose(1,1:testindex) testData.headpose(2,1:testindex)]);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, testData.headpose);
+%[testData.headpose(1,1:testindex) testData.headpose(2,1:testindex)]);
+	
+	datak = H5D.read( dset );	
+	size(datak)
+	size(testData.headpose)
+	datak(:,1:3)
+	testData.headpose(:,1:3)
 	H5D.close(dset);
+
+
+	
 
 	%gaze
 	dset = H5D.create(fid, '/gaze', type_id,space_id,dcpl);
@@ -387,8 +397,8 @@ end
 function nearestGroup = find_nearest_group(headpose, groups, NUM_OF_GROUPS)
   minDist = 100;
   nearestGroup = -1;   
-  MAX_HORIZONTAL_DIST = 0.5;
-  MAX_VERTICAL_DIST = 0.5;
+  MAX_HORIZONTAL_DIST = 0.7;
+  MAX_VERTICAL_DIST = 0.7;
 
   for i =1:NUM_OF_GROUPS
      distHor = abs(groups(i).centerHor - headpose(1));
