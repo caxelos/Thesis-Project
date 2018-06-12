@@ -151,20 +151,21 @@ Pij = dirData(dirIndex);
 		% TEST DATA
 		%%%%%%%%%%%%%%%
 		%copy left
-		testindex = testindex+1;
-		testData.nTrees(1, testindex) = find_nearest_group(testData.headpose(:,1), groups, NUM_OF_GROUPS);		
+		testindex = testindex+1;		
+		testData.nTrees(1, testindex) = find_nearest_group(tempData.headpose(:,1), groups, NUM_OF_GROUPS);	
 		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1,1);
 		testData.gaze(:,testindex) = tempData.label(:,1);
 		testData.headpose(:,testindex) = tempData.headpose(:,1);
-	 
-
+	      
 
 		%copy right
 		testindex = testindex+1;
-		testData.nTrees(1, testindex) = find_nearest_group(testData.headpose(:,2), groups, NUM_OF_GROUPS);
+		testData.nTrees(1, testindex) = find_nearest_group(tempData.headpose(:,2), groups, NUM_OF_GROUPS);
 		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1, 2);
 		testData.gaze(:,testindex) = tempData.label(:,2);
 		testData.headpose(:,testindex) = tempData.headpose(:,2);
+		
+
 	else %0,1,2
 		curr_ratio = curr_ratio + 1;
 		%%%%%%%%%%%%%%%
@@ -245,8 +246,9 @@ for i = 1:NUM_OF_GROUPS
 
 	H5D.close(dset);
 	H5S.close(space_id);
-%%%%%% Dataset 2: numx4 pose and gaze data %%%%	
 
+
+%%%%%% Dataset 2: numx4 pose and gaze data %%%%	
 
 	dims =  [2 groups(i).index];%[groups(i).index 4];
 	h5_dims = fliplr(dims);
@@ -255,12 +257,14 @@ for i = 1:NUM_OF_GROUPS
 
 	%headpose
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/headpose'), type_id,space_id,dcpl);
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.headpose(1,1:groups(i).index) groups(i).trainData.headpose(2,1:groups(i).index)]);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.headpose(:,1:groups(i).index)]);
 	H5D.close(dset);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, testData.headpose(:,1:testindex));
 
 
+	%gaze
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/gaze'), type_id,space_id,dcpl);
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.gaze(1,1:groups(i).index) groups(i).trainData.gaze(2,1:groups(i).index)]);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [groups(i).trainData.gaze(:,1:groups(i).index)]);
 	H5D.close(dset);
 
 	H5S.close(space_id);
@@ -275,6 +279,7 @@ for i = 1:NUM_OF_GROUPS
 
 	dset = H5D.create(grp,strcat('/g', num2str(i),'/center'), type_id,space_id,dcpl);	
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,[groups(i).centerHor groups(i).centerVert] );
+ 
 	H5D.close(dset);
 	H5S.close(space_id);
 
@@ -320,7 +325,6 @@ fid = H5F.create('mytest.h5');
 	dset = H5D.create(fid, '/data' ,type_id,space_id,dcpl);
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist,testData.data(:,:,1,1:testindex) );
 
-
 	H5D.close(dset);
 	H5S.close(space_id);
 
@@ -329,13 +333,6 @@ fid = H5F.create('mytest.h5');
 
 %%%%%% Dataset 2: numx4 pose and gaze data %%%%	
 
-
-
-
-
-
-
-
 	dims = [2 testindex];%[groups(i).index 4];
 	h5_dims = fliplr(dims);
 	h5_maxdims = h5_dims;
@@ -343,24 +340,14 @@ fid = H5F.create('mytest.h5');
 
 	%headpose
 	dset = H5D.create(fid, '/headpose', type_id,space_id,dcpl);
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, testData.headpose);
-%[testData.headpose(1,1:testindex) testData.headpose(2,1:testindex)]);
-	
-	datak = H5D.read( dset );	
-	size(datak)
-	size(testData.headpose)
-	datak(:,1:3)
-	testData.headpose(:,1:3)
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, testData.headpose(:,1:testindex));
 	H5D.close(dset);
-
-
-	
 
 	%gaze
 	dset = H5D.create(fid, '/gaze', type_id,space_id,dcpl);
-	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, [testData.gaze(1,1:testindex) testData.gaze(2,1:testindex)]);
-	H5D.close(dset);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, testData.gaze(:,1:testindex));
 
+	H5D.close(dset);
 	H5S.close(space_id);
 
 
