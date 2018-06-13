@@ -151,19 +151,19 @@ end
 	   gaze_predict = [0 0]';  
 	   for k = 1:(R+1)%each samples, run the R+1 trees
 
-		trees(test_rnearest(k,j))
 		gaze_predict = gaze_predict + testSampleInTree( trees(test_rnearest(k,j) ), 1, test_imgs(:,:,1,j), test_gazes(:,j) );
 
 	   end
-	   gaze_predict = gaze_predict/(R+1)
-	   test_gazes(:,j)
-
+	   gaze_predict = gaze_predict/(R+1);
 	   final_error = final_error + abs(test_gazes(1,j) - gaze_predict(1) ) + abs( test_gazes(2,j) -gaze_predict(2) );
-	   fprintf('\n\n\n*******************\n\n\n')
+	  
 	end
 	final_error = final_error/(2*ntestsamples);
 	rad2deg(final_error)
-
+	
+	fileID =  fopen('5nearest.txt','w');
+	fprintf(fileID,'%f', final_error);
+	fclose(fileID);
 	
 	H5D.close(test_rnearestID);
 	H5D.close(test_imgsID);
@@ -306,7 +306,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	       for px2_vert = ( px1_vert + floor(px1_hor/WIDTH)  ):HEIGHT
 	          for px2_hor = (1 + mod( px1_hor, WIDTH )):WIDTH
                      if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2 ) < 6.5             
-		        for thres = 1:1%50
+		        for thres = 20:30
 			   l = 0;
 			   r = 0;			
 			   meanLeftGaze = [0 0];
@@ -555,7 +555,9 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 
    %disp(trees(i).tostring); fprintf('\n\n\n\n\n\n\n\n\n\n');
 
-    i 
+    if labindex == 1
+	i
+    end 
   %end % if i = 32,13,33,22,25,55
  
  
