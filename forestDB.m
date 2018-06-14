@@ -10,42 +10,37 @@ if exist('mytest.h5', 'file') == 2
   delete('mytest.h5');
 end
 
-WIDTH = 15;
-HEIGHT = 9;
 
-NUM_OF_GROUPS = 140;
-R = 5;
+
+
 centers = csvread('centers.txt');
 
 fprintf('File Path Ready!\n');
-groups = [];
 
-MAX_SIZE_PER_GROUP = 2000;
-TEST_SIZE = 11166;
 
-for group_i = 1:NUM_OF_GROUPS
-   groups(group_i).trainData= [];
-   groups(group_i).centerHor = centers(group_i,1);
-   groups(group_i).centerVert = centers(group_i,2);
-   groups(group_i).index = 0;
+R = 20;
+NUM_OF_GROUPS = 140;
+TOTAL_DATA = 50000;%44640;%number of samples
+WIDTH = 15;
+HEIGHT = 9;
+TRAIN_SIZE_PER_PERSON = ((4*TOTAL_DATA)/5) /15;
+MAX_SIZE_PER_GROUP = 1500;
+MAX_PER_PERSON = TOTAL_DATA/15;
 
-   groups(group_i).trainData.gaze = zeros(2, MAX_SIZE_PER_GROUP);
-   groups(group_i).trainData.headpose = zeros(2, MAX_SIZE_PER_GROUP);
-   groups(group_i).trainData.data = zeros(WIDTH, HEIGHT, 1, MAX_SIZE_PER_GROUP);
-   
-   groups(group_i).name = strcat( 'group', num2str(group_i) ); 
-   groups(group_i).RnearestCenters = zeros(  R, MAX_SIZE_PER_GROUP);
-   
+%%% structure allocation %%%
+groups(1:140) = struct('centerHor', zeros(1) , 'centerVert', zeros(1), 'index', 0,  'RnearestCenters', int8(zeros(R,1)), 'trainData', [] );
+for i = 1:140
+   groups(i).centerHor = centers(i,1);
+   groups(i).centerVert = centers(i,2);
+   groups(i).trainData = struct('gaze', zeros(2,MAX_SIZE_PER_GROUP), 'headpose', zeros(2, MAX_SIZE_PER_GROUP), 'data', zeros(WIDTH,HEIGHT,1,MAX_SIZE_PER_GROUP)  ) ; 
 end
-
-
 
 %test
 testData=[];
-testData.data = zeros(WIDTH,HEIGHT ,1, TEST_SIZE);
-testData.gaze = zeros(2, TEST_SIZE);%15*375*2);%zeros(2, total_num*2);
-testData.headpose = zeros(2, TEST_SIZE);%15*375*2);%zeros(2, total_num*2);S
-testData.nTrees = zeros( R+1, TEST_SIZE);
+testData.data = zeros(WIDTH,HEIGHT ,1, TOTAL_DATA/5);
+testData.gaze = zeros(2, TOTAL_DATA/5);%15*375*2);%zeros(2, total_num*2);
+testData.headpose = zeros(2, TOTAL_DATA/5);%15*375*2);%zeros(2, total_num*2);S
+testData.nTrees = zeros( R+1, TOTAL_DATA/5);
 %testData.confidence = zeros(1, 15*375*2);%zeros(1, total_num*2);
 testindex = 0;
 
@@ -57,51 +52,38 @@ tempData.headpose = zeros(2, 1*2);%zeros(2, total_num*2);
 %tempData.confidence = zeros(1, 1*2);%zeros(1, total_num*2);
 
 
-minPoseHoriz = 30;
-minPoseVert = 30;
-maxPoseHoriz = -30;
-maxPoseVert = -30;
 
-one = 0;
-two = 0;
-three = 0;
-four = 0;
+global_sample = 0;
+
+
 %Pij lists all p00, p01, p02,...
 dirData = dir(pwd);
 dirIndex = [dirData.isdir];
 Pij = dirData(dirIndex);
-%for each Pij...
+
  for num_Pij=3:length(Pij)
-   filepath = strcat(Pij(num_Pij).name, '/'); %'p00/';%'MPIIGaze/';
+   
+  curr_perPerson = 0;
+  turn = 1;
+
+  filepath = strcat(Pij(num_Pij).name, '/'); %'p00/';%'MPIIGaze/';
+
  
   %%% LIST ALL FILES %%%
   dirData = dir(filepath);%path = dir(filepath);
   dirIndex = [dirData.isdir];
   files = {dirData(~dirIndex).name}';
 
-  %%%% STEPS %%%%
-  step_size = get_step_size( filepath);
-  curr_step = 1;
-
-  %%% TRAINING vs TEST RATIO(75%) %%%
-  ratio = 3; % 75% are for training, 25% for test
-  curr_ratio = 0;
-
   for num_f=1:length(files) 
-   
+
+    
     readname = [filepath, files{num_f}];
     temp = load(readname);   
     num_data = length(temp.filenames(:,1));   
     for num_i=1:num_data
-      if curr_step == step_size 
-	curr_step = 1;
-      	
-
+     
 	% for left
-	% test with imshow(temp.data.left.image(num_i, 14:22, 23:37), [0 255])
-
         img = temp.data.left.image(num_i, 14:22, 23:37);
-
         img = reshape(img, HEIGHT ,WIDTH);
        	tempData.data(:, :, 1, 1) = img'; % filp the image
 
@@ -116,14 +98,10 @@ Pij = dirData(dirIndex);
         Zv = M(:,3);
         theta = asin(Zv(2));
         phi = atan2(Zv(1), Zv(3));
-
-
         tempData.headpose(:,1) = [theta;phi];         
          
 
         % for right
-       
-		
         img = temp.data.right.image(num_i, 14:22, 23:37);
         img = reshape(img, HEIGHT ,WIDTH);
         tempData.data(:, :, 1, 2) = double(flip(img, 2))'; % filp the image
@@ -145,29 +123,9 @@ Pij = dirData(dirIndex);
         tempData.headpose(:,2) = [theta; (-1)*phi]; % flip the direction
 
 	
-	if  curr_ratio == 3 %0
-		curr_ratio = 0;
-		%%%%%%%%%%%%%%%
-		% TEST DATA
-		%%%%%%%%%%%%%%%
-		%copy left
-		testindex = testindex+1;		
-		testData.nTrees(1, testindex) = find_nearest_group(tempData.headpose(:,1), groups, NUM_OF_GROUPS);	
-		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1,1);
-		testData.gaze(:,testindex) = tempData.label(:,1);
-		testData.headpose(:,testindex) = tempData.headpose(:,1);
-	      
 
-		%copy right
-		testindex = testindex+1;
-		testData.nTrees(1, testindex) = find_nearest_group(tempData.headpose(:,2), groups, NUM_OF_GROUPS);
-		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1, 2);
-		testData.gaze(:,testindex) = tempData.label(:,2);
-		testData.headpose(:,testindex) = tempData.headpose(:,2);
-		
-
-	else %0,1,2
-		curr_ratio = curr_ratio + 1;
+	if  turn == 1 %0
+	
 		%%%%%%%%%%%%%%%
                 % TRAINING DATA
                 %%%%%%%%%%%%%%%
@@ -185,31 +143,67 @@ Pij = dirData(dirIndex);
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,2);
 		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,2);
-		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,2);
-		
+		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,2);	
+
+		global_sample = global_sample + 2;
+		curr_perPerson = curr_perPerson+2;
 	
 
-	end % training Or Test????
+		if curr_perPerson >= TRAIN_SIZE_PER_PERSON
+		   turn = 0
 
-     else % not in the samples
-	curr_step = curr_step + 1;
-     end	
+		end
+		if curr_perPerson >= MAX_PER_PERSON
+		   break;
+		end
+	
+	else %0,1,2
+
+		%%%%%%%%%%%%%%%
+		% TEST DATA
+		%%%%%%%%%%%%%%%
+		%copy left
+		testindex = testindex+1;		
+		testData.nTrees(1, testindex) = find_nearest_group(tempData.headpose(:,1), groups, NUM_OF_GROUPS);	
+		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1,1);
+		testData.gaze(:,testindex) = tempData.label(:,1);
+		testData.headpose(:,testindex) = tempData.headpose(:,1);
+
+		%copy right
+		testindex = testindex+1;
+		testData.nTrees(1, testindex) = find_nearest_group(tempData.headpose(:,2), groups, NUM_OF_GROUPS);
+		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1, 2);
+		testData.gaze(:,testindex) = tempData.label(:,2);
+		testData.headpose(:,testindex) = tempData.headpose(:,2);
+	
+		global_sample = global_sample + 2;
+		curr_perPerson = curr_perPerson+2;
+		if curr_perPerson >= MAX_PER_PERSON
+		   turn = 1
+		   break;
+		end
+
+	end % training Or Test????	
+
     end %data per file
 
     fprintf('%d / %d !\n', num_f, length(files)); 
-  end % for each file
+    if curr_perPerson >= MAX_PER_PERSON
+    	break;
+    end
+
+   end % for each file
+
+   if global_sample >= TOTAL_DATA
+      break;
+   end
+
+1
 end  % for each pij
 fprintf('Saving\n');
 
 
 
-
-
-
-%grid('ON');
-%scatter( trainData.headpose(1,:), trainData.headpose(2,:), '*', 'b' );
-
-savename = 'small_MPII_traindata.h5';
 
 %start creating data file for training(HDF5)
 
@@ -283,7 +277,7 @@ for i = 1:NUM_OF_GROUPS
 
 %%%%%% Dataset 4: List of R-nearest groups %%%%
 
-	listOfGroupIds = find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, [i], NUM_OF_GROUPS );
+	listOfGroupIds = find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, i, NUM_OF_GROUPS );
 	listOfGroupIds = listOfGroupIds(2:length(listOfGroupIds));
 	
 	dims = [R 1];
@@ -352,7 +346,7 @@ fid = H5F.create('mytest.h5');
 %%%%%% Dataset 3: List of R-nearest groups %%%%
 	for o = 1:testindex
 
-	   testData.nTrees(1:(R+1), o) =find_R_nearest_groups( groups(testData.nTrees(1,o)).centerHor, groups(testData.nTrees(1,o)).centerVert, groups, R, [testData.nTrees(1,o)], NUM_OF_GROUPS);
+	   testData.nTrees(1:(R+1), o) =find_R_nearest_groups( groups(testData.nTrees(1,o)).centerHor, groups(testData.nTrees(1,o)).centerVert, groups, R,  testData.nTrees(1,o), NUM_OF_GROUPS);
 	end
 
 
@@ -422,7 +416,7 @@ function listOfGroupIds = find_R_nearest_groups(centerHor, centerVert, groups, t
         
 	end
      
-      end
+     end
 
    end
    
@@ -451,7 +445,6 @@ function out = isnt_in_the_list(currGroup, listOfGroupIds)
    end
 
 end
-
 
 
 
