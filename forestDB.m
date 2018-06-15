@@ -72,6 +72,7 @@ one = 0;
 two = 0;
 three = 0;
 four = 0;
+
 %Pij lists all p00, p01, p02,...
 dirData = dir(pwd);
 dirIndex = [dirData.isdir];
@@ -94,21 +95,45 @@ Pij = dirData(dirIndex);
 
 
   num_f = randi(length(files), 1,1);
+  list1(1) = num_f;
+  l_size = 1;
+
   readname = [filepath, files{num_f}];
   temp = load(readname);   
-  num_data = length(temp.filenames(:,1));  
+  num_data = length(temp.filenames(:,1)); 
+
+  l2_size = 0; 
+  list2 = [];
   while 1
 
-%	if mod(i-1,CHUNK_SIZE) == 0
-%	   fprintf('probleeeem\n');
-%	   num_f = randi(length(files), 1,1);
- %          readname = [filepath, files{num_f}];
-  %         temp = load(readname);   
-  %         num_data = length(temp.filenames(:,1));  
-%	end
+	if mod(i,CHUNK_SIZE) == 0 || l2_size == num_data
 
-    
-	num_i = randi(num_data,1,1);    
+	   while (1)  
+	      num_f = randi(length(files), 1,1);
+	      if ismember(num_f, list1(1:l_size)) == 0
+		 l_size = l_size + 1;
+	         list1(l_size) = num_f;
+		 l2_size = 0;
+		 list2 = [];
+
+		 readname = [filepath, files{num_f}];
+           	 temp = load(readname);   
+           	 num_data = length(temp.filenames(:,1));
+  
+		 break;
+	      end
+           end           
+	end
+
+          
+	while(1)
+	   num_i = randi(num_data,1,1);
+	   if ismember(num_i, list2(1:l2_size)) == 0
+              l2_size = l2_size + 1;
+              list2(l2_size) = num_i;
+	      break;
+	   end
+	end
 
 	% for left
         img = temp.data.left.image(num_i, 14:22, 23:37);
