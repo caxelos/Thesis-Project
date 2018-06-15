@@ -22,7 +22,6 @@ TOTAL_DATA = 44640;%number of samples
 
 TEST_SIZE= TOTAL_DATA/5;
 MAX_PER_PERSON = floor(TOTAL_DATA/15);
-
 CHUNK_SIZE =  floor(MAX_PER_PERSON/15);
 
 
@@ -37,7 +36,7 @@ MAX_SIZE_PER_GROUP = 1500;
 
 
 %%% structure allocation %%%
-groups(1:140) = struct('centerHor', zeros(1) , 'centerVert', zeros(1), 'index', 0,  'RnearestCenters', int8(zeros(R,1)), 'trainData', [] );
+groups(1:140) = struct('centerHor', zeros(1) , 'centerVert', zeros(1), 'index', 0,  'RnearestCenters', int8(zeros(R,1)), 'trainData', [], 'numberOfSamples', zeros(1) );
 for i = 1:140
    groups(i).centerHor = centers(i,1);
    groups(i).centerVert = centers(i,2);
@@ -92,14 +91,21 @@ Pij = dirData(dirIndex);
 
   turn = 1;
   i = 1;
+
+
+  num_f = randi(length(files), 1,1);
+  readname = [filepath, files{num_f}];
+  temp = load(readname);   
+  num_data = length(temp.filenames(:,1));  
   while 1
 
-	if mod(i,CHUNK_SIZE) == 0
-	   num_f = randi(length(files), 1,1);
-           readname = [filepath, files{num_f}];
-           temp = load(readname);   
-           num_data = length(temp.filenames(:,1));  
-	end
+%	if mod(i-1,CHUNK_SIZE) == 0
+%	   fprintf('probleeeem\n');
+%	   num_f = randi(length(files), 1,1);
+ %          readname = [filepath, files{num_f}];
+  %         temp = load(readname);   
+  %         num_data = length(temp.filenames(:,1));  
+%	end
 
     
 	num_i = randi(num_data,1,1);    
@@ -310,7 +316,22 @@ for i = 1:NUM_OF_GROUPS
 	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, listOfGroupIds );
 	H5D.close(dset);
 	H5S.close(space_id);	
-	
+
+
+%%%%%% Dataset 5: Number of samples per group %%%%
+
+	dims = [1];
+	h5_dims = fliplr(dims);
+	h5_maxdims = h5_dims;
+	space_id = H5S.create_simple(1,h5_dims,h5_maxdims);
+
+	dset = H5D.create(grp,strcat('/g', num2str(i),'/','samples'), type_id,space_id,dcpl);
+	H5D.write(dset,'H5ML_DEFAULT','H5S_ALL','H5S_ALL',plist, groups(i).index );
+	H5D.close(dset);
+	H5S.close(space_id);	
+
+
+
 
 end
 H5F.close(fid);
