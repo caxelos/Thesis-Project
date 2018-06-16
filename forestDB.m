@@ -110,6 +110,9 @@ Pij = dirData(dirIndex);
 
 	   while (1)  
 	      num_f = randi(length(files), 1,1);
+	      num_tried = 0;
+
+
 	      if ismember(num_f, list1(1:l_size)) == 0
 		 l_size = l_size + 1;
 	         list1(l_size) = num_f;
@@ -119,8 +122,12 @@ Pij = dirData(dirIndex);
 		 readname = [filepath, files{num_f}];
            	 temp = load(readname);   
            	 num_data = length(temp.filenames(:,1));
-  
+
+		
 		 break;
+	      else
+		fprintf('kollise1\n');
+
 	      end
            end           
 	end
@@ -131,6 +138,7 @@ Pij = dirData(dirIndex);
 	   if ismember(num_i, list2(1:l2_size)) == 0
               l2_size = l2_size + 1;
               list2(l2_size) = num_i;
+	     
 	      break;
 	   end
 	end
@@ -259,12 +267,31 @@ fprintf('Saving\n');
 
 
 
+hold on;
+axis([-1 1 -1 1]);
+title( 'Head pose distribution of 44640 samples' );
+xlabel('Theta angle(radians)');
+ylabel('Phi angle(radians)');
+
+for i = 1:140
+
+ scatter( groups(i).trainData.headpose(1,:), groups(i).trainData.headpose(2,:), '*', 'b' ); 
+ hold on; 
+ scatter( groups(i).centerHor , groups(i).centerVert, '*', 'g' );      
+ 
+ hold on;
+end
+grid on;
+legend('training samples', 'cluster centers');
+hold off;
+
+
+
 %start creating data file for training(HDF5)
 fid = H5F.create('myfile.h5');
 type_id = H5T.copy('H5T_NATIVE_DOUBLE');
 dcpl = 'H5P_DEFAULT';
 plist = 'H5P_DEFAULT';
-
 
 
 for i = 1:NUM_OF_GROUPS
