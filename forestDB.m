@@ -11,35 +11,86 @@ if exist('mytest.h5', 'file') == 2
 end
 
 
-
-
-centers = csvread('centers.txt');
-
-fprintf('File Path Ready!\n');
-
-
 TOTAL_DATA = 44640;%number of samples
-
 TEST_SIZE= TOTAL_DATA/5;
 MAX_PER_PERSON = floor(TOTAL_DATA/15);
 CHUNK_SIZE =  floor(MAX_PER_PERSON/15);
-
-
 TRAIN_SIZE_PER_PERSON = floor( (4*MAX_PER_PERSON)/5) ;
 
 R = 20;
-NUM_OF_GROUPS = 140;
+
 WIDTH = 15;
 HEIGHT = 9;
 
+
+MAX_NUM_OF_GROUPS = 300;
 MAX_SIZE_PER_GROUP = 1500;
 
 
+
 %%% structure allocation %%%
-groups(1:140) = struct('centerHor', zeros(1) , 'centerVert', zeros(1), 'index', 0,  'RnearestCenters', int8(zeros(R,1)), 'trainData', [], 'numberOfSamples', zeros(1) );
-for i = 1:140
-   groups(i).centerHor = centers(i,1);
-   groups(i).centerVert = centers(i,2);
+groups(1:MAX_NUM_OF_GROUPS) = struct('centerHor', zeros(1) , 'centerVert', zeros(1), 'index', 0,  'RnearestCenters', int8(zeros(R,1)), 'trainData', [], 'numberOfSamples', zeros(1) );
+
+%%% construct cluster centers %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%Pij lists all p00, p01, p02,...
+dirData = dir(pwd);
+dirIndex = [dirData.isdir];
+Pij = dirData(dirIndex);
+%for each Pij...
+
+ numGrps = 0;
+ for num_Pij=3:length(Pij)
+   filepath = strcat(Pij(num_Pij).name, '/'); %'p00/';%'MPIIGaze/';
+ 
+  %%% LIST ALL FILES %%%
+  dirData = dir(filepath);%path = dir(filepath);
+  dirIndex = [dirData.isdir];
+  files = {dirData(~dirIndex).name}';
+
+
+  for num_f=1:length(files) 
+   
+    readname = [filepath, files{num_f}];
+    temp = load(readname);   
+    num_data = length(temp.filenames(:,1));   
+    for num_i=1:num_data
+     
+	% for left
+        headpose = temp.data.left.pose(num_i, :);
+        M = rodrigues(headpose);
+        Zv = M(:,3);
+        theta = asin(Zv(2));
+        phi = atan2(Zv(1), Zv(3));
+          
+	if can_be_center(groups, theta, phi, numGrps)
+	   numGrps = numGrps + 1;
+	   groups(numGrps).centerHor = theta;
+	   groups(numGrps).centerVert = phi;
+	end
+
+         
+        % for right
+        headpose = temp.data.right.pose(num_i, :); 
+        M = rodrigues(headpose);
+        Zv = M(:,3);
+        theta = asin(Zv(2));
+       	phi = atan2(Zv(1), Zv(3));
+	if can_be_center(groups, theta, (-1)*phi, numGrps)
+	   numGrps = numGrps + 1;
+	   groups(numGrps).centerHor = theta;
+	   groups(numGrps).centerVert = (-1)*phi;
+	end
+
+    end
+  end
+ end
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+for i = 1:numGrps
    groups(i).trainData = struct('gaze', zeros(2,MAX_SIZE_PER_GROUP), 'headpose', zeros(2, MAX_SIZE_PER_GROUP), 'data', zeros(WIDTH,HEIGHT,1,MAX_SIZE_PER_GROUP)  ) ; 
 end
 
@@ -63,15 +114,8 @@ tempData.headpose = zeros(2, 1*2);%zeros(2, total_num*2);
 %tempData.confidence = zeros(1, 1*2);%zeros(1, total_num*2);
 
 
-minPoseHoriz = 30;
-minPoseVert = 30;
-maxPoseHoriz = -30;
-maxPoseVert = -30;
 
-one = 0;
-two = 0;
-three = 0;
-four = 0;
+
 
 %Pij lists all p00, p01, p02,...
 dirData = dir(pwd);
@@ -122,12 +166,10 @@ Pij = dirData(dirIndex);
 		 readname = [filepath, files{num_f}];
            	 temp = load(readname);   
            	 num_data = length(temp.filenames(:,1));
-
 		
 		 break;
 	      else
 		fprintf('kollise1\n');
-
 	      end
            end           
 	end
@@ -169,7 +211,6 @@ Pij = dirData(dirIndex);
         tempData.data(:, :, 1, 2) = double(flip(img, 2))'; % filp the image
 	         
 
-
         Lable_right = temp.data.right.gaze(num_i,:)';
         theta = asin((-1)*Lable_right(2));
         phi = atan2((-1)*Lable_right(1), (-1)*Lable_right(3));
@@ -191,7 +232,7 @@ Pij = dirData(dirIndex);
                 %%%%%%%%%%%%%%%
 
 		%copy left
-		groupID = find_nearest_group(tempData.headpose(:,1), groups, NUM_OF_GROUPS);
+		groupID = find_nearest_group(tempData.headpose(:,1), groups, numGrps);
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,1);
 		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,1);
@@ -208,7 +249,7 @@ Pij = dirData(dirIndex);
 		    
                 %copy right
 		
-		groupID = find_nearest_group(tempData.headpose(:,2), groups, NUM_OF_GROUPS);
+		groupID = find_nearest_group(tempData.headpose(:,2), groups, numGrps);
 		groups(groupID).index = groups(groupID).index + 1;
 		groups(groupID).trainData.data(:, :,1,groups(groupID).index) = tempData.data(:, :, 1,2);
 		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,2);
@@ -229,7 +270,7 @@ Pij = dirData(dirIndex);
 		%%%%%%%%%%%%%%%
 		%copy left
 		testindex = testindex+1;
-		testData.nTrees(1, testindex) = find_nearest_group(tempData.headpose(:,1), groups, NUM_OF_GROUPS);	
+		testData.nTrees(1, testindex) = find_nearest_group(tempData.headpose(:,1), groups,numGrps);	
 		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1,1);
 		testData.gaze(:,testindex) = tempData.label(:,1);
 		testData.headpose(:,testindex) = tempData.headpose(:,1);
@@ -244,7 +285,7 @@ Pij = dirData(dirIndex);
 
 		%copy right
 		testindex = testindex+1;
-		testData.nTrees(1, testindex) = find_nearest_group(tempData.headpose(:,2), groups, NUM_OF_GROUPS);
+		testData.nTrees(1, testindex) = find_nearest_group(tempData.headpose(:,2), groups, numGrps);
 		testData.data(:, :, 1, testindex) = tempData.data(:, :, 1, 2);
 		testData.gaze(:,testindex) = tempData.label(:,2);
 		testData.headpose(:,testindex) = tempData.headpose(:,2);
@@ -269,11 +310,11 @@ fprintf('Saving\n');
 
 hold on;
 axis([-1 1 -1 1]);
-title( 'Head pose distribution of 44640 samples' );
+title( strcat('Head pose distribution of 44640 samples. Num of Centers: ', num2str(numGrps)) );
 xlabel('Theta angle(radians)');
 ylabel('Phi angle(radians)');
 
-for i = 1:140
+for i = 1:numGrps
 
  scatter( groups(i).trainData.headpose(1,:), groups(i).trainData.headpose(2,:), '*', 'b' ); 
  hold on; 
@@ -294,7 +335,7 @@ dcpl = 'H5P_DEFAULT';
 plist = 'H5P_DEFAULT';
 
 
-for i = 1:NUM_OF_GROUPS
+for i = 1:numGrps
 	
 	groups(i).trainData.data = groups(i).trainData.data;%/255; %normalize
 	groups(i).trainData.data = single(groups(i).trainData.data); % must be single data, because caffe want
@@ -356,7 +397,7 @@ for i = 1:NUM_OF_GROUPS
 
 %%%%%% Dataset 4: List of R-nearest groups %%%%
 
-	listOfGroupIds = find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, [i], NUM_OF_GROUPS );
+	listOfGroupIds = find_R_nearest_groups(groups(i).centerHor, groups(i).centerVert, groups, R, [i], numGrps );
 	listOfGroupIds = listOfGroupIds(2:length(listOfGroupIds));
 	
 	dims = [R 1];
@@ -440,7 +481,7 @@ fid = H5F.create('mytest.h5');
 %%%%%% Dataset 3: List of R-nearest groups %%%%
 	for o = 1:testindex
 
-	   testData.nTrees(1:(R+1), o) =find_R_nearest_groups( groups(testData.nTrees(1,o)).centerHor, groups(testData.nTrees(1,o)).centerVert, groups, R, [testData.nTrees(1,o)], NUM_OF_GROUPS);
+	   testData.nTrees(1:(R+1), o) =find_R_nearest_groups( groups(testData.nTrees(1,o)).centerHor, groups(testData.nTrees(1,o)).centerVert, groups, R, [testData.nTrees(1,o)], numGrps);
 	end
 
 
@@ -461,7 +502,17 @@ end
 
 
 
+function answer = can_be_center(groups, theta, phi, numGrps)
 
+   answer = 1;
+   for i = 1:numGrps
+      if  sqrt( (groups(i).centerHor-theta)^2 + (groups(i).centerVert - phi)^2 ) < 0.06
+         answer = 0; 
+         break;	
+      end
+   end
+
+end
 
 
 
