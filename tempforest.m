@@ -1,14 +1,16 @@
+%function tempforest(NUM_OF_GROUPS)
 function tempforest
 
-clear all;
+
+NUM_OF_GROUPS = 183;
 clc;
 
 addpath /home/trakis/Downloads/MPIIGaze/Data/%@tree
 
-
+%NUM_OF_GROUPS = 149;
 HEIGHT = 15;%9;
 WIDTH = 9;%15;
-NUM_OF_GROUPS = 140;
+
 
 %%%%%%%%%% Open HDF5 training file %%%%%%%%%%
 
@@ -17,13 +19,11 @@ NUM_OF_GROUPS = 140;
 samplesInTree = zeros(1,NUM_OF_GROUPS);
 
 
-
-for R = 5:10
+for R = 8:10
 
 for i = 1:NUM_OF_GROUPS %for each tree
 
-
-	fid = H5F.open('myfile.h5', 'H5F_ACC_RDONLY', 'H5P_DEFAULT');	
+	fid = H5F.open( 'myfile.h5', 'H5F_ACC_RDONLY', 'H5P_DEFAULT');	
 	%%%%%%%%%% Start with the central group %%%%%%%%%%
 	grpID = H5G.open(fid, strcat('/g',num2str(i)) );
 	curr_samplesID 	= H5D.open(grpID, 'samples');
@@ -46,24 +46,25 @@ for i = 1:NUM_OF_GROUPS %for each tree
 	curr_poses    = H5D.read(curr_posesID);
 
 
-	samplesInGroup = curr_samples;
-	contribOfGroup = ceil( sqrt( samplesInGroup ) );
-	
-
 	j = 1;
 	samplesInTree(i) = 0;
-	while j <= contribOfGroup
+	MAX_CONTRIBUTION = ceil(sqrt(curr_samples));
+	while j <= MAX_CONTRIBUTION
 		samplesInTree(i) = samplesInTree(i) + 1;
-		random = randi(samplesInGroup,1,1);
+		random = randi(curr_samples,1,1);
 
 		treeImgs(i,:,:,samplesInTree(i) ) =  curr_imgs( :, :, 1, random);
 		treeGazes(i,samplesInTree(i),: ) = curr_gazes(:,random);
-		treePoses(i,:,samplesInTree(i) ) = curr_poses(:,random);
+		treePoses(i,samplesInTree(i),: ) = curr_poses(:,random);
+		
 	
 		j = j + 1;
 	end
+	treeCenter(i,:) = curr_center;
 
 end
+
+
 
 for i = 1:NUM_OF_GROUPS %for each tree
 
@@ -87,7 +88,13 @@ for i = 1:NUM_OF_GROUPS %for each tree
 		tempImgs = H5D.read( tempImgID );
 		tempPoses = H5D.read( tempPoseID );
 		tempGazes = H5D.read( tempGazeID );
+		
 		contribOfGroup = ceil( sqrt( tempSample ) );
+
+		
+
+		%%%%%% allagi %%%%%
+
 		j = 1;
 		while j <= contribOfGroup
 
@@ -95,11 +102,12 @@ for i = 1:NUM_OF_GROUPS %for each tree
 		   random = randi(tempSample,1,1);
 		   treeImgs (i, :,:,samplesInTree(i)) =  tempImgs(:,:,1,  random);
 		   treeGazes(i, samplesInTree(i), :) = tempGazes(:, random);
-		   treePoses(i, :,samplesInTree(i)) = tempPoses( :,random);
+		   treePoses(i, samplesInTree(i), :) = tempPoses( :,random);
 	
 	  	   j = j + 1;		
 		end
 		
+
 		H5D.close( tempSampleID)
 		H5D.close( tempImgID );
 		H5D.close( tempPoseID);
@@ -107,6 +115,8 @@ for i = 1:NUM_OF_GROUPS %for each tree
 
 		H5G.close( localGrpID ) ;
 	end
+	
+	
 end
 
 
@@ -130,10 +140,7 @@ end
 	
 	% xtise mono 6 gia logous oikonomias. Meta vgale tin if
 
-	trees = buildRegressionTree( samplesInTree, treeImgs,  treeGazes, HEIGHT, WIDTH);
-
-
-        pause(180);
+	trees = buildRegressionTree( NUM_OF_GROUPS, samplesInTree, treeImgs,  treeGazes, treePoses, HEIGHT, WIDTH);
 
 
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -153,24 +160,52 @@ end
 	test_poses    = H5D.read(test_posesID);
 
 	ntestsamples = length( test_imgs(:,:,:,:) );
-	final_error = 0;
-	for j = 1:ntestsamples
-	   gaze_predict = [0 0]'; 
+	mean_predict = zeros(1, 2*ntestsamples);
+	for j = 1:3%ntestsamples
+
+	   predict = [0 0]; 
 	   for k = 1:(R+1)%each samples, run the R+1 trees
 
-
-		gaze_predict = gaze_predict + testSampleInTree( trees(test_rnearest(k,j) ), 1, test_imgs(:,:,1,j), test_gazes(:,j) );
+		% each tree's prediction
+		predict = predict + testSampleInTree( trees(test_rnearest(k,j) ), 1, test_imgs(:,:,1,j), test_poses(:,j));
 
 	   end
-	   gaze_predict = gaze_predict/(R+1);
-	   final_error = final_error + abs(test_gazes(1,j) - gaze_predict(1) ) + abs( test_gazes(2,j) -gaze_predict(2) );
-	  
+	   
+	   %%% prediction = mean prediction of all trees %%%		 
+	   predict = predict/(R+1);
+	   errors(j) = norm( predict - test_gazes(:,j)',2 );
 	end
-	final_error = final_error/(2*ntestsamples);
-	rad2deg(final_error)
+
 	
-	fileID =  fopen( strcat(R,'nearest.txt'),'w');
-	fprintf(fileID,'%f', final_error);
+	mean_error =  rad2deg( mean(  errors(1:3)) )%rad2deg( mean(  errors(1:ntestsamples)) )
+	deviation  = rad2deg( std( errors(1:3)) ) %rad2deg( std( errors(1:ntestsamples)) )	
+
+	if R == 1
+	   fileID =  fopen( strcat(R,'nearest3.txt'),'w');
+	elseif R == 2
+	   fileID =  fopen( strcat(R,'nearest3.txt'),'w');
+	elseif R == 3
+	   fileID =  fopen( strcat(R,'nearest4.txt'),'w');
+	elseif R == 4
+	   fileID =  fopen( strcat(R,'nearest5.txt'),'w');
+	elseif R == 5	
+	   fileID =  fopen( strcat(R,'nearest006.txt'),'w');
+	elseif R == 6
+	   fileID =  fopen( strcat(R,'nearest6.txt'),'w');
+	elseif R == 7
+	   fileID =  fopen( strcat(R,'nearest7.txt'),'w');
+	elseif R == 8
+	   fileID =  fopen( strcat(R,'nearest8.txt'),'w');
+	elseif R == 9
+	   fileID =  fopen( strcat(R,'nearest9.txt'),'w');
+	elseif R == 10
+	   fileID =  fopen( strcat(R,'nearest10.txt'),'w');
+	elseif R == 11
+	   fileID =  fopen( strcat(R,'nearest11.txt'),'w');
+	elseif R == 12
+	   fileID =  fopen( strcat(R,'nearest12.txt'),'w');
+	end
+	fprintf(fileID,'%f\n%f', mean_error, deviation);
 	fclose(fileID);
 	
 
@@ -194,21 +229,36 @@ end
 
 end
 
-function val = testSampleInTree(tree, node, test_img, gaze )
-   val = [100000 100000];	
-
+function val = testSampleInTree(tree, node, test_img,  test_pose )
+   val = [0 0];	
 
    if tree.isleaf(node) 
-      val = sscanf(tree.get(node),'(%f,%f)');
-	
+      leafdata = tree.get(node);
+      leafposes = leafdata.poses;
+      leafgazes = leafdata.gazes;
+      samplesInLeaf = length( leafgazes(:,1) )
+      
+  size(leafposes)
+  size(test_pose)	
+      for k = 1:samplesInLeaf
+         %goodness(k) = 1/norm( leafposes(1,k,:)  - test_pose, 2 );
+	goodness(k) = 1/ sqrt( (leafposes(1,k,1)-test_pose(1))^2 + (leafposes(1,k,2)-test_pose(2)) ); 
+      end	  
+      w = goodness ./sum( goodness(1:samplesInLeaf));
+      for k = 1:samplesInLeaf
+	 val(1) = val(1) + w(k) * leafgazes(k,1);
+	 val(2) = val(2) + w(k) * leafgazes(k,2); 
+      end
+
+   
    else
 
       data= sscanf(tree.get(node),'Samples:%f,px1(%f,%f)-px2(%f,%f)>=%f');
       childs = tree.getchildren(node);
       if abs(test_img(data(2), data(3), 1, 1) - test_img(data(4), data(5), 1,1)) >= data(6)
-         val = testSampleInTree(tree,childs(2) , test_img, gaze );
+         val = testSampleInTree(tree,childs(2) , test_img, test_pose );
       else
-         val = testSampleInTree(tree, childs(1), test_img, gaze );
+         val = testSampleInTree(tree, childs(1), test_img, test_pose );
       end
       
    end
@@ -218,22 +268,23 @@ end
 
 
 
-function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEIGHTX, WIDTHX)
+function treesMy = buildRegressionTree( NUM_OF_GROUPS, fatherSizeX, treeImgsX,  treeGazesX, treePosesX, HEIGHTX, WIDTHX)
 	MAX_DEPTH = 20;
 	NUM_OF_WORKERS = 3;
 	MAX_FATHER_SIZE = 189;%200;	
-	
+	MAX_FATHER_CHILD_DIST = 15;
+
 	treeGazes = Composite(NUM_OF_WORKERS);
 	fatherSizeTrees = Composite(NUM_OF_WORKERS);
 	treeImgs = Composite(NUM_OF_WORKERS);
+	treePoses = Composite(NUM_OF_WORKERS);
 	HEIGHT = Composite(NUM_OF_WORKERS);
 	WIDTH = Composite(NUM_OF_WORKERS);
-	fatherSize = Composite(NUM_OF_WORKERS);
-
-	
+	fatherSize = Composite(NUM_OF_WORKERS);	
 	
 	for w=1:NUM_OF_WORKERS
 	   treeGazes{w} = treeGazesX;
+	   treePoses{w} = treePosesX;
 	   fatherSize{w} = fatherSizeX;
 	   treeImgs{w} = treeImgsX;
 	   HEIGHT{w} = HEIGHTX;
@@ -254,22 +305,20 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
         spmd;
 
 
+	savedNodeSize = uint16(zeros(MAX_DEPTH,2));
+	currPtrs = uint16(zeros(1,MAX_FATHER_SIZE)); 
 
-
-	savedNodeSize = int8(zeros(MAX_DEPTH,2));
-	currPtrs = int8(zeros(1,MAX_FATHER_SIZE)); 
-
-	px1_vert  = int8(zeros(1)); 
-	px1_hor = int8(zeros(1));
-	px2_vert = int8(zeros(1));
-	px2_hor = int8(zeros(1));
-	counter = int8(zeros(1));
+	px1_vert  = uint8(zeros(1)); 
+	px1_hor = uint8(zeros(1));
+	px2_vert = uint8(zeros(1));
+	px2_hor = uint8(zeros(1));
+	counter = uint16(zeros(1));
 	
 
 	minSquareError = zeros(1,3);
-	numOfPixels = int8(zeros(1));	
+	numOfPixels = uint16(zeros(1));	
 	numOfPixels = HEIGHT*WIDTH;
-	bestworker = int8(zeros(1));
+	bestworker = uint8(zeros(1));
 	container = [];
 	container.data = zeros(1,7);
 
@@ -278,29 +327,35 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	%container.savedPtrs = zeros(1, fatherSize(1));
 	container.saved_curr_Ptrs = zeros(2,fatherSize(1));
 	
-	cache_treeImgs = int8(zeros(fatherSize(1), 2));
-        l_r_fl_fr_imgs = int8(zeros(4,fatherSize(1)));
-        savedPtrs = int8(zeros(MAX_DEPTH, fatherSize(1)) ); 
+	cache_treeImgs = uint16(zeros(fatherSize(1), 2));
+        l_r_fl_fr_ptrs = uint16(zeros(4,fatherSize(1)));
+        savedPtrs = uint16(zeros(MAX_DEPTH, fatherSize(1)) ); 	
+	rnode_info = struct('poses', zeros(fatherSize(1),2), 'gazes', zeros(fatherSize(1),2), 'stdGaze', zeros(1,2), 'meanGaze', zeros(1,2) );
+	lnode_info = struct('poses', zeros(fatherSize(1),2), 'gazes', zeros(fatherSize(1),2),'stdGaze', zeros(1,2), 'meanGaze', zeros(1,2) );
+
 
         bestSize = fatherSize(1);
 
- for i = 1:140 % for every tree
 
- 
-        if  (fatherSize(i) > bestSize) || (bestSize - fatherSize(i) > 15 ) 
+ for i = 1:NUM_OF_GROUPS % for every tree
+   if i == 35 || i == 31 || i == 74 || i==39 ||i==26 || i ==40 || i == 27 || i == 74 || i == 10 || i == 5 || i ==6 || i==72 || i ==8 || i==10 || i==31 || i==9 || i==7 || i==6 || i==12 || i==115 || i==46 || i == 72 || i==11 || i==115 || i==47 || i==40 || i==26
+
+
+        if  (fatherSize(i) > bestSize) || (bestSize - fatherSize(i) > MAX_FATHER_CHILD_DIST ) 
 	  %%% reallocate memory when the condition is true %%%    
 	   bestSize = fatherSize(i);
 	    
 	   cache_treeImgs = [];
-	   l_r_fl_fr_imgs = [];
+	   l_r_fl_fr_ptrs = [];
 	   savedPtrs = [];
 	   container.saved_curr_Ptrs = [];
 
-	   savedPtrs = int8(zeros(MAX_DEPTH, fatherSize(i)) );
-           cache_treeImgs = int8( zeros(fatherSize(i), 2));
-           l_r_fl_fr_imgs = int8(zeros(4,fatherSize(i))); 
-  	   container.saved_curr_Ptrs = int8(zeros(2,fatherSize(i)) );
-
+	   savedPtrs = uint16(zeros(MAX_DEPTH, fatherSize(i)) );
+           cache_treeImgs = uint16( zeros(fatherSize(i), 2));
+           l_r_fl_fr_ptrs = uint16(zeros(4,fatherSize(i))); 
+  	   container.saved_curr_Ptrs = uint16(zeros(2,fatherSize(i)) );
+	   rnode_info = struct('poses', zeros(fatherSize(1),2), 'gazes', zeros(fatherSize(1),2),'stdGaze', zeros(1,2), 'meanGaze', zeros(1,2) );
+	   lnode_info = struct('poses', zeros(fatherSize(1),2), 'gazes', zeros(fatherSize(1),2),'stdGaze', zeros(1,2), 'meanGaze', zeros(1,2) );
 	end
 
        stackindex = 0;
@@ -320,7 +375,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	 
           
 	   counter = labindex;
-	   while (counter <= numOfPixels-1)
+	   while counter <= numOfPixels-1
 		
 	
 	        px1_vert = ceil( (counter/WIDTH));
@@ -340,7 +395,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 		     end
 		
                      if  sqrt( (px1_vert -px2_vert)^2+(px1_hor-px2_hor)^2 ) < 6.5             
-		        for thres = 1:50
+		        for thres = 25:30%1:50
 			   l = 0;
 			   r = 0;			
 			   meanLeftGaze = [0 0];
@@ -351,14 +406,16 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 
 			          %left child
 			         l = l + 1;
-				 l_r_fl_fr_imgs(1,l) = currPtrs(j);			
+				 l_r_fl_fr_ptrs(1,l) = currPtrs(j);			
+				 
+			
 			
 				 meanLeftGaze(1) = meanLeftGaze(1) + treeGazes(i,currPtrs(j),1);			       
 				 meanLeftGaze(2) = meanLeftGaze(2) + treeGazes(i,currPtrs(j),2);	
 			      else
 			            %right child
 			            r = r + 1;
-				    l_r_fl_fr_imgs(2,r) = currPtrs(j);
+				    l_r_fl_fr_ptrs(2,r) = currPtrs(j);
   				      
 				    meanRightGaze(1) = meanRightGaze(1) + treeGazes(i,currPtrs(j),1);
 				    meanRightGaze(2) = meanRightGaze(2) + treeGazes(i,currPtrs(j),2);
@@ -370,10 +427,10 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 
 			       squareError = 0;
 				for j = 1:l	
-				   squareError=squareError + (meanLeftGaze(1)-treeGazes(i, l_r_fl_fr_imgs(1,l),1))^2 + (meanLeftGaze(2)-treeGazes(i,l_r_fl_fr_imgs(1,l),2))^2;	
+				   squareError=squareError + (meanLeftGaze(1)-treeGazes(i, l_r_fl_fr_ptrs(1,l),1))^2 + (meanLeftGaze(2)-treeGazes(i,l_r_fl_fr_ptrs(1,l),2))^2;	
 			       end
 			       for j = 1:r
-				   squareError=squareError + (meanRightGaze(1)-treeGazes(i,l_r_fl_fr_imgs(2,r),1))^2 + (meanRightGaze(2)-treeGazes(i, l_r_fl_fr_imgs(2,r), 2))^2;	
+				   squareError=squareError + (meanRightGaze(1)-treeGazes(i,l_r_fl_fr_ptrs(2,r),1))^2 + (meanRightGaze(2)-treeGazes(i, l_r_fl_fr_ptrs(2,r), 2))^2;	
 		               end
 			       
 		
@@ -385,14 +442,17 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 			   	   minPx2_hor =     px2_hor; % and here
 			   	   bestThres  =     thres;
 
-				   l_r_fl_fr_imgs(3,1:l) = l_r_fl_fr_imgs(1,1:l);
-				   l_r_fl_fr_imgs(4,1:r) = l_r_fl_fr_imgs(2,1:r);
-
-			   	   ltreeSize = l;
+				   ltreeSize = l;
 			   	   rtreeSize = r;
+
+				   l_r_fl_fr_ptrs(3,1:l) = l_r_fl_fr_ptrs(1,1:l);
+				   l_r_fl_fr_ptrs(4,1:r) = l_r_fl_fr_ptrs(2,1:r);
 		
                            	   rtree_meanGaze = meanRightGaze;
 			   	   ltree_meanGaze = meanLeftGaze;
+				   %stdLeftGaze =  std(  treeGazes(i, l_r_fl_fr_ptrs(1,1:l), :)   );
+				   %stdRightGaze = std(  treeGazes(i, l_r_fl_fr_ptrs(2,1:r), :)   );
+				 
 				end	 	
 		             end%thres
 		          end%end if < 6.5	
@@ -402,8 +462,7 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 		 counter = counter + numlabs;
            end %endof px1_vert
 
-	   
-%	  if numlabs == 3
+	 
              rcvWkrIdx = mod(labindex, numlabs) + 1; % one worker to the right
 	     srcWkrIdx = mod(labindex - 2, numlabs) + 1; % one worker to the left
 
@@ -437,24 +496,35 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 
               trees(i)=trees(i).set(node_i,strcat('Samples:',num2str(fatherSize(i)),',px1(', num2str(minPx1_vert),',',num2str(minPx1_hor),')-','px2(',num2str(minPx2_vert),',',num2str(minPx2_hor),')>=', num2str(bestThres) ));  
 
-	      [trees(i) lnode] = trees(i).addnode(node_i, strcat('(', num2str(ltree_meanGaze(1)), ',', num2str(ltree_meanGaze(2)), ')'));
-	      [trees(i) rnode] = trees(i).addnode(node_i, strcat('(', num2str(rtree_meanGaze (1)), ',', num2str(rtree_meanGaze (2)), ')'));
 
+	   
+	      rnode_info.poses = treePoses(i, l_r_fl_fr_ptrs(4,1:rtreeSize), :);
+	      rnode_info.gazes = treeGazes(i, l_r_fl_fr_ptrs(4,1:rtreeSize), :);
+	      %rnode_info.meanGaze = meanRightGaze;
+	      %rnode_info.stdGaze = stdRightGaze; 
+	      lnode_info.poses = treePoses(i, l_r_fl_fr_ptrs(3,1:ltreeSize), :);
+	      lnode_info.gazes = treeGazes(i, l_r_fl_fr_ptrs(3,1:ltreeSize), :);
+	      %lnode_info.meanGaze = meanLeftGaze;
+	      %lnode_info.stdGaze = stdLeftGaze;
+	      [trees(i) lnode] = trees(i).addnode(node_i, lnode_info);
+	      [trees(i) rnode] = trees(i).addnode(node_i, rnode_info);
+	      
+	 
 	      % start saving the left brother     
 	      stackindex = stackindex + 1;
 	      savedNodeSize(stackindex,1) = lnode;
 	      savedNodeSize(stackindex,2) = ltreeSize;
- 
-	      savedPtrs(stackindex, 1:ltreeSize) = l_r_fl_fr_imgs(3,1:ltreeSize);
+	      savedPtrs(stackindex, 1:ltreeSize) = l_r_fl_fr_ptrs(3,1:ltreeSize);
 	 
+
 	      %%%   prepare data for right son %%%
 	      node_i = rnode;
 	      fatherSize(i) = rtreeSize;
-	      currPtrs(1:rtreeSize) =  l_r_fl_fr_imgs(4,1:rtreeSize); 
+	      currPtrs(1:rtreeSize) =  l_r_fl_fr_ptrs(4,1:rtreeSize); 
 	      
 	      container.data = [state numOfPixels  stackindex  fatherSize(i)  node_i  savedNodeSize(stackindex,1)  savedNodeSize(stackindex,2) ];
 	      container.trees = trees(i);
-	      container.saved_curr_Ptrs(1, 1:ltreeSize) =  l_r_fl_fr_imgs(3,1:ltreeSize);
+	      container.saved_curr_Ptrs(1, 1:ltreeSize) =  l_r_fl_fr_ptrs(3,1:ltreeSize);
 	      container.saved_curr_Ptrs(2, 1:fatherSize(i) ) = currPtrs(1:fatherSize(i) );
 
            else  %2
@@ -462,6 +532,8 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 		 state = 2;
 		 container.data(1) = 2;
 	      else 
+		 
+
 		 state = 3;        
 	     	 node_i = savedNodeSize(stackindex,1);
 	         fatherSize(i) = savedNodeSize(stackindex,2);
@@ -477,8 +549,10 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 	  
 
 
+
 	labBarrier;
 	if labindex ~= bestworker
+
 	    container = labBroadcast(bestworker);
 	    if container.data(1) == 1 %state = 1
 
@@ -518,11 +592,10 @@ function treesMy = buildRegressionTree( fatherSizeX, treeImgsX,  treeGazesX, HEI
 
 
     if labindex == 1
-	i
-	%disp(trees(i).tostring);
-	%fprintf('\n\n\n\n\n\n\n');
+	i%disp(trees(i).tostring);
     end 
-  
+
+  end %if tree  
  
  end %treeCompleted
 
