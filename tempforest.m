@@ -167,13 +167,14 @@ end
 	   for k = 1:(R+1)%each samples, run the R+1 trees
 
 		% each tree's prediction
+		test_rnearest(k,j)
 		predict = predict + testSampleInTree( trees(test_rnearest(k,j) ), 1, test_imgs(:,:,1,j), test_poses(:,j));
 
 	   end
 	   
 	   %%% prediction = mean prediction of all trees %%%		 
 	   predict = predict/(R+1);
-	   errors(j) = norm( predict - test_gazes(:,j)',2 );
+	   errors(j) = norm( predict - test_gazes(:,j)',2 );%mipws einai lathos i norma?!
 	end
 
 	
@@ -225,6 +226,8 @@ end
 
 	H5G.close(grpID);
 	H5F.close(fid);
+
+
 end
 
 end
@@ -236,10 +239,8 @@ function val = testSampleInTree(tree, node, test_img,  test_pose )
       leafdata = tree.get(node);
       leafposes = leafdata.poses;
       leafgazes = leafdata.gazes;
-      samplesInLeaf = length( leafgazes(:,1) )
-      
-  size(leafposes)
-  size(test_pose)	
+      samplesInLeaf = length( leafgazes(:,1) );
+      	
       for k = 1:samplesInLeaf
          %goodness(k) = 1/norm( leafposes(1,k,:)  - test_pose, 2 );
 	goodness(k) = 1/ sqrt( (leafposes(1,k,1)-test_pose(1))^2 + (leafposes(1,k,2)-test_pose(2)) ); 
@@ -338,7 +339,7 @@ function treesMy = buildRegressionTree( NUM_OF_GROUPS, fatherSizeX, treeImgsX,  
 
 
  for i = 1:NUM_OF_GROUPS % for every tree
-   if i == 35 || i == 31 || i == 74 || i==39 ||i==26 || i ==40 || i == 27 || i == 74 || i == 10 || i == 5 || i ==6 || i==72 || i ==8 || i==10 || i==31 || i==9 || i==7 || i==6 || i==12 || i==115 || i==46 || i == 72 || i==11 || i==115 || i==47 || i==40 || i==26
+   if i == 35 || i == 31 || i == 74 || i==39 ||i==26 || i ==40 || i == 27 || i == 74 || i == 10 || i == 5 || i ==6 || i==72 || i ==8 || i==10 || i==31 || i==9 || i==7 || i==6 || i==12 || i==115 || i==46 || i == 72 || i==11 || i==115 || i==47 || i==40 || i==26 || i==89 || i == 72 || i == 39 || i ==5 || i == 51 || i == 46 || i == 9 || i == 74 || i == 21 || i == 114 || i == 47 || i == 115 || i == 106 || i == 20 || i == 33 || i == 68 || i == 33 || i == 13 || i == 62 
 
 
         if  (fatherSize(i) > bestSize) || (bestSize - fatherSize(i) > MAX_FATHER_CHILD_DIST ) 
@@ -356,6 +357,8 @@ function treesMy = buildRegressionTree( NUM_OF_GROUPS, fatherSizeX, treeImgsX,  
   	   container.saved_curr_Ptrs = uint16(zeros(2,fatherSize(i)) );
 	   rnode_info = struct('poses', zeros(fatherSize(1),2), 'gazes', zeros(fatherSize(1),2),'stdGaze', zeros(1,2), 'meanGaze', zeros(1,2) );
 	   lnode_info = struct('poses', zeros(fatherSize(1),2), 'gazes', zeros(fatherSize(1),2),'stdGaze', zeros(1,2), 'meanGaze', zeros(1,2) );
+
+	   
 	end
 
        stackindex = 0;
