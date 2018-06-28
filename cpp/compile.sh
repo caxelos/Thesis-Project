@@ -1,0 +1,1 @@
+sudo h5c++ -std=c++11 tempforest.cpp -o tempforest
