@@ -1,7 +1,8 @@
-
 #define NUM_OF_TREES 514
 #define MAX_SAMPLES_PER_TREE 1000
+#define MAX_RECURSION_DEPTH 15
 #define MAX_GRP_SIZE 500
+
 #define HEIGHT 9
 #define WIDTH 15
 #define LEFT 1
@@ -27,10 +28,16 @@ using namespace H5;
 const H5std_string FILE_NAME( "myfile.h5" );
 
 struct tree {
-   double mean;	
+   double mean[2];
    struct tree *left;
    struct tree *right;
+   unsigned int *ptrs;
+   unsigned int numOfPtrs;
    unsigned short thres;
+   unsigned short minPx1_hor;
+   unsigned short minPx2_hor;
+   unsigned short minPx1_vert;
+   unsigned short minPx2_vert;
 };
 typedef struct tree treeT;
 
@@ -121,7 +128,7 @@ int main(void)  {
    std::mt19937 eng(rd()); // seed the generator
      
 
-  
+ 
 
    /*
     * Try block to detect exceptions raised
@@ -362,9 +369,12 @@ int main(void)  {
 /*
  * falloc = forest allocation
  */
-tree **falloc(void)   {
+tree **falloc(unsigned int *fatherSize)   {
 
+   
    treeT **trees = (treeT **)malloc( NUM_OF_TREES * sizeof(treeT *) );
+   unsigned int j;
+
    if (trees == NULL)  {
      cout << "Error allocating tree memory at falloc(1). Exiting\n" << endl;
      return NULL;
@@ -376,24 +386,42 @@ tree **falloc(void)   {
          cout << "Error allocating tree memory at falloc(1). Exiting\n" << endl;
          return NULL;
       }
+      trees[i]->ptrs = (unsigned int *)malloc( fatherSize[i] * sizeof(unsigned int) );
+      if (trees[i]->ptrs == NULL)  {
+         cout << "Error allocating tree memory at falloc(1). Exiting\n" << endl;
+         return NULL;
+      }
+
+      trees[i]->numOfPtrs = fatherSize[i];
+      for (j = 0; j < fatherSize[i]; j++)  {
+         trees[i]->ptrs[j] = j;
+      } 
+      trees[i]->right = NULL;
+      trees[i]->left = NULL;
+
    }
    
    return trees;
 }
 
+
+
 treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,double **treeGazes,double**treePoses) {
    
    treeT **trees = NULL; 
    treeT *currNode = NULL;
-   unsigned int *currPtrs = NULL;  
+   
+   treeT *savedNode[MAX_RECURSION_DEPTH];
+
    unsigned int *l_r_fl_fr_ptrs = NULL;
-   unsigned int i,j,l,r,stackindex, state, node_i;
+   unsigned int i,j,l,r,ltreeSize=-1, rtreeSize=-1, stackindex, state;
    unsigned int minSquareError;
    unsigned short minPx1_vert, minPx1_hor, minPx2_vert, minPx2_hor, bestThres;
    unsigned short px1_hor, px1_vert, px2_hor, px2_vert, thres;
    unsigned int counter;
-   double meanLeftGaze[2];
-   double meanRightGaze[2]; 
+   double meanLeftGaze[2], meanRightGaze[2];
+   double rtree_meanGaze[2]={-10,-10}, ltree_meanGaze[2] = {-10,-10}; 
+   double squareError;
   /*
    * caching big arrays
    */
@@ -403,26 +431,18 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
   /*
    * allocate **trees memory
    */
-   trees = falloc();
+   trees = falloc(fatherSize);
    if (trees == NULL) {
       return NULL;
    }
  
    	
-   
    for (i = 0; i < NUM_OF_TREES; i++ )  {
       stackindex = 0;
       state = 1;
-      node_i = 1;
       currNode = trees[i];
-
-
-      currPtrs = (unsigned int *)malloc(fatherSize[i] * sizeof( unsigned int) );
-      if (currPtrs == NULL)  {
-         cout << "Error allocating \"currPtrs\". Exiting\n";
-         return NULL;
-      }
-      cache_treeImgs = (unsigned char *)malloc( fatherSize[i]*2*sizeof(unsigned char) );
+    
+      cache_treeImgs = (unsigned char *)malloc( 2*fatherSize[i]*sizeof(unsigned char) );
       if (cache_treeImgs == NULL) {
          cout << "error allocating memory for caching. Exiting\n"; 
          return NULL;
@@ -448,15 +468,15 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	 while (counter < WIDTH*HEIGHT )  {
             px1_vert = counter/WIDTH;   
 	    px1_hor = counter%WIDTH;
-
+  
 	    for (px2_vert=px1_vert+(px1_hor+1)/WIDTH; px2_vert<HEIGHT; px2_vert++)  {
                for (px2_hor=(px1_hor+1)%WIDTH; px2_hor < WIDTH; px2_hor++)  {
 	          if  ( sqrt( pow(px1_vert -px2_vert,2) + pow(px1_hor-px2_hor,2) ) < 6.5 )  {  
-		     
+		    
 
-                     for (j = 0; j < fatherSize[i]; j++)  {
-		        cache_treeImgs[2*j    ] = treeImgs[i][currPtrs[j]*WIDTH*HEIGHT + px1_vert*WIDTH + px1_hor];  //treeImgs(i, px1_vert,px1_hor, currPtrs( j)  );
-	      	        cache_treeImgs[2*j + 1] = treeImgs[i][currPtrs[j]*WIDTH*HEIGHT + px2_vert*WIDTH + px2_hor];
+                     for (j = 0; j < currNode->numOfPtrs; j++)  {
+		        cache_treeImgs[2*j    ] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + px1_vert*WIDTH + px1_hor];  
+	      	        cache_treeImgs[2*j + 1] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + px2_vert*WIDTH + px2_hor];
                      }
 
 
@@ -468,36 +488,138 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			meanRightGaze[0] = 0;
 			meanRightGaze[1] = 0;
 
-			for (j = 0; j < fatherSize[i]; j++)  {
-			   if ( abs(cache_treeImgs[j,0]-cache_treeImgs[j,1])< thres )  {
-
-//4*fatherSize(i)				   
-
+			for (j = 0; j < currNode->numOfPtrs; j++)  {
+			   if ( abs(cache_treeImgs[2*j]-cache_treeImgs[2*j +1])< thres )  {
 
 			      //left child
-			      l_r_fl_fr_ptrs[0 + l] = currPtrs[j];
+			      l_r_fl_fr_ptrs[0 + l] = currNode->ptrs[j];
 			      l++;
 
-			      meanLeftGaze[0] = meanLeftGaze[0] + treeGazes[i][currPtrs[j]*2];
-			      meanLeftGaze[1] = meanLeftGaze[1] + treeGazes[i][currPtrs[j]*2 + 1];			       
+			      meanLeftGaze[0] = meanLeftGaze[0] + treeGazes[i][currNode->ptrs[j]*2];
+			      meanLeftGaze[1] = meanLeftGaze[1] + treeGazes[i][currNode->ptrs[j]*2 + 1];			       
 			   }
 			   else {
 
 			      //right child
-			      l_r_fl_fr_ptrs[1*fatherSize[i]+r] = currPtrs[j];
+			      l_r_fl_fr_ptrs[1*fatherSize[i]+r] = currNode->ptrs[j];
   			      r++;	   
   
-			      meanRightGaze[0] = meanRightGaze[0] + treeGazes[i][currPtrs[j]*2];
-			      meanRightGaze[1] = meanRightGaze[1] + treeGazes[i][currPtrs[j]*2 + 1];			      
+			      meanRightGaze[0] = meanRightGaze[0] + treeGazes[i][currNode->ptrs[j]*2];
+			      meanRightGaze[1] = meanRightGaze[1] + treeGazes[i][currNode->ptrs[j]*2 + 1];			      
 			   }
 		        }
-		     }
-		  }
-               }
+			meanLeftGaze[0] = meanLeftGaze[0]  / l;
+			meanLeftGaze[1] = meanLeftGaze[1]  / l;
+			meanRightGaze[0] = meanRightGaze[0]/ r;
+			meanRightGaze[1] = meanRightGaze[1]/ r;
+			
+			squareError = 0;
+			for (j = 0; j < l; j++)  {
+			   squareError = squareError + pow(meanLeftGaze[0]-treeGazes[i][ l_r_fl_fr_ptrs[0 + j ]*2   ], 2)  
+						     + pow(meanLeftGaze[1]-treeGazes[i][ l_r_fl_fr_ptrs[0 + j ]*2 +1], 2);
+
+			}
+			for (j = 0; j < r; j++)  {
+			   squareError = squareError + pow(meanRightGaze[0]-treeGazes[i][ l_r_fl_fr_ptrs[1*fatherSize[i] + j ]*2], 2)  
+						     + pow(meanRightGaze[1]-treeGazes[i][ l_r_fl_fr_ptrs[1*fatherSize[i] + j ]*2 +1], 2);
+
+			}
+			if (squareError < minSquareError)  {
+			   minSquareError = squareError;
+			   minPx1_vert =    px1_vert;// % something random here
+			   minPx1_hor =     px1_hor;// % also here
+			   minPx2_vert=     px2_vert;// % and here..
+			   minPx2_hor =     px2_hor;// % and here
+			   bestThres  =     thres;
+
+		           ltreeSize = l;
+			   rtreeSize = r;
+
+			   for (j = 0; j < l; j++)  {
+			      l_r_fl_fr_ptrs[2*fatherSize[i] + j] =  l_r_fl_fr_ptrs[j];
+			   }
+			   for (j = 0; j < r; j++)  {
+			      l_r_fl_fr_ptrs[3*fatherSize[i] + j] =  l_r_fl_fr_ptrs[1*fatherSize[i] + j];
+			   }
+
+			   rtree_meanGaze[0] = meanRightGaze[0];
+			   rtree_meanGaze[1] = meanRightGaze[1];
+			   ltree_meanGaze[0] = meanLeftGaze[0];
+			   ltree_meanGaze[1] = meanLeftGaze[1];
+
+			} // min
+		     }// thres
+
+		  }//if sqrt <6.5
+               }// px2-hor
+            }// px2-vert
+	    counter++;
+
+         }// while
+      
+
+         if (ltreeSize > 0 && rtreeSize > 0)  {
+	    state = 1;
+
+	    //complete the last info about the father 
+            currNode->minPx1_hor = minPx1_hor; 
+	    currNode->minPx2_hor = minPx2_hor;
+	    currNode->minPx1_vert = minPx1_vert;
+	    currNode->minPx1_vert = minPx2_vert;
+            currNode->thres = bestThres;
+	
+	    //create left child
+	    currNode->left = (treeT *)malloc( sizeof(treeT) );
+	    currNode->left->ptrs = (unsigned int *)malloc( ltreeSize * sizeof( unsigned int ) );
+	    currNode->left->numOfPtrs = ltreeSize;
+	    currNode->left->mean[0] = ltree_meanGaze[0];
+	    currNode->left->mean[1] = ltree_meanGaze[1];
+	    currNode->left->right = NULL;
+            currNode->left->left = NULL;
+            for (j = 0; j < ltreeSize; j++) {
+	       currNode->left->ptrs[j] = l_r_fl_fr_ptrs[2*fatherSize[i] + j];
             }
+		
+	    //create right child
+	    currNode->right = (treeT *)malloc( sizeof(treeT) );
+	    currNode->right->ptrs = (unsigned int *)malloc( rtreeSize*sizeof(unsigned int) );
+	    currNode->right->numOfPtrs = rtreeSize;
+	    currNode->right->mean[0] = rtree_meanGaze[0];
+	    currNode->right->mean[1] = rtree_meanGaze[1];
+	    currNode->right->right = NULL;
+	    currNode->right->left = NULL;
+	    for (j = 0; j < rtreeSize; j++) {
+	       currNode->right->ptrs[j] = l_r_fl_fr_ptrs[3*fatherSize[i] + j];
+            }
+
+	    //save left brother in stack
+            savedNode[stackindex] = currNode->left;
+	    stackindex++;
+
+	    //currNode = right son
+	    currNode = currNode->right;
+  
          }
-      }
-   }//end for i
+         else {
+            if (stackindex == 0)  {
+	       state = 2;
+            }
+            else {
+	       state = 3;
+	       stackindex--;
+	       currNode = savedNode[stackindex];
+	    }
+         }
+
+      }//while state!=2
+
+     
+      free( cache_treeImgs );      
+      free( l_r_fl_fr_ptrs ); 
+
+      cout << i << endl;  
+
+   }// for i
 
    return trees;
 }
