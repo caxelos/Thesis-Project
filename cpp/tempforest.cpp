@@ -21,6 +21,7 @@ using std::endl;
 #include <stdlib.h>
 #include <random>
 #include <math.h>
+#include <unistd.h>
 #include "H5Cpp.h"
 
 using namespace H5;
@@ -152,12 +153,14 @@ int main(void)  {
 
       //for every group
       for (i = 0; i < NUM_OF_TREES; i++ )  {
+	
 	sprintf(grpName, "g%d", i+1); 
         group = new Group(file->openGroup( grpName ) );
         
         /*
          * 12_nearestIDS
          */ 
+	
          DataSet dataset = group->openDataSet("nearestIDs");     
          DataSpace dataspace = dataset.getSpace();//dataspace???
          rank = dataspace.getSimpleExtentDims( dims );// get rank =    numOfDims
@@ -200,7 +203,7 @@ int main(void)  {
          memspace.setExtentSimple( rank, dims );//24x1x9x15 
          //print_dims(rank, (hsize_t *)dims);     
          dataset.read(curr_imgs, PredType::C_S1, memspace, dataspace );
-
+ 
 
 	
          grpContribution = sqrt( dims[0]);//dims[0] is the numOfSamples in group1
@@ -342,7 +345,7 @@ int main(void)  {
       }//for i
 
       trees = buildRegressionTree(samplesInTree, treeImgs, treeGazes, treePoses);
-
+	
     }//try 
     catch(  FileIException error)  {
        error.printErrorStack();    
@@ -405,6 +408,128 @@ tree **falloc(unsigned int *fatherSize)   {
 }
 
 
+int treeDepth(treeT *root, int depth)  {
+   static int max_depth = -1;
+
+   if (root == NULL)
+      return max_depth;
+   if (depth > max_depth) 
+      max_depth = depth;
+
+   treeDepth(root->right, depth + 1);
+   treeDepth(root->left, depth + 1);
+
+   return max_depth;
+}
+
+void drawTree(treeT * root, int indent=0)
+{
+ treeT *list[50];
+ unsigned short howManyTabs, nodesInLine;
+ int i, j, k; 
+ 
+
+cout << "Current Depth:\t\t\t\t\t******************************* TREE  *****************************************" << "\n" << endl;
+
+
+ int depth = treeDepth(root, 0); 
+ 
+
+ list[0] = root;
+ howManyTabs = 10;
+ nodesInLine = 1;
+ for (i = 0; i <= depth; i++)  {
+    cout << "depth:" << i; 
+    for (k = 0; k < howManyTabs; k++) { // d=0/tabs=9, d=1/tabs=8
+          cout << "\t";
+    } 
+    for (j = 0; j < nodesInLine; j++)  {
+
+       if (list[j]) 
+          cout << " Samples:" << list[j]->numOfPtrs;
+       else
+          cout << "            "; 
+       for (k = 0; k < depth - i; k++) {
+          cout << "\t";
+       }
+
+    }
+ 
+    cout << "\n" << endl;
+
+/*
+    for (j = 0; j < pow(i,2); j++)  {  
+       cout << "\t\t\t\t\t\t\t\t+-------";
+       cout << " Pixels:(" << list[j]->minPx1_vert;
+       cout << "," << list[j]->minPx1_hor << "),(";
+       cout << list[j]->minPx2_vert << ",";
+       cout << list[j]->minPx2_hor << ")";
+       cout << " -------+";
+    }
+    cout << endl;
+
+    for (j = 0; j < pow(i,2); j++)  { 
+       cout << "\t\t\t\t\t\t\t\t|\t" << " Thres:" << list[j]->thres << "\t\t   |";
+    }
+    cout << endl;
+ */
+
+    
+    for (j = i; j >= 0; j--)  {
+      if (list[j] == NULL)  { 
+          list[2*j+1] = NULL;
+          list[2*j] = NULL; 
+       }
+       else {   
+          list[2*j+1] = list[j]->right;
+          list[2*j] = list[j]->left; 
+       }
+ 
+    }
+    //update values
+    howManyTabs = howManyTabs - 1;
+    nodesInLine = nodesInLine << 1;//pow(i+1,2);
+ 
+
+
+ }   
+
+
+ 
+ 
+ //depth
+/*
+ if (curr->left && curr->right) { 
+    cout << "\t\t\t\t\t\t\t\t\t" << " Samples:" << curr->numOfPtrs<<endl;
+    cout << "\t\t\t\t\t\t\t\t+-------" << " Pixels:(" << curr->minPx1_vert << "," << curr->minPx1_hor << "),(" << curr->minPx2_vert << "," << curr->minPx2_hor << ")" << " -------+" << endl; 
+    cout << "\t\t\t\t\t\t\t\t|\t" << " Thres:" << curr->thres << "\t\t   |" << endl;
+ }
+ */
+   
+ 
+
+ exit(-1);
+
+ 
+/*
+    sleep(1);
+    cout<< p->numOfPtrs << "\n ";
+    if(p != NULL) {
+        if(p->left) drawTree(p->left, indent+4);
+        if(p->right) drawTree(p->right, indent+4); 
+        if (indent) {
+           cout  << ' ';
+        }
+        
+    }
+*/
+   //sleep(1);
+   // cout<<"samples:"<< p->numOfPtrs /*<<", left:" << p->left->numOfPtrs << ", right:" << p->right->numOfPtrs*/ << endl;
+   // if (p->right != NULL)
+   //    drawTree(p->right);
+   // if (p->left  != NULL)
+   //    drawTree(p->left);
+}
 
 treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,double **treeGazes,double**treePoses) {
    
@@ -422,6 +547,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
    double meanLeftGaze[2], meanRightGaze[2];
    double rtree_meanGaze[2]={-10,-10}, ltree_meanGaze[2] = {-10,-10}; 
    double squareError;
+   int numOfNodes;
   /*
    * caching big arrays
    */
@@ -438,10 +564,8 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
  
    	
    for (i = 0; i < NUM_OF_TREES; i++ )  {
-      stackindex = 0;
-      state = 1;
-      currNode = trees[i];
     
+      numOfNodes=1;
       cache_treeImgs = (unsigned char *)malloc( 2*fatherSize[i]*sizeof(unsigned char) );
       if (cache_treeImgs == NULL) {
          cout << "error allocating memory for caching. Exiting\n"; 
@@ -455,7 +579,9 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	 return NULL;
       }
 
-
+      stackindex = 0;
+      state = 1;
+      currNode = trees[i];
       while (state != 2) {
          minSquareError = 10000;//a huge value
 	 minPx1_vert =    10000;//again the same
@@ -480,7 +606,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
                      }
 
 
-		     for (thres = 25; thres <= 40/*50*/; thres++) {
+		     for (thres = 20; thres <= 40; thres++) {
 			l = 0;
 			r = 0;
 			meanLeftGaze[0]  = 0;
@@ -560,6 +686,9 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 
          if (ltreeSize > 0 && rtreeSize > 0)  {
 	    state = 1;
+	    numOfNodes=numOfNodes+2;
+	    //sleep(1);
+        //    cout << "adding 2 nodes, Left:" << ltreeSize << ", Right:" << rtreeSize << endl;
 
 	    //complete the last info about the father 
             currNode->minPx1_hor = minPx1_hor; 
@@ -570,7 +699,16 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	
 	    //create left child
 	    currNode->left = (treeT *)malloc( sizeof(treeT) );
+	    if (currNode->left==NULL)  { 
+	       cout << "Error allocating mem7\n";
+	       return NULL;
+            }
+
 	    currNode->left->ptrs = (unsigned int *)malloc( ltreeSize * sizeof( unsigned int ) );
+	    if (currNode->left->ptrs==NULL)  {
+	       cout << "Error allocating mem8\n";
+	       return NULL;
+	    }
 	    currNode->left->numOfPtrs = ltreeSize;
 	    currNode->left->mean[0] = ltree_meanGaze[0];
 	    currNode->left->mean[1] = ltree_meanGaze[1];
@@ -581,8 +719,18 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
             }
 		
 	    //create right child
-	    currNode->right = (treeT *)malloc( sizeof(treeT) );
+	    currNode->right = (treeT *)malloc( sizeof(treeT) ); 
+	    if (currNode->right==NULL)  { 
+	       cout << "Error allocating mem9\n";
+	       return NULL;
+            }
+
 	    currNode->right->ptrs = (unsigned int *)malloc( rtreeSize*sizeof(unsigned int) );
+            if (currNode->right->ptrs==NULL)  {
+	       cout << "Error allocating mem10\n";
+	       return NULL;
+	    }
+
 	    currNode->right->numOfPtrs = rtreeSize;
 	    currNode->right->mean[0] = rtree_meanGaze[0];
 	    currNode->right->mean[1] = rtree_meanGaze[1];
@@ -608,6 +756,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	       state = 3;
 	       stackindex--;
 	       currNode = savedNode[stackindex];
+              
 	    }
          }
 
@@ -617,9 +766,16 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
       free( cache_treeImgs );      
       free( l_r_fl_fr_ptrs ); 
 
+      //cout << numOfNodes << endl;
+	      
       cout << i << endl;  
-
+      //return trees;
+ 
+      drawTree(trees[i],0);
    }// for i
+
+
+   
 
    return trees;
 }
