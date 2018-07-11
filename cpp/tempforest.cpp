@@ -459,32 +459,40 @@ cout << "Current Depth:\t\t\t\t\t******************************* TREE  *********
     cout  << endl;
 
 
-    //print pixel 1
+    //print pixel 1(if node) or mean Gaze(if leaf)
     for (k = 0; k < howManyTabs; k++) { // d=0/tabs=9, d=1/tabs=8
           cout << "\t";
     } 
     for (j = 0; j < nodesInLine; j++)  {
 
-       if (list[j]) 
-          cout << "px1:("<< list[j]->minPx1_vert << "," << list[j]->minPx1_hor << ")";
-       else
+
+       if (list[j] == NULL)
           cout << "            "; 
+       else if (list[j]->right == NULL)
+          cout << "m:(" << list[j]->mean[0];// << "," << list[j]->mean[1] << ")"; 
+       else 
+          cout << "px1:("<< list[j]->minPx1_vert << "," << list[j]->minPx1_hor << ")";
+      
+          
        for (k = 0; k <= depth - i; k++) {
           cout << "\t\t";
        }
     }
     cout << endl;
 
-   //print pixel 2
+   //print pixel 2(if node)
     for (k = 0; k < howManyTabs; k++) { // d=0/tabs=9, d=1/tabs=8
           cout << "\t";
     } 
     for (j = 0; j < nodesInLine; j++)  {
 
-       if (list[j]) 
-          cout << "px2:("<< list[j]->minPx2_vert << "," << list[j]->minPx2_hor << ")";
+       if (list[j] == NULL)  
+	  cout << "            ";
+       else if (list[j]->right == NULL)
+          cout << "   " << list[j]->mean[1] << ")"; 
        else
-          cout << "            "; 
+	  cout << "px2:("<< list[j]->minPx2_vert << "," << list[j]->minPx2_hor << ")";
+
        for (k = 0; k <= depth - i; k++) {
           cout << "\t\t";
        }
@@ -492,16 +500,20 @@ cout << "Current Depth:\t\t\t\t\t******************************* TREE  *********
     cout << endl;
 
   
-   //print thres
+   //print thres(if node)
     for (k = 0; k < howManyTabs; k++) { // d=0/tabs=9, d=1/tabs=8
           cout << "\t";
     } 
     for (j = 0; j < nodesInLine; j++)  {
 
-       if (list[j]) 
+       if (list[j] == NULL)
+	  cout << "            "; 
+       else if (list[j]->right == NULL)
+	  cout << "            "; 
+       else 
           cout << "thres:"<< list[j]->thres;
-       else
-          cout << "            "; 
+       
+          
        for (k = 0; k <= depth - i; k++) {
           cout << "\t\t";
        }
