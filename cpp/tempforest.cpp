@@ -439,6 +439,8 @@ cout << "Current Depth:\t\t\t\t\t******************************* TREE  *********
  howManyTabs = 10;
  nodesInLine = 1;
  for (i = 0; i <= depth; i++)  {
+
+    //print samples    
     cout << "depth:" << i; 
     for (k = 0; k < howManyTabs; k++) { // d=0/tabs=9, d=1/tabs=8
           cout << "\t";
@@ -446,33 +448,68 @@ cout << "Current Depth:\t\t\t\t\t******************************* TREE  *********
     for (j = 0; j < nodesInLine; j++)  {
 
        if (list[j]) 
-          cout << " Samples:" << list[j]->numOfPtrs;
+          cout << "Samples:" << list[j]->numOfPtrs;
        else
           cout << "            "; 
-       for (k = 0; k < depth - i; k++) {
-          cout << "\t";
+       for (k = 0; k <= depth - i; k++) {
+          cout << "\t\t";
        }
 
     }
- 
-    cout << "\n" << endl;
+    cout  << endl;
 
-/*
-    for (j = 0; j < pow(i,2); j++)  {  
-       cout << "\t\t\t\t\t\t\t\t+-------";
-       cout << " Pixels:(" << list[j]->minPx1_vert;
-       cout << "," << list[j]->minPx1_hor << "),(";
-       cout << list[j]->minPx2_vert << ",";
-       cout << list[j]->minPx2_hor << ")";
-       cout << " -------+";
+
+    //print pixel 1
+    for (k = 0; k < howManyTabs; k++) { // d=0/tabs=9, d=1/tabs=8
+          cout << "\t";
+    } 
+    for (j = 0; j < nodesInLine; j++)  {
+
+       if (list[j]) 
+          cout << "px1:("<< list[j]->minPx1_vert << "," << list[j]->minPx1_hor << ")";
+       else
+          cout << "            "; 
+       for (k = 0; k <= depth - i; k++) {
+          cout << "\t\t";
+       }
     }
     cout << endl;
 
-    for (j = 0; j < pow(i,2); j++)  { 
-       cout << "\t\t\t\t\t\t\t\t|\t" << " Thres:" << list[j]->thres << "\t\t   |";
+   //print pixel 2
+    for (k = 0; k < howManyTabs; k++) { // d=0/tabs=9, d=1/tabs=8
+          cout << "\t";
+    } 
+    for (j = 0; j < nodesInLine; j++)  {
+
+       if (list[j]) 
+          cout << "px2:("<< list[j]->minPx2_vert << "," << list[j]->minPx2_hor << ")";
+       else
+          cout << "            "; 
+       for (k = 0; k <= depth - i; k++) {
+          cout << "\t\t";
+       }
     }
     cout << endl;
- */
+
+  
+   //print thres
+    for (k = 0; k < howManyTabs; k++) { // d=0/tabs=9, d=1/tabs=8
+          cout << "\t";
+    } 
+    for (j = 0; j < nodesInLine; j++)  {
+
+       if (list[j]) 
+          cout << "thres:"<< list[j]->thres;
+       else
+          cout << "            "; 
+       for (k = 0; k <= depth - i; k++) {
+          cout << "\t\t";
+       }
+    }
+    cout << endl;
+    cout << endl;
+
+
 
     
     for (j = i; j >= 0; j--)  {
@@ -487,7 +524,7 @@ cout << "Current Depth:\t\t\t\t\t******************************* TREE  *********
  
     }
     //update values
-    howManyTabs = howManyTabs - 1;
+    howManyTabs = howManyTabs - 2;
     nodesInLine = nodesInLine << 1;//pow(i+1,2);
  
 
