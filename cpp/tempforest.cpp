@@ -3,16 +3,19 @@
 #define MAX_RECURSION_DEPTH 15
 #define MAX_GRP_SIZE 500
 
+
 #define HEIGHT 9
 #define WIDTH 15
 #define LEFT 1
 #define RIGHT 2
+
 
 #ifdef OLD_HEADER_FILENAME
 #include <iostream.h>
 #else
 #include <iostream>
 #endif
+
 using std::cout;
 using std::endl;
 using std::ofstream; 
@@ -31,6 +34,7 @@ const H5std_string FILE_NAME( "myfile.h5" );
 
 struct tree {
    double mean[2];
+   double mse;
    struct tree *left;
    struct tree *right;
    unsigned int *ptrs;
@@ -58,11 +62,11 @@ void print_dims(int rank,  hsize_t *dims)  {
 
 
 treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,double **treeGazes,double**treePoses);
-
+treeT *testSampleInTree(treeT *currNode, unsigned char *test_img, double *test_pose, int j); 
 
 /*************** MAIN ********************************************/
 int main(void)  {
-  const int R = 10;
+  const int RADIUS = 10;
 
  
 
@@ -77,6 +81,14 @@ int main(void)  {
    unsigned char curr_imgs[MAX_GRP_SIZE][HEIGHT][WIDTH];
    unsigned int *samplesInTree = NULL;
 
+
+   int *test_nearest;
+   double *test_gazes;
+   double *test_poses;//[MAX_GRP_SIZE][2];
+   unsigned char *test_imgs;//[MAX_GRP_SIZE][HEIGHT][WIDTH];
+
+
+   
   /*
    * hdf5 staff
    */
@@ -130,7 +142,6 @@ int main(void)  {
    std::mt19937 eng(rd()); // seed the generator
      
 
- 
 
    /*
     * Try block to detect exceptions raised
@@ -149,7 +160,6 @@ int main(void)  {
          cout << "Error allocating NULL memory. Terminating\n";
 	 return -1;
       }
-
 
 
       //for every group
@@ -201,14 +211,12 @@ int main(void)  {
          dataset = group->openDataSet("data");     
          dataspace = dataset.getSpace();//dataspace???
          rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
-         memspace.setExtentSimple( rank, dims );//24x1x9x15 
-         //print_dims(rank, (hsize_t *)dims);     
+         memspace.setExtentSimple( rank, dims );//24x1x9x15    
          dataset.read(curr_imgs, PredType::C_S1, memspace, dataspace );
  
 
 	
          grpContribution = sqrt( dims[0]);//dims[0] is the numOfSamples in group1
-
 
 	 treeGazes[i] = (double *)malloc( 2 * grpContribution * sizeof(double) );
 	 if (treeGazes[i] == NULL)  {
@@ -261,7 +269,7 @@ int main(void)  {
 	 /*
 	  * R-nearest
 	  */
-	 for (int r = 0; r < R; r++)  {
+	 for (int r = 0; r < RADIUS; r++)  {
 	   
 	    sprintf(grpName, "g%d", curr_nearest[r] ); 
             group_nearest = new Group(file->openGroup( grpName ) );
@@ -345,8 +353,135 @@ int main(void)  {
 	  }//for r            
       }//for i
 
+
+
+      // build forest
       trees = buildRegressionTree(samplesInTree, treeImgs, treeGazes, treePoses);
+
+
+      /*
+       * Turn off the auto-printing when failure occurs so that we can
+       * handle the errors appropriately
+       */
+       Exception::dontPrint();
+       file = new H5File("mytest.h5", H5F_ACC_RDWR);
+      
+       //inits
+       dims[0]=0;
+       dims[1]=0;
+       dims[2]=0;
+       dims[3]=0;
+
+      
+       DataSet dataset = file->openDataSet("nearestIDs");
+       DataSpace dataspace = dataset.getSpace();
+       rank = dataspace.getSimpleExtentDims( dims );
+cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dims[3] << endl;
+       DataSpace memspace( rank, dims);
 	
+
+
+       test_nearest = (int *)malloc( dims[0]*dims[1]*sizeof(int) );
+       if (test_nearest == NULL) {
+	  cout << "Error allocating memory" << endl;
+	  return -1;
+       }
+       dataset.read(test_nearest, PredType::NATIVE_INT, memspace, dataspace );	
+ 
+
+       //headpose         
+       dataset = file->openDataSet("headpose");     
+       dataspace = dataset.getSpace();//dataspace???
+       rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
+       cout << "headpose dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dims[3] << endl;
+       memspace.setExtentSimple( rank, dims );
+       test_poses = (double *)malloc( dims[0]*dims[1]*sizeof(double));//me -24 varaei memory error
+       if (test_poses == NULL) {//n x 2
+	  cout << "Error allocating memory" << endl;
+	  return -1;
+       }
+       dataset.read(test_poses, PredType::NATIVE_DOUBLE, memspace, dataspace ); 
+        
+
+
+       //gaze         
+       dataset = file->openDataSet("gaze");     
+       dataspace = dataset.getSpace();//dataspace???
+       rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
+       cout << "gaze dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dims[3] << endl;
+       memspace.setExtentSimple( rank, dims );
+       test_gazes = (double *)malloc( dims[0]*dims[1]*sizeof(double) );
+       if (test_gazes == NULL) {// n x 2
+	  cout << "Error allocating memory" << endl;
+	  return -1;
+       }
+       dataset.read(test_gazes, PredType::NATIVE_DOUBLE, memspace, dataspace );
+      
+
+ 
+      /*
+       * data
+       */
+       dataset = file->openDataSet("data");     
+       dataspace = dataset.getSpace();//dataspace???
+       rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
+       cout << "data dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dims[3] << endl;
+       memspace.setExtentSimple( rank, dims );//24x1x9x15
+       test_imgs = (unsigned char  *)malloc( dims[0]*dims[1]*dims[2]*dims[3]*sizeof(unsigned char));
+       if (test_imgs == NULL) {// n x 9 x 15
+	  cout << "Error allocating memory" << endl;
+	  return -1;
+       }
+       dataset.read(test_imgs, PredType::C_S1, memspace, dataspace );
+
+       double predict[2];
+       treeT *temp_predict=NULL;
+       double *errors = (double *)malloc( dims[0] * sizeof(double) );
+       if (errors == NULL) {
+          cout << "Error allocating memory" << endl; 
+	  return -1;
+       }
+
+
+       // test phase
+       for (j = 0; j < dims[0]; j++)  {
+          predict[0] =  0;
+          predict[1] =  0;
+	  for (int k = 0; k < RADIUS+1; k++)  {     
+
+             //each tree's prediction	          
+             temp_predict = testSampleInTree(trees[test_nearest[k]], test_imgs, test_poses, j );
+	     predict[0] = predict[0] + temp_predict->mean[0];
+	     predict[1] = predict[0] + temp_predict->mean[1];
+          }
+                
+          // prediction = mean prediction of all trees
+          predict[0] = predict[0]/(RADIUS+1);
+          predict[1] = predict[1]/(RADIUS+1);
+	  errors[j] = sqrt( pow(predict[0]-test_gazes[2*j ],2) + pow(predict[1]-test_gazes[2*j+1],2) );
+       }
+
+
+       // error calculation
+
+       //mean error
+       double mean_error = 0;
+       for (j = 0; j < dims[0]; j++)  {
+          mean_error =  mean_error + errors[j]/dims[0];       
+       }
+
+       //stdev error
+       double stdev_error = 0;
+       for (j = 0; j < dims[0]; j++)  {
+          stdev_error = stdev_error + pow(errors[j]-mean_error,2);
+       }
+       stdev_error = stdev_error/dims[0];
+       stdev_error = sqrt( stdev_error ); 
+       cout << "mean_error(deg) is: " << mean_error*(180.0/M_PI) << endl;
+       cout << "stdev_error(deg) is: " << stdev_error*(180.0/M_PI) << endl;        
+
+       free( errors );
+
     }//try 
     catch(  FileIException error)  {
        error.printErrorStack();    
@@ -359,16 +494,38 @@ int main(void)  {
       free( treeImgs[i]  );
       free( treePoses[i] );
       free( trees[i]     );
-      
    }
    free( treeGazes );
    free( treeImgs  );
    free( treePoses );
    free( trees     );    
+
+
+   free( test_nearest );
+   free( test_poses );
+   free( test_gazes );
+   free( test_imgs );
+
    return 0;
 }
 
+treeT *testSampleInTree(treeT *curr, unsigned char *test_img, double *test_pose, int j)  {
 
+   //double val[2] = {0, 0};
+
+   if (curr->right == NULL)  {//leaf reached
+      return curr;
+   } 
+   else  { // right or left?
+      if ( abs( test_img[ j*WIDTH*HEIGHT + curr->minPx1_vert*WIDTH+curr->minPx1_hor ] - test_img[ j*WIDTH*HEIGHT + curr->minPx2_vert*WIDTH+curr->minPx2_hor ]) >= curr->thres  )
+         curr = testSampleInTree(curr->right, test_img, test_pose, j);
+      else
+	 curr = testSampleInTree(curr->left, test_img, test_pose, j);
+   }
+
+
+   return curr;
+}
 
 /*
  * falloc = forest allocation
@@ -429,14 +586,14 @@ void toDotString(treeT *curr, int myID){
 
 	if(curr->left != NULL){
 
-                outputFile << "\t" << myID << " [label=\"Not leaf-Samples:" << curr->numOfPtrs /*<< "\n" << levelOrder[myID]*/ << "\", shape=circle, color=black]\n";
+                outputFile << "\t" << myID << " [label=\"Samples:" << curr->numOfPtrs <<  "\npx1:(" << curr->minPx1_vert << "," << curr->minPx1_hor << ")" << "\npx2:(" << curr->minPx2_vert << "," << curr->minPx2_hor << ")" << "\nthres:" << curr->thres << "\nmse:" << curr->mse << "\", shape=rectangle, color=black]\n";
 		outputFile << "\t" << myID << " -> " << 2 * myID + 1 << "\n";
 		toDotString(curr->left, 2 * myID + 1);
 		
 		outputFile << "\t" << myID << " -> " << 2 * myID + 2 << "\n";
 		toDotString(curr->right, 2 * myID + 2);
 	}else{ //leaf
-            outputFile << "\t" << myID << " [label=\"Leaf-Samples:"  << curr->numOfPtrs /*<< "\n" << levelOrder[myID]*/ << "\", shape=circle, color=black]\n";
+            outputFile << "\t" << myID << " [label=\"Samples:"  << curr->numOfPtrs << "\nmeanGaze = \n=(" << curr->mean[0] <<","<<curr->mean[1] << ")"  << "\", shape=circle, color=green]\n";
         }
 }
 
@@ -519,15 +676,14 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    for (px2_vert=px1_vert+(px1_hor+1)/WIDTH; px2_vert<HEIGHT; px2_vert++)  {
                for (px2_hor=(px1_hor+1)%WIDTH; px2_hor < WIDTH; px2_hor++)  {
 	          if  ( sqrt( pow(px1_vert -px2_vert,2) + pow(px1_hor-px2_hor,2) ) < 6.5 )  {  
-		    
-
+	
                      for (j = 0; j < currNode->numOfPtrs; j++)  {
 		        cache_treeImgs[2*j    ] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + px1_vert*WIDTH + px1_hor];  
 	      	        cache_treeImgs[2*j + 1] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + px2_vert*WIDTH + px2_hor];
                      }
 
 
-		     for (thres = 1; thres <= 50; thres++) {
+		     for (thres = 30; thres <= 40; thres++) {
 			l = 0;
 			r = 0;
 			meanLeftGaze[0]  = 0;
@@ -571,7 +727,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 						     + pow(meanRightGaze[1]-treeGazes[i][ l_r_fl_fr_ptrs[1*fatherSize[i] + j ]*2 +1], 2);
 
 			}
-			if (squareError < minSquareError)  {
+			if (squareError < minSquareError )  {
 			   minSquareError = squareError;
 			   minPx1_vert =    px1_vert;// % something random here
 			   minPx1_hor =     px1_hor;// % also here
@@ -602,6 +758,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 		     }// thres
 
 		  }//if sqrt <6.5
+
                }// px2-hor
             }// px2-vert
 	    counter++;
@@ -621,6 +778,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    currNode->minPx1_vert = minPx1_vert;
 	    currNode->minPx2_vert = minPx2_vert;
             currNode->thres = bestThres;
+	    currNode->mse = minSquareError;
 	
 	    //create left child
 	    currNode->left = (treeT *)malloc( sizeof(treeT) );
@@ -695,7 +853,8 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	      
       cout << i << endl;  
       //return trees;
- 
+
+/* 
       try{
 		
          outputFile.open("mytree.dot");
@@ -706,7 +865,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	 std::cerr << "problem. Terminating\n";
 	 exit(1);
       }
-     
+*/     
    }// for i
 
 
