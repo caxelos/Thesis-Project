@@ -1,3 +1,5 @@
+#define NUM_OF_THREADS 3
+
 #define NUM_OF_TREES 514
 #define MAX_SAMPLES_PER_TREE 1000
 #define MAX_RECURSION_DEPTH 15
@@ -9,8 +11,8 @@
 #define LEFT 1
 #define RIGHT 2
 
-#define RADIUS 12
-#define 
+#define RADIUS 	10
+
 
 #ifdef OLD_HEADER_FILENAME
 #include <iostream.h>
@@ -29,7 +31,7 @@ using std::ofstream;
 #include <math.h>
 #include <unistd.h>
 #include "H5Cpp.h"
-
+#include <omp.h>
 using namespace H5;
 
 const H5std_string FILE_NAME( "myfile.h5" );
@@ -70,16 +72,15 @@ treeT *testSampleInTree(treeT *currNode, unsigned char *test_img, double *test_p
 int main(int argc, char *argv[])  {
 
  
-
-
   /*
-   * data
+   * read hdf5 data
    */
-   int curr_nearest[13];
+   int curr_nearest[RADIUS];
    double curr_center[2];
-   double curr_gazes[MAX_GRP_SIZE][2];
-   double curr_poses[MAX_GRP_SIZE][2];
-   unsigned char curr_imgs[MAX_GRP_SIZE][HEIGHT][WIDTH];
+   double *curr_gazes=NULL;
+   double *curr_poses=NULL;//[MAX_GRP_SIZE][2];
+   unsigned char *curr_imgs=NULL;//[MAX_GRP_SIZE][HEIGHT][WIDTH];
+   unsigned int curr_size;
    unsigned int *samplesInTree = NULL;
 
 
@@ -112,7 +113,6 @@ int main(int argc, char *argv[])  {
   /*
    * tree-data
    */
-   //unsigned char treeImgs[NUM_OF_TREES][MAX_SAMPLES_PER_TREE][HEIGHT][WIDTH];
    unsigned char **treeImgs;
    double **treeGazes;
    double **treePoses;
@@ -144,6 +144,8 @@ int main(int argc, char *argv[])  {
      
 
 
+
+
    /*
     * Try block to detect exceptions raised
     */   
@@ -164,11 +166,11 @@ int main(int argc, char *argv[])  {
 
 
       //for every group
+      curr_size = 0;
       for (i = 0; i < NUM_OF_TREES; i++ )  {
-	
+ 	
 	sprintf(grpName, "g%d", i+1); 
-        group = new Group(file->openGroup( grpName ) );
-        
+        group = new Group(file->openGroup( grpName ) );       
         /*
          * 12_nearestIDS
          */ 
@@ -178,7 +180,7 @@ int main(int argc, char *argv[])  {
          rank = dataspace.getSimpleExtentDims( dims );// get rank =    numOfDims
          DataSpace memspace( rank, dims );     
          dataset.read(curr_nearest, PredType::NATIVE_INT, memspace, dataspace ); 
-           
+
         /*
          * center
          */
@@ -187,16 +189,43 @@ int main(int argc, char *argv[])  {
          rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
          memspace.setExtentSimple( rank, dims );
          dataset.read(curr_center, PredType::NATIVE_DOUBLE, memspace, dataspace ); 
-   
+
         /*
          * gaze
          */
          dataset = group->openDataSet("gaze");     
          dataspace = dataset.getSpace();//dataspace???
          rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
+	 // update sizes if size per group is bigger
+	 if (dims[0] > curr_size)  {
+
+	    //reallocate gaze mem
+            curr_gazes = (double *)realloc( curr_gazes, 2*dims[0]*sizeof(double) );
+	    if (curr_gazes == NULL)  {
+	       cout << "error at realloc, curr_gazes" << endl;
+	       return (-1);
+	    }
+
+	    //reallocate pose mem
+	    curr_poses = (double *)realloc( curr_poses, 2*dims[0]*sizeof(double) );
+	    if (curr_poses == NULL)  {
+	       cout << "error at realloc, curr_gazes" << endl;
+	       return (-1);
+	    }
+
+	    //reallocate img mem
+	    curr_imgs = (unsigned char *)realloc( curr_imgs, dims[0]*WIDTH*HEIGHT*sizeof(unsigned char) );
+	    if (curr_imgs == NULL)  {
+	       cout << "error at realloc, curr_gazes" << endl;
+	       return (-1);
+	    }
+          
+	    curr_size = dims[0];
+         }
+
          memspace.setExtentSimple( rank, dims );
          dataset.read(curr_gazes, PredType::NATIVE_DOUBLE, memspace, dataspace ); 
-	 
+
         /*
          * headpose
          */
@@ -204,19 +233,21 @@ int main(int argc, char *argv[])  {
          dataspace = dataset.getSpace();//dataspace???
          rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
          memspace.setExtentSimple( rank, dims );
-         dataset.read(curr_poses, PredType::NATIVE_DOUBLE, memspace, dataspace ); 
-
+         dataset.read(curr_poses, PredType::NATIVE_DOUBLE, memspace, dataspace );
+	  
+	   
         /*
          * data
          */
          dataset = group->openDataSet("data");     
          dataspace = dataset.getSpace();//dataspace???
          rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
+
          memspace.setExtentSimple( rank, dims );//24x1x9x15    
          dataset.read(curr_imgs, PredType::C_S1, memspace, dataspace );
- 
 
-	
+
+          	
          grpContribution = sqrt( dims[0]);//dims[0] is the numOfSamples in group1
 
 	 treeGazes[i] = (double *)malloc( 2 * grpContribution * sizeof(double) );
@@ -234,6 +265,7 @@ int main(int argc, char *argv[])  {
 	    cout << "Error allocating sqrt doubles. Exiting\n";
             return -1;    
 	 }
+
 	 /*
 	  * main Group
 	  */
@@ -245,17 +277,17 @@ int main(int argc, char *argv[])  {
 	    //copy img
 	    for (unsigned int k = 0; k < HEIGHT; k++)  {
                for (unsigned int l = 0; l < WIDTH; l++)   {
-	          treeImgs[i][ samplesInTree[i]*WIDTH*HEIGHT + k*WIDTH+l ] = curr_imgs[randNum][k][l];
+	          treeImgs[i][ samplesInTree[i]*WIDTH*HEIGHT + k*WIDTH+l ] = curr_imgs[randNum*WIDTH*HEIGHT + k*WIDTH + l];//curr_imgs[randNum][k][l];
                }
 	    } 
 
 	    //copy gaze
-	    treeGazes[i][2*samplesInTree[i]] = curr_gazes[randNum][0];
-	    treeGazes[i][2*samplesInTree[i]+1 ] = curr_gazes[randNum][1];
+	    treeGazes[i][2*samplesInTree[i]] = curr_gazes[2*randNum];//[randNum][0];
+	    treeGazes[i][2*samplesInTree[i]+1 ] = curr_gazes[2*randNum+1];//[randNum][1];
 
 	    //copy pose
-	    treePoses[i][2*samplesInTree[i]] = curr_poses[randNum][0];
-	    treePoses[i][2*samplesInTree[i]+1] = curr_poses[randNum][0];
+	    treePoses[i][2*samplesInTree[i]] = curr_poses[2*randNum];//[randNum][0];
+	    treePoses[i][2*samplesInTree[i]+1] = curr_poses[2*randNum+1];//[randNum][1];
 
 
 	    samplesInTree[i]++;
@@ -274,13 +306,38 @@ int main(int argc, char *argv[])  {
 	   
 	    sprintf(grpName, "g%d", curr_nearest[r] ); 
             group_nearest = new Group(file->openGroup( grpName ) );
-
 	   /*
             * gaze
             */
             DataSet dataset = group->openDataSet("gaze");  
             DataSpace dataspace = dataset.getSpace();//dataspace???
             rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
+	    // update sizes if size per group is bigger
+	    if (dims[0] > curr_size)  {
+	
+	       //reallocate gaze mem
+               curr_gazes = (double *)realloc( curr_gazes, 2*dims[0]*sizeof(double) );
+	       if (curr_gazes == NULL)  {
+	          cout << "error at realloc, curr_gazes" << endl;
+	          return (-1);
+	       }
+
+	       //reallocate pose mem
+	       curr_poses = (double *)realloc( curr_poses, 2*dims[0]*sizeof(double) );
+	       if (curr_poses == NULL)  {
+	          cout << "error at realloc, curr_gazes" << endl;
+	          return (-1);
+	       }
+
+	       //reallocate img mem
+	       curr_imgs = (unsigned char *)realloc( curr_imgs, dims[0]*WIDTH*HEIGHT*sizeof(unsigned char) );
+	       if (curr_imgs == NULL)  {
+	          cout << "error at realloc, curr_gazes" << endl;
+	          return (-1);
+	       }
+          
+	       curr_size = dims[0];
+            }
             DataSpace memspace( rank, dims );
             dataset.read(curr_gazes, PredType::NATIVE_DOUBLE, memspace, dataspace );   
 	  
@@ -329,18 +386,18 @@ int main(int argc, char *argv[])  {
 	       //copy img
 	       for (int k = 0; k < HEIGHT; k++)  {
                   for (int l = 0; l < WIDTH; l++)   {
-		     treeImgs[i][ samplesInTree[i]*WIDTH*HEIGHT + k*WIDTH+l ] = curr_imgs[randNum][k][l];
+		     treeImgs[i][ samplesInTree[i]*WIDTH*HEIGHT + k*WIDTH+l ] = curr_imgs[randNum*WIDTH*HEIGHT+k*WIDTH+l];//[randNum][k][l];
                   }
 	       } 
 
 	       //copy gaze
-	       treeGazes[i][2*samplesInTree[i]   ] = curr_gazes[randNum][0];
-	       treeGazes[i][2*samplesInTree[i]+1 ] = curr_gazes[randNum][1];
+	       treeGazes[i][2*samplesInTree[i]   ] = curr_gazes[2*randNum];//[randNum][0];
+	       treeGazes[i][2*samplesInTree[i]+1 ] = curr_gazes[2*randNum+1];//[randNum][1];
 
 
 	       //copy pose
-	       treePoses[i][2*samplesInTree[i]   ] = curr_poses[randNum][0];
-	       treePoses[i][2*samplesInTree[i]+1 ] = curr_poses[randNum][0];
+	       treePoses[i][2*samplesInTree[i]   ] = curr_poses[2*randNum];//[randNum][0];
+	       treePoses[i][2*samplesInTree[i]+1 ] = curr_poses[2*randNum+1];//[randNum][1];
 
 
 	       samplesInTree[i]++;
@@ -355,6 +412,9 @@ int main(int argc, char *argv[])  {
       }//for i
 
 
+      free( curr_poses );
+      free( curr_gazes );
+      free( curr_imgs  );	
 
       // build forest
       trees = buildRegressionTree(samplesInTree, treeImgs, treeGazes, treePoses);
@@ -381,7 +441,7 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
        DataSpace memspace( rank, dims);
 	
 
-
+       int max_neighbours = dims[1]; 
        test_nearest = (int *)malloc( dims[0]*dims[1]*sizeof(int) );
        if (test_nearest == NULL) {
 	  cout << "Error allocating memory" << endl;
@@ -448,18 +508,23 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
        for (j = 0; j < dims[0]; j++)  {
           predict[0] =  0;
           predict[1] =  0;
+	  cout << endl << "***** no." << j << ". Test sample=(" << test_gazes[2*j]*(180.0/M_PI) << ", " << test_gazes[2*j+1]*(180.0/M_PI) << ") " << "******" << endl;
 	  for (int k = 0; k < RADIUS+1; k++)  {     
 
-             //each tree's prediction	          
-             temp_predict = testSampleInTree(trees[test_nearest[k]], test_imgs, test_poses, j );
+             //each tree's prediction
+             temp_predict = testSampleInTree(trees[ test_nearest[j*max_neighbours + k]-1 ], test_imgs, test_poses, j );
 	     predict[0] = predict[0] + temp_predict->mean[0];
-	     predict[1] = predict[0] + temp_predict->mean[1];
+	     predict[1] = predict[1] + temp_predict->mean[1];
+	     cout << "\t" << k << ": mean=(" << temp_predict->mean[0]*(180.0/M_PI) << ", " << temp_predict->mean[1]*(180.0/M_PI) << "), tree=" << test_nearest[j*max_neighbours + k]-1 <<  ", RADIUS=" <<k  << ", error=" <<   sqrt( pow(temp_predict->mean[0]-test_gazes[2*j ],2) + pow(temp_predict->mean[1]-test_gazes[2*j+1],2) )*(180.0/M_PI) << ", n=" << temp_predict->numOfPtrs << endl;
+	     
           }
-                
+	        
           // prediction = mean prediction of all trees
           predict[0] = predict[0]/(RADIUS+1);
           predict[1] = predict[1]/(RADIUS+1);
 	  errors[j] = sqrt( pow(predict[0]-test_gazes[2*j ],2) + pow(predict[1]-test_gazes[2*j+1],2) );
+
+	  cout << "Final prediction=(" << predict[0]*(180.0/M_PI) << ", " << predict[1]*(180.0/M_PI) << ") and error is:" << errors[j]*(180.0/M_PI) << endl;
        }
 
 
@@ -481,7 +546,7 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
        cout << "mean_error(deg) is: " << mean_error*(180.0/M_PI) << endl;
        cout << "stdev_error(deg) is: " << stdev_error*(180.0/M_PI) << endl;        
 
-       free( errors );
+       //free( errors );
 
     }//try 
     catch(  FileIException error)  {
@@ -641,26 +706,28 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
       return NULL;
    }
  
-   	
+
+  #pragma omp parallel num_threads(NUM_OF_THREADS) private(minSquareError, minPx1_vert, minPx1_hor, minPx2_vert, minPx2_hor, bestThres, cache_treeImgs, counter)
+  { 	
    for (i = 0; i < NUM_OF_TREES; i++ )  {
-    
     
       cache_treeImgs = (unsigned char *)malloc( 2*fatherSize[i]*sizeof(unsigned char) );
       if (cache_treeImgs == NULL) {
          cout << "error allocating memory for caching. Exiting\n"; 
-         return NULL;
+         exit(-1);
       } 
 	
       
       l_r_fl_fr_ptrs = (unsigned int *)malloc( 4*fatherSize[i]*sizeof(unsigned int) ); 
       if (l_r_fl_fr_ptrs == NULL) {
          cout << "error allocating memory for ptrs2. Exiting\n";
-	 return NULL;
+	 exit(-1);
       }
-
+     
       stackindex = 0;
       state = 1;
       currNode = trees[i];
+
       while (state != 2) {
 
          if (currNode->numOfPtrs >= 3)  {
@@ -671,7 +738,9 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    minPx2_hor =     10000;//and here 
 	    bestThres  =     10000;//ah, and here
  
-            counter = 0;//threadID here
+            //counter = 0;//threadID here
+	    counter = omp_get_thread_num();
+
 	    while (counter < WIDTH*HEIGHT )  {
                px1_vert = counter/WIDTH;   
 	       px1_hor = counter%WIDTH;
@@ -686,7 +755,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
                         }
 
 
-		        for (thres = 30; thres <= 40; thres++) {
+		        for (thres = 20; thres <= 40; thres++) {
 			   l = 0;
 			   r = 0;
 			   meanLeftGaze[0]  = 0;
@@ -758,7 +827,8 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 		     }//if sqrt <6.5
                   }// px2-hor
                }// px2-vert
-	       counter++;
+	       //counter++;
+	       counter = counter + NUM_OF_THREADS;
 
             }// while
          }//>=3  
@@ -766,6 +836,9 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
             ltreeSize = 0;
 	    rtreeSize = 0;
 	 }
+
+
+
 
          if (ltreeSize > 0 && rtreeSize > 0 && (ltreeSize+rtreeSize>2) )  {
 	 
@@ -781,13 +854,13 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    currNode->left = (treeT *)malloc( sizeof(treeT) );
 	    if (currNode->left==NULL)  { 
 	       cout << "Error allocating mem7\n";
-	       return NULL;
+	       exit(-1);
             }
 
 	    currNode->left->ptrs = (unsigned int *)malloc( ltreeSize * sizeof( unsigned int ) );
 	    if (currNode->left->ptrs==NULL)  {
 	       cout << "Error allocating mem8\n";
-	       return NULL;
+	       exit(-1);
 	    }
 	    currNode->left->numOfPtrs = ltreeSize;
 	    currNode->left->mean[0] = ltree_meanGaze[0];
@@ -802,13 +875,13 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    currNode->right = (treeT *)malloc( sizeof(treeT) ); 
 	    if (currNode->right==NULL)  { 
 	       cout << "Error allocating mem9\n";
-	       return NULL;
+	       exit(-1);
             }
 
 	    currNode->right->ptrs = (unsigned int *)malloc( rtreeSize*sizeof(unsigned int) );
             if (currNode->right->ptrs==NULL)  {
 	       cout << "Error allocating mem10\n";
-	       return NULL;
+	       exit(-1);
 	    }
 
 	    currNode->right->numOfPtrs = rtreeSize;
@@ -842,10 +915,8 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 
       }//while state!=2
 
-     
       free( cache_treeImgs );      
       free( l_r_fl_fr_ptrs ); 
-
 	      
       cout << i << endl;  
       //return trees;
@@ -863,6 +934,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
    
    }// for i
 
+   } // end of "omp parallel"
 
    
 
