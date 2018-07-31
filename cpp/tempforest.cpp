@@ -674,30 +674,27 @@ void drawTree(treeT *root){
 	return;
 }
 
+unsigned int max_size(unsigned int *fatherSize)  {
+   int i = 0;
+   unsigned int max_size = fatherSize[0];
+   for (i = 1; i < NUM_OF_TREES; i++)  {
+      if (max_size < fatherSize[i])
+         max_size = fatherSize[i]; 
+   }
 
+   return max_size;
+}
 
 treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,double **treeGazes,double**treePoses) {
    
-   treeT **trees = NULL; 
-   treeT *currNode = NULL;
+  treeT **trees = NULL; 
+   volatile treeT *currNode = NULL;
    
-   treeT *savedNode[MAX_RECURSION_DEPTH];
-
-   unsigned int *l_r_fl_fr_ptrs = NULL;
-   unsigned int i,j,l,r,ltreeSize=-1, rtreeSize=-1, stackindex, state;
-   unsigned short minPx1_vert, minPx1_hor, minPx2_vert, minPx2_hor, bestThres;
-   unsigned short px1_hor, px1_vert, px2_hor, px2_vert, thres;
-   unsigned int counter;
-   double meanLeftGaze[2], meanRightGaze[2];
-   double rtree_meanGaze[2]={-10,-10}, ltree_meanGaze[2] = {-10,-10}; 
-   double squareError, minSquareError[NUM_OF_THREADS];
-   unsigned int tid;
-   double minError; unsigned int bestworker;
-  /*
-   * caching big arrays
-   */
-   unsigned char *cache_treeImgs; 
+   volatile treeT *savedNode[MAX_RECURSION_DEPTH];
+   volatile unsigned int  stackindex, state;
+   volatile double minSquareError[NUM_OF_THREADS];
    
+  
 
   /*
    * allocate **trees memory
@@ -708,31 +705,54 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
    }
  
 
-  #pragma omp parallel num_threads(NUM_OF_THREADS) shared(currNode, state, stackindex, i, minSquareError) private(rtree_meanGaze, ltree_meanGaze, ltreeSize, rtreeSize,  minPx1_vert, minPx1_hor, minPx2_vert, minPx2_hor, bestThres, px1_hor, px1_vert, px2_hor, px2_vert, cache_treeImgs, counter, meanLeftGaze, meanRightGaze, l_r_fl_fr_ptrs, r, l, squareError, tid)
+  #pragma omp parallel num_threads(NUM_OF_THREADS) //shared(fatherSize, savedNode, currNode, state, stackindex,  minSquareError) private(rtree_meanGaze, ltree_meanGaze, ltreeSize, rtreeSize,  minPx1_vert, minPx1_hor, minPx2_vert, minPx2_hor, bestThres, px1_hor, px1_vert, px2_hor, px2_vert, cache_treeImgs, counter, meanLeftGaze, meanRightGaze, l_r_fl_fr_ptrs, r, l, squareError, tid)
   { 	
+   unsigned int *l_r_fl_fr_ptrs = NULL;
+   unsigned int i, j,l,r,ltreeSize=-1, rtreeSize=-1;
+   unsigned short minPx1_vert, minPx1_hor, minPx2_vert, minPx2_hor, bestThres;
+   unsigned short px1_hor, px1_vert, px2_hor, px2_vert, thres;
+   unsigned int counter;
+   double meanLeftGaze[2], meanRightGaze[2];
+   double rtree_meanGaze[2], ltree_meanGaze[2]; 
+   double squareError; 
+   unsigned int tid;
+   double minError; unsigned int bestworker; 
+   /*
+   * caching big arrays
+   */
+   unsigned char *cache_treeImgs; 
+   
+
+   cache_treeImgs = (unsigned char *)malloc( 2 * max_size(fatherSize) *sizeof(unsigned char) );
+   if (cache_treeImgs == NULL) {
+      cout << "error allocating memory for caching. Exiting\n"; 
+      exit(-1);
+   }    
+   l_r_fl_fr_ptrs = (unsigned int *)malloc( 4 * max_size(fatherSize) *sizeof(unsigned int) ); 
+   if (l_r_fl_fr_ptrs == NULL) {
+      cout << "error allocating memory for ptrs2. Exiting\n";
+      exit(-1);
+   }
+
+   //some random inits to avoid compiler warnings
+   rtree_meanGaze[0] = -10.0;
+   ltree_meanGaze[0] = -10.0;
+   ltree_meanGaze[1] = -10.0;
+
 
    tid = omp_get_thread_num();
-
    for (i = 0; i < NUM_OF_TREES; i++ )  {
-    
-      cache_treeImgs = (unsigned char *)malloc( 2*fatherSize[i]*sizeof(unsigned char) );
-      if (cache_treeImgs == NULL) {
-         cout << "error allocating memory for caching. Exiting\n"; 
-         exit(-1);
-      } 
-	
-      
-      l_r_fl_fr_ptrs = (unsigned int *)malloc( 4*fatherSize[i]*sizeof(unsigned int) ); 
-      if (l_r_fl_fr_ptrs == NULL) {
-         cout << "error allocating memory for ptrs2. Exiting\n";
-	 exit(-1);
-      }
-     
-      stackindex = 0;
-      state = 1;
-      currNode = trees[i];
 
+      #pragma omp single     
+      {
+      stackindex = 0;
+      state = 1; 
+      currNode = trees[i];
+      }
+      #pragma omp barrier
+      
       while (state != 2) {
+	 
 
          if (currNode->numOfPtrs >= 3)  {
             minSquareError[tid] = 10000;//a huge value
@@ -799,7 +819,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			   squareError = 0;
 			   for (j = 0; j < l; j++)  {
 			      squareError = squareError + pow(meanLeftGaze[0]-treeGazes[i][ l_r_fl_fr_ptrs[0 + j ]*2   ], 2)  
-						     + pow(meanLeftGaze[1]-treeGazes[i][ l_r_fl_fr_ptrs[0 + j ]*2 +1], 2);
+						        + pow(meanLeftGaze[1]-treeGazes[i][ l_r_fl_fr_ptrs[0 + j ]*2 +1], 2);
 
 			   }
 			   for (j = 0; j < r; j++)  {
@@ -829,7 +849,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			      rtree_meanGaze[1] = meanRightGaze[1];
 			      ltree_meanGaze[0] = meanLeftGaze[0];
 			      ltree_meanGaze[1] = meanLeftGaze[1];
-
+			   
 			   } // min
 		        }// thres
 		     }//if sqrt <6.5     
@@ -840,14 +860,16 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 
             }// while
          }//>=3  
+
          else {
             ltreeSize = 0;
 	    rtreeSize = 0;
 	 }
-       
+
+         //cout << tid << " prin" << endl;
 	 #pragma omp barrier
 
-	
+	 //cout << tid << " meta" << endl;
 	 minError = minSquareError[0];
 	 bestworker = 0;	
 	 for (j = 1; j < NUM_OF_THREADS; j++) {
@@ -924,6 +946,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
             }
             else {
                if (stackindex == 0)  {
+
 	          state = 2;
                }
                else {
@@ -931,19 +954,21 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	          currNode = savedNode[stackindex];              
 	       }
             }
+           
          }// end of bestworker update staff
 
 	 #pragma omp barrier
 
       }//while state!=2
 
-      free( cache_treeImgs );      
-      free( l_r_fl_fr_ptrs ); 
-	      
-      //cout << i << endl;  
+      #pragma omp barrier
 
 
-      if (i == 0)  {
+
+      if (tid == 0 )
+         cout << "thread " << tid << ", i = " << i << endl;  
+      /*
+      if (i == 5 && tid==0)  {
          try{	
             outputFile.open("mytree.dot");
 	    drawTree(trees[i]);
@@ -952,10 +977,13 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    std::cerr << "problem. Terminating\n";
 	    exit(1);
          }
-     }
+      }*/
+
    
    }// for i
 
+   free( cache_treeImgs );      
+   free( l_r_fl_fr_ptrs ); 
    } // end of "omp parallel"
 
    
