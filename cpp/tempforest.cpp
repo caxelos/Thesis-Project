@@ -15,7 +15,7 @@
 #define LEFT 1
 #define RIGHT 2
 
-#define RADIUS 	10
+#define RADIUS 	30
 
 
 #ifdef OLD_HEADER_FILENAME
@@ -722,7 +722,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
    unsigned int i, j,l,r,ltreeSize=-1, rtreeSize=-1;
    unsigned short minPx1_vert, minPx1_hor, minPx2_vert, minPx2_hor, bestThres;
    unsigned short px1_hor, px1_vert, px2_hor, px2_vert, thres;
-   unsigned int counter;
+   unsigned int counter, counter2;
    double meanLeftGaze[2], meanRightGaze[2];
    double rtree_meanGaze[2], ltree_meanGaze[2]; 
    double squareError; 
@@ -796,107 +796,106 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	
                px1_vert = counter/WIDTH;   
 	       px1_hor = counter%WIDTH;
+               counter2 = counter+1;
 
-	       for (px2_vert=px1_vert+(px1_hor+1)/WIDTH; px2_vert<HEIGHT; px2_vert++)  {
+	       while (counter2 < WIDTH*HEIGHT)  {
 
-		  //paizei na xei lathos i ilopoihsh edw
-                  for (px2_hor=(px1_hor+1)%WIDTH; px2_hor < WIDTH; px2_hor++)  {
-
-	             if  ( sqrt( pow(px1_vert -px2_vert,2) + pow(px1_hor-px2_hor,2) ) < 6.5 )  {  
+	          px2_vert = counter2/WIDTH;   
+	          px2_hor = counter2%WIDTH;	
+	          if  ( sqrt( pow(px1_vert -px2_vert,2) + pow(px1_hor-px2_hor,2) ) < 6.5 )  {  
 	
-			
-                        for (j = 0; j < currNode->numOfPtrs; j++)  {
-		           cache_treeImgs[(j<<1)    ] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + px1_vert*WIDTH + px1_hor];  
-	      	           cache_treeImgs[(j<<1) + 1] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + px2_vert*WIDTH + px2_hor];
-                        }
+                     for (j = 0; j < currNode->numOfPtrs; j++)  {
+		        cache_treeImgs[(j<<1)] = treeImgs[i][ currNode->ptrs[j]*WIDTH*HEIGHT + (px1_vert<<4)-px1_vert/*px1_vert*WIDTH*/+ px1_hor];  
+	      	        cache_treeImgs[(j<<1) + 1] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + (px2_vert<<4)-px2_vert/*px2_vert*WIDTH*/ + px2_hor];
+                     }
 
-		        for (thres = 20; thres <= 40; thres++) {
-			   l = 0;
-			   r = 0;
-			   meanLeftGaze[0]  = 0;
-			   meanLeftGaze[1]  = 0;
-			   meanRightGaze[0] = 0;
-			   meanRightGaze[1] = 0;
+		     for (thres = 20; thres <= 40; thres++) {
+			l = 0;
+			r = 0;
+			meanLeftGaze[0]  = 0;
+			meanLeftGaze[1]  = 0;
+			meanRightGaze[0] = 0;
+			meanRightGaze[1] = 0;
 
-			   for (j = 0; j < currNode->numOfPtrs; j++)  {
-			      if ( abs(cache_treeImgs[j<<1]-cache_treeImgs[(j<<1) +1])< thres )  {
+			for (j = 0; j < currNode->numOfPtrs; j++)  {
+			   if ( abs(cache_treeImgs[j<<1]-cache_treeImgs[(j<<1) +1])< thres )  {
 				
-			         //left child
-			         l_r_fl_fr_ptrs[0 + l] = currNode->ptrs[j];
-			         l++;
+			      //left child
+			      l_r_fl_fr_ptrs[l] = currNode->ptrs[j];
+			      l++;
 
-			         meanLeftGaze[0] = meanLeftGaze[0] + treeGazes[i][currNode->ptrs[j]<<1];
-			         meanLeftGaze[1] = meanLeftGaze[1] + treeGazes[i][(currNode->ptrs[j]<<1) + 1]; 
-			      }
-			      else {
+			      meanLeftGaze[0] = meanLeftGaze[0] + treeGazes[i][currNode->ptrs[j]<<1];
+			      meanLeftGaze[1] = meanLeftGaze[1] + treeGazes[i][(currNode->ptrs[j]<<1) + 1]; 
+			   }
+			   else {
 
-			         //right child
-			         l_r_fl_fr_ptrs[1*fatherSize[i]+r] = currNode->ptrs[j];
-  			         r++;	   
+			      //right child
+			      l_r_fl_fr_ptrs[fatherSize[i]+r] = currNode->ptrs[j];
+  			      r++;	   
                                 
-			         meanRightGaze[0] = meanRightGaze[0] + treeGazes[i][(currNode->ptrs[j]<<1)];
-			         meanRightGaze[1] = meanRightGaze[1] + treeGazes[i][(currNode->ptrs[j]<<1) + 1];			      
-			      }
-		           }
-			   meanLeftGaze[0] = meanLeftGaze[0]  / l;
-			   meanLeftGaze[1] = meanLeftGaze[1]  / l;
-			   meanRightGaze[0] = meanRightGaze[0]/ r;
-			   meanRightGaze[1] = meanRightGaze[1]/ r;
+			      meanRightGaze[0] = meanRightGaze[0] + treeGazes[i][(currNode->ptrs[j]<<1)];
+			      meanRightGaze[1] = meanRightGaze[1] + treeGazes[i][(currNode->ptrs[j]<<1) + 1];			      
+			   }
+		        }
+			meanLeftGaze[0] = meanLeftGaze[0]  / l;
+			meanLeftGaze[1] = meanLeftGaze[1]  / l;
+			meanRightGaze[0] = meanRightGaze[0]/ r;
+			meanRightGaze[1] = meanRightGaze[1]/ r;
 			
-			   squareError = 0;
-			   for (j = 0; j < l; j++)  {
-			      squareError = squareError + pow(meanLeftGaze[0]-treeGazes[i][ l_r_fl_fr_ptrs[0 + j ]<<1   ], 2)  
-						        + pow(meanLeftGaze[1]-treeGazes[i][ (l_r_fl_fr_ptrs[0 + j ]<<1) +1], 2);
+			squareError = 0;
+			for (j = 0; j < l; j++)  {
+			   squareError = squareError + pow(meanLeftGaze[0]-treeGazes[i][ l_r_fl_fr_ptrs[j ]<<1   ], 2)  
+			    		             + pow(meanLeftGaze[1]-treeGazes[i][ (l_r_fl_fr_ptrs[j ]<<1) +1], 2);
 
+			}
+			for (j = 0; j < r; j++)  {
+			   squareError = squareError + pow(meanRightGaze[0]-treeGazes[i][ (l_r_fl_fr_ptrs[fatherSize[i] + j ]<<1) ], 2)  
+						     + pow(meanRightGaze[1]-treeGazes[i][ (l_r_fl_fr_ptrs[fatherSize[i] + j]<<1) +1], 2);
+		  	}
+
+			#ifdef PARALLEL
+			if (squareError < minSquareError[tid] )  {
+			   minSquareError[tid] = squareError;
+			#else
+			if (squareError < minSquareError )  {
+			   minSquareError = squareError;
+			#endif
+
+			   minPx1_vert =    px1_vert;// % something random here
+			   minPx1_hor =     px1_hor;// % also here
+			   minPx2_vert=     px2_vert;// % and here..
+			   minPx2_hor =     px2_hor;// % and here
+			   bestThres  =     thres;
+		           ltreeSize = l;
+			   rtreeSize = r;
+
+			   for (j = 0; j < l; j++)  {
+			      l_r_fl_fr_ptrs[(fatherSize[i]<<1) + j] =  l_r_fl_fr_ptrs[j];
 			   }
 			   for (j = 0; j < r; j++)  {
-			      squareError = squareError + pow(meanRightGaze[0]-treeGazes[i][ (l_r_fl_fr_ptrs[fatherSize[i] + j ]<<1) ], 2)  
-						     + pow(meanRightGaze[1]-treeGazes[i][ (l_r_fl_fr_ptrs[fatherSize[i] + j]<<1) +1], 2);
+			      l_r_fl_fr_ptrs[/*3*fatherSize[i]*/(fatherSize[i]<<2)-fatherSize[i] + j] =  l_r_fl_fr_ptrs[fatherSize[i] + j];
+			   }
 
-		  	   }
-			   #ifdef PARALLEL
-			   if (squareError < minSquareError[tid] )  {
-			      minSquareError[tid] = squareError;
-			   #else
-			   if (squareError < minSquareError )  {
-			      minSquareError = squareError;
-			   #endif
-
-			      minPx1_vert =    px1_vert;// % something random here
-			      minPx1_hor =     px1_hor;// % also here
-			      minPx2_vert=     px2_vert;// % and here..
-			      minPx2_hor =     px2_hor;// % and here
-			      bestThres  =     thres;
-		
-		              ltreeSize = l;
-			      rtreeSize = r;
-
-			      for (j = 0; j < l; j++)  {
-			         l_r_fl_fr_ptrs[(fatherSize[i]<<1) + j] =  l_r_fl_fr_ptrs[j];
-			      }
-			      for (j = 0; j < r; j++)  {
-			         l_r_fl_fr_ptrs[3*fatherSize[i] + j] =  l_r_fl_fr_ptrs[fatherSize[i] + j];
-			      }
-
-			      rtree_meanGaze[0] = meanRightGaze[0];
-			      rtree_meanGaze[1] = meanRightGaze[1];
-			      ltree_meanGaze[0] = meanLeftGaze[0];
-			      ltree_meanGaze[1] = meanLeftGaze[1];
+			   rtree_meanGaze[0] = meanRightGaze[0];
+			   rtree_meanGaze[1] = meanRightGaze[1];
+			   ltree_meanGaze[0] = meanLeftGaze[0];
+			   ltree_meanGaze[1] = meanLeftGaze[1];
 			   
-			   } // min
-		        }// thres
-		     }//if sqrt <6.5     
-                  }// px2-hor
-               }// px2-vert
+			} // min
+		     }// thres
+		  }//if sqrt <6.5     
+
+
+		  counter2++;
+               }// while inner counter
+            
 	       //counter++;
 	       #ifdef PARALLEL
 	       counter = counter + NUM_OF_THREADS;
 	       #else
 	       counter++;
 	       #endif
-
-
-            }// while
+            }// while outter counter
          }//>=3  
 
          else {
@@ -937,6 +936,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	       #else
 	       currNode->mse = minSquareError;
 	       #endif
+
 	       //create left child
 	       currNode->left = (treeT *)malloc( sizeof(treeT) );
 	       if (currNode->left==NULL)  { 
@@ -977,7 +977,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	       currNode->right->right = NULL;
 	       currNode->right->left = NULL;
 	       for (j = 0; j < rtreeSize; j++) {
-	          currNode->right->ptrs[j] = l_r_fl_fr_ptrs[3*fatherSize[i] + j];
+	          currNode->right->ptrs[j] = l_r_fl_fr_ptrs[/*3*fatherSize[i]*/(fatherSize[i]<<2)-fatherSize[i] + j];
                }
 
 	       //save left brother in stack
@@ -1018,7 +1018,9 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
       #else 
          cout << "i = " << i << endl; 
       #endif 
-      /*
+
+
+/*
       if (i == 5 && tid==0)  {
          try{	
             outputFile.open("mytree.dot");
@@ -1028,8 +1030,8 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    std::cerr << "problem. Terminating\n";
 	    exit(1);
          }
-      }*/
-
+      }
+*/
    
    }// for i
 
