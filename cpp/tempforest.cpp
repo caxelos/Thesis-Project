@@ -1,4 +1,8 @@
-#define NUM_OF_THREADS 3
+#define PARALLEL
+
+#ifdef PARALLEL
+   #define NUM_OF_THREADS 4
+#endif
 
 #define NUM_OF_TREES 514
 #define MAX_SAMPLES_PER_TREE 1000
@@ -200,14 +204,14 @@ int main(int argc, char *argv[])  {
 	 if (dims[0] > curr_size)  {
 
 	    //reallocate gaze mem
-            curr_gazes = (double *)realloc( curr_gazes, 2*dims[0]*sizeof(double) );
+            curr_gazes = (double *)realloc( curr_gazes, (dims[0]*sizeof(double))<<1 );
 	    if (curr_gazes == NULL)  {
 	       cout << "error at realloc, curr_gazes" << endl;
 	       return (-1);
 	    }
 
 	    //reallocate pose mem
-	    curr_poses = (double *)realloc( curr_poses, 2*dims[0]*sizeof(double) );
+	    curr_poses = (double *)realloc( curr_poses, (dims[0]*sizeof(double))<<1 );
 	    if (curr_poses == NULL)  {
 	       cout << "error at realloc, curr_gazes" << endl;
 	       return (-1);
@@ -250,12 +254,12 @@ int main(int argc, char *argv[])  {
           	
          grpContribution = sqrt( dims[0]);//dims[0] is the numOfSamples in group1
 
-	 treeGazes[i] = (double *)malloc( 2 * grpContribution * sizeof(double) );
+	 treeGazes[i] = (double *)malloc( (grpContribution * sizeof(double)) << 1 );
 	 if (treeGazes[i] == NULL)  {
 	    cout << "Error allocating sqrt doubles. Exiting\n";
             return -1;  
 	 }
-	 treePoses[i] = (double *)malloc( 2 * grpContribution * sizeof(double) );
+	 treePoses[i] = (double *)malloc( (grpContribution * sizeof(double)) << 1 );
 	 if (treePoses[i] == NULL)  {
 	    cout << "Error allocating sqrt doubles. Exiting\n";
             return -1;  
@@ -282,12 +286,12 @@ int main(int argc, char *argv[])  {
 	    } 
 
 	    //copy gaze
-	    treeGazes[i][2*samplesInTree[i]] = curr_gazes[2*randNum];//[randNum][0];
-	    treeGazes[i][2*samplesInTree[i]+1 ] = curr_gazes[2*randNum+1];//[randNum][1];
+	    treeGazes[i][samplesInTree[i]<<1] = curr_gazes[randNum<<1];//[randNum][0];
+	    treeGazes[i][(samplesInTree[i]<<1)+1 ] = curr_gazes[(randNum<<1)+1];//[randNum][1];
 
 	    //copy pose
-	    treePoses[i][2*samplesInTree[i]] = curr_poses[2*randNum];//[randNum][0];
-	    treePoses[i][2*samplesInTree[i]+1] = curr_poses[2*randNum+1];//[randNum][1];
+	    treePoses[i][samplesInTree[i]<<1] = curr_poses[randNum<<1];//[randNum][0];
+	    treePoses[i][(samplesInTree[i]<<1)+1] = curr_poses[(randNum<<1)+1];//[randNum][1];
 
 
 	    samplesInTree[i]++;
@@ -316,14 +320,14 @@ int main(int argc, char *argv[])  {
 	    if (dims[0] > curr_size)  {
 	
 	       //reallocate gaze mem
-               curr_gazes = (double *)realloc( curr_gazes, 2*dims[0]*sizeof(double) );
+               curr_gazes = (double *)realloc( curr_gazes, (dims[0]*sizeof(double))<<1 );
 	       if (curr_gazes == NULL)  {
 	          cout << "error at realloc, curr_gazes" << endl;
 	          return (-1);
 	       }
 
 	       //reallocate pose mem
-	       curr_poses = (double *)realloc( curr_poses, 2*dims[0]*sizeof(double) );
+	       curr_poses = (double *)realloc( curr_poses, (dims[0]*sizeof(double)<<1) );
 	       if (curr_poses == NULL)  {
 	          cout << "error at realloc, curr_gazes" << endl;
 	          return (-1);
@@ -362,7 +366,7 @@ int main(int argc, char *argv[])  {
 	    grpContribution = sqrt( dims[0]);//dims[0] is the numOfSamples in group1
             if (grpContribution != 0) { 
 
-	       treeGazes[i] = (double *)realloc(treeGazes[i],  (2 * (samplesInTree[i] + grpContribution) )*sizeof(double) );
+	       treeGazes[i] = (double *)realloc(treeGazes[i],  ( ((samplesInTree[i] + grpContribution) )*sizeof(double))<<1 );
 	       if (treeGazes[i] == NULL)  {
 	          cout << "Error allocating sqrt doubles(2). Exiting\n";
                   return -1;  
@@ -372,7 +376,7 @@ int main(int argc, char *argv[])  {
 	          cout << "Error allocating sqrt doubles(2). Exiting\n";
                   return -1;  
 	       }
-	       treePoses[i] = (double *)realloc(treePoses[i],  (2 * (samplesInTree[i] + grpContribution) )*sizeof(double) );
+	       treePoses[i] = (double *)realloc(treePoses[i],  (  ((samplesInTree[i] + grpContribution) )*sizeof(double)<<1) );
 	       if (treePoses[i] == NULL)  {
 	          cout << "Error allocating sqrt doubles(2). Exiting\n";
                   return -1;  
@@ -391,13 +395,13 @@ int main(int argc, char *argv[])  {
 	       } 
 
 	       //copy gaze
-	       treeGazes[i][2*samplesInTree[i]   ] = curr_gazes[2*randNum];//[randNum][0];
-	       treeGazes[i][2*samplesInTree[i]+1 ] = curr_gazes[2*randNum+1];//[randNum][1];
+	       treeGazes[i][(samplesInTree[i]<<1)   ] = curr_gazes[(randNum<<1)];//[randNum][0];
+	       treeGazes[i][(samplesInTree[i]<<1)+1 ] = curr_gazes[(randNum<<1)+1];//[randNum][1];
 
 
 	       //copy pose
-	       treePoses[i][2*samplesInTree[i]   ] = curr_poses[2*randNum];//[randNum][0];
-	       treePoses[i][2*samplesInTree[i]+1 ] = curr_poses[2*randNum+1];//[randNum][1];
+	       treePoses[i][samplesInTree[i]<<1   ] = curr_poses[(randNum<<1)];//[randNum][0];
+	       treePoses[i][(samplesInTree[i]<<1)+1 ] = curr_poses[(randNum<<1)+1];//[randNum][1];
 
 
 	       samplesInTree[i]++;
@@ -508,21 +512,21 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
        for (j = 0; j < dims[0]; j++)  {
           predict[0] =  0;
           predict[1] =  0;
-	  cout << endl << "***** no." << j << ". Test sample=(" << test_gazes[2*j]*(180.0/M_PI) << ", " << test_gazes[2*j+1]*(180.0/M_PI) << ") " << "******" << endl;
+	  cout << endl << "***** no." << j << ". Test sample=(" << test_gazes[(j<<1)]*(180.0/M_PI) << ", " << test_gazes[(j<<1)+1]*(180.0/M_PI) << ") " << "******" << endl;
 	  for (int k = 0; k < RADIUS+1; k++)  {     
 
              //each tree's prediction
              temp_predict = testSampleInTree(trees[ test_nearest[j*max_neighbours + k]-1 ], test_imgs, test_poses, j );
 	     predict[0] = predict[0] + temp_predict->mean[0];
 	     predict[1] = predict[1] + temp_predict->mean[1];
-	     cout << "\t" << k << ": mean=(" << temp_predict->mean[0]*(180.0/M_PI) << ", " << temp_predict->mean[1]*(180.0/M_PI) << "), tree=" << test_nearest[j*max_neighbours + k]-1 <<  ", RADIUS=" <<k  << ", error=" <<   sqrt( pow(temp_predict->mean[0]-test_gazes[2*j ],2) + pow(temp_predict->mean[1]-test_gazes[2*j+1],2) )*(180.0/M_PI) << ", n=" << temp_predict->numOfPtrs << endl;
+	     cout << "\t" << k << ": mean=(" << temp_predict->mean[0]*(180.0/M_PI) << ", " << temp_predict->mean[1]*(180.0/M_PI) << "), tree=" << test_nearest[j*max_neighbours + k]-1 <<  ", RADIUS=" <<k  << ", error=" <<   sqrt( pow(temp_predict->mean[0]-test_gazes[(j<<1) ],2) + pow(temp_predict->mean[1]-test_gazes[(j<<1)+1],2) )*(180.0/M_PI) << ", n=" << temp_predict->numOfPtrs << endl;
 	     
           }
 	        
           // prediction = mean prediction of all trees
           predict[0] = predict[0]/(RADIUS+1);
           predict[1] = predict[1]/(RADIUS+1);
-	  errors[j] = sqrt( pow(predict[0]-test_gazes[2*j ],2) + pow(predict[1]-test_gazes[2*j+1],2) );
+	  errors[j] = sqrt( pow(predict[0]-test_gazes[(j<<1) ],2) + pow(predict[1]-test_gazes[(j<<1)+1],2) );
 
 	  cout << "Final prediction=(" << predict[0]*(180.0/M_PI) << ", " << predict[1]*(180.0/M_PI) << ") and error is:" << errors[j]*(180.0/M_PI) << endl;
        }
@@ -654,11 +658,11 @@ void toDotString(treeT *curr, int myID){
 	if(curr->left != NULL){
 
                 outputFile << "\t" << myID << " [label=\"Samples:" << curr->numOfPtrs <<  "\npx1:(" << curr->minPx1_vert << "," << curr->minPx1_hor << ")" << "\npx2:(" << curr->minPx2_vert << "," << curr->minPx2_hor << ")" << "\nthres:" << curr->thres << "\nmse:" << curr->mse << "\", shape=rectangle, color=black]\n";
-		outputFile << "\t" << myID << " -> " << 2 * myID + 1 << "\n";
-		toDotString(curr->left, 2 * myID + 1);
+		outputFile << "\t" << myID << " -> " << (myID<<1) + 1 << "\n";
+		toDotString(curr->left, (myID<<1) + 1);
 		
-		outputFile << "\t" << myID << " -> " << 2 * myID + 2 << "\n";
-		toDotString(curr->right, 2 * myID + 2);
+		outputFile << "\t" << myID << " -> " << (myID<<1) + 2 << "\n";
+		toDotString(curr->right, (myID<<1) + 2);
 	}else{ //leaf
             outputFile << "\t" << myID << " [label=\"Samples:"  << curr->numOfPtrs << "\nmeanGaze = \n=(" << curr->mean[0] <<","<<curr->mean[1] << ")"  << "\", shape=circle, color=green]\n";
         }
@@ -686,14 +690,20 @@ unsigned int max_size(unsigned int *fatherSize)  {
 }
 
 treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,double **treeGazes,double**treePoses) {
-   
-  treeT **trees = NULL; 
-   volatile treeT *currNode = NULL;
-   
-   volatile treeT *savedNode[MAX_RECURSION_DEPTH];
-   volatile unsigned int  stackindex, state;
-   volatile double minSquareError[NUM_OF_THREADS];
-   
+      
+   treeT **trees = NULL; 
+
+   #ifdef PARALLEL 
+      volatile treeT *currNode = NULL;
+      volatile treeT *savedNode[MAX_RECURSION_DEPTH];
+      volatile unsigned int  stackindex, state;
+      volatile double minSquareError[NUM_OF_THREADS];
+   #else
+      treeT *currNode = NULL;
+      treeT *savedNode[MAX_RECURSION_DEPTH];
+      unsigned int  stackindex, state;
+      double minSquareError;
+   #endif
   
 
   /*
@@ -704,8 +714,9 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
       return NULL;
    }
  
-
-  #pragma omp parallel num_threads(NUM_OF_THREADS) //shared(fatherSize, savedNode, currNode, state, stackindex,  minSquareError) private(rtree_meanGaze, ltree_meanGaze, ltreeSize, rtreeSize,  minPx1_vert, minPx1_hor, minPx2_vert, minPx2_hor, bestThres, px1_hor, px1_vert, px2_hor, px2_vert, cache_treeImgs, counter, meanLeftGaze, meanRightGaze, l_r_fl_fr_ptrs, r, l, squareError, tid)
+  #ifdef PARALLEL
+  #pragma omp parallel num_threads(NUM_OF_THREADS)
+  #endif
   { 	
    unsigned int *l_r_fl_fr_ptrs = NULL;
    unsigned int i, j,l,r,ltreeSize=-1, rtreeSize=-1;
@@ -715,20 +726,22 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
    double meanLeftGaze[2], meanRightGaze[2];
    double rtree_meanGaze[2], ltree_meanGaze[2]; 
    double squareError; 
+   #ifdef PARALLEL
    unsigned int tid;
-   double minError; unsigned int bestworker; 
+   double minError; unsigned int bestworker;
+   #endif 
    /*
    * caching big arrays
    */
    unsigned char *cache_treeImgs; 
    
 
-   cache_treeImgs = (unsigned char *)malloc( 2 * max_size(fatherSize) *sizeof(unsigned char) );
+   cache_treeImgs = (unsigned char *)malloc( ( max_size(fatherSize) *sizeof(unsigned char))<<1 );
    if (cache_treeImgs == NULL) {
       cout << "error allocating memory for caching. Exiting\n"; 
       exit(-1);
    }    
-   l_r_fl_fr_ptrs = (unsigned int *)malloc( 4 * max_size(fatherSize) *sizeof(unsigned int) ); 
+   l_r_fl_fr_ptrs = (unsigned int *)malloc( (max_size(fatherSize) *sizeof(unsigned int))<<2 ); 
    if (l_r_fl_fr_ptrs == NULL) {
       cout << "error allocating memory for ptrs2. Exiting\n";
       exit(-1);
@@ -739,31 +752,45 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
    ltree_meanGaze[0] = -10.0;
    ltree_meanGaze[1] = -10.0;
 
-
+   #ifdef PARALLEL
    tid = omp_get_thread_num();
+   #endif
    for (i = 0; i < NUM_OF_TREES; i++ )  {
 
-      #pragma omp single     
+      #ifdef PARALLEL
+      #pragma omp single
+      #endif     
       {
       stackindex = 0;
       state = 1; 
       currNode = trees[i];
       }
+
+      #ifdef PARALLEL
       #pragma omp barrier
-      
+      #endif
       while (state != 2) {
 	 
 
          if (currNode->numOfPtrs >= 3)  {
+	    #ifdef PARALLEL
             minSquareError[tid] = 10000;//a huge value
+	    #else
+	    minSquareError = 10000;
+	    #endif
+
    	    minPx1_vert =    10000;//again the same
 	    minPx1_hor =     10000;//also here
 	    minPx2_vert=     10000;//and here..
 	    minPx2_hor =     10000;//and here 
 	    bestThres  =     10000;//ah, and here
  
-            //counter = 0;//threadID here
+            
+	    #ifdef PARALLEL
 	    counter = tid;
+	    #else
+	    counter = 0;
+	    #endif
 
 	    while (counter < WIDTH*HEIGHT )  {
 	
@@ -779,8 +806,8 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	
 			
                         for (j = 0; j < currNode->numOfPtrs; j++)  {
-		           cache_treeImgs[2*j    ] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + px1_vert*WIDTH + px1_hor];  
-	      	           cache_treeImgs[2*j + 1] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + px2_vert*WIDTH + px2_hor];
+		           cache_treeImgs[(j<<1)    ] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + px1_vert*WIDTH + px1_hor];  
+	      	           cache_treeImgs[(j<<1) + 1] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + px2_vert*WIDTH + px2_hor];
                         }
 
 		        for (thres = 20; thres <= 40; thres++) {
@@ -792,14 +819,14 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			   meanRightGaze[1] = 0;
 
 			   for (j = 0; j < currNode->numOfPtrs; j++)  {
-			      if ( abs(cache_treeImgs[2*j]-cache_treeImgs[2*j +1])< thres )  {
+			      if ( abs(cache_treeImgs[j<<1]-cache_treeImgs[(j<<1) +1])< thres )  {
 				
 			         //left child
 			         l_r_fl_fr_ptrs[0 + l] = currNode->ptrs[j];
 			         l++;
 
-			         meanLeftGaze[0] = meanLeftGaze[0] + treeGazes[i][currNode->ptrs[j]*2];
-			         meanLeftGaze[1] = meanLeftGaze[1] + treeGazes[i][currNode->ptrs[j]*2 + 1]; 
+			         meanLeftGaze[0] = meanLeftGaze[0] + treeGazes[i][currNode->ptrs[j]<<1];
+			         meanLeftGaze[1] = meanLeftGaze[1] + treeGazes[i][(currNode->ptrs[j]<<1) + 1]; 
 			      }
 			      else {
 
@@ -807,8 +834,8 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			         l_r_fl_fr_ptrs[1*fatherSize[i]+r] = currNode->ptrs[j];
   			         r++;	   
                                 
-			         meanRightGaze[0] = meanRightGaze[0] + treeGazes[i][currNode->ptrs[j]*2];
-			         meanRightGaze[1] = meanRightGaze[1] + treeGazes[i][currNode->ptrs[j]*2 + 1];			      
+			         meanRightGaze[0] = meanRightGaze[0] + treeGazes[i][(currNode->ptrs[j]<<1)];
+			         meanRightGaze[1] = meanRightGaze[1] + treeGazes[i][(currNode->ptrs[j]<<1) + 1];			      
 			      }
 		           }
 			   meanLeftGaze[0] = meanLeftGaze[0]  / l;
@@ -818,17 +845,23 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			
 			   squareError = 0;
 			   for (j = 0; j < l; j++)  {
-			      squareError = squareError + pow(meanLeftGaze[0]-treeGazes[i][ l_r_fl_fr_ptrs[0 + j ]*2   ], 2)  
-						        + pow(meanLeftGaze[1]-treeGazes[i][ l_r_fl_fr_ptrs[0 + j ]*2 +1], 2);
+			      squareError = squareError + pow(meanLeftGaze[0]-treeGazes[i][ l_r_fl_fr_ptrs[0 + j ]<<1   ], 2)  
+						        + pow(meanLeftGaze[1]-treeGazes[i][ (l_r_fl_fr_ptrs[0 + j ]<<1) +1], 2);
 
 			   }
 			   for (j = 0; j < r; j++)  {
-			      squareError = squareError + pow(meanRightGaze[0]-treeGazes[i][ l_r_fl_fr_ptrs[1*fatherSize[i] + j ]*2], 2)  
-						     + pow(meanRightGaze[1]-treeGazes[i][ l_r_fl_fr_ptrs[1*fatherSize[i] + j ]*2 +1], 2);
+			      squareError = squareError + pow(meanRightGaze[0]-treeGazes[i][ (l_r_fl_fr_ptrs[fatherSize[i] + j ]<<1) ], 2)  
+						     + pow(meanRightGaze[1]-treeGazes[i][ (l_r_fl_fr_ptrs[fatherSize[i] + j]<<1) +1], 2);
 
 		  	   }
+			   #ifdef PARALLEL
 			   if (squareError < minSquareError[tid] )  {
 			      minSquareError[tid] = squareError;
+			   #else
+			   if (squareError < minSquareError )  {
+			      minSquareError = squareError;
+			   #endif
+
 			      minPx1_vert =    px1_vert;// % something random here
 			      minPx1_hor =     px1_hor;// % also here
 			      minPx2_vert=     px2_vert;// % and here..
@@ -839,10 +872,10 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			      rtreeSize = r;
 
 			      for (j = 0; j < l; j++)  {
-			         l_r_fl_fr_ptrs[2*fatherSize[i] + j] =  l_r_fl_fr_ptrs[j];
+			         l_r_fl_fr_ptrs[(fatherSize[i]<<1) + j] =  l_r_fl_fr_ptrs[j];
 			      }
 			      for (j = 0; j < r; j++)  {
-			         l_r_fl_fr_ptrs[3*fatherSize[i] + j] =  l_r_fl_fr_ptrs[1*fatherSize[i] + j];
+			         l_r_fl_fr_ptrs[3*fatherSize[i] + j] =  l_r_fl_fr_ptrs[fatherSize[i] + j];
 			      }
 
 			      rtree_meanGaze[0] = meanRightGaze[0];
@@ -856,7 +889,12 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
                   }// px2-hor
                }// px2-vert
 	       //counter++;
+	       #ifdef PARALLEL
 	       counter = counter + NUM_OF_THREADS;
+	       #else
+	       counter++;
+	       #endif
+
 
             }// while
          }//>=3  
@@ -866,10 +904,13 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    rtreeSize = 0;
 	 }
 
-         //cout << tid << " prin" << endl;
-	 #pragma omp barrier
+        
+	 #ifdef PARALLEL
+         #pragma omp barrier
+         #endif
 
-	 //cout << tid << " meta" << endl;
+
+	 #ifdef PARALLEL
 	 minError = minSquareError[0];
 	 bestworker = 0;	
 	 for (j = 1; j < NUM_OF_THREADS; j++) {
@@ -878,10 +919,11 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
  	       bestworker = j;
 	    }
 	 }
-
+	 #endif
 	
-         
+         #ifdef PARALLEL
          if (tid == bestworker)  {
+	 #endif
             if (ltreeSize > 0 && rtreeSize > 0 && (ltreeSize+rtreeSize>2) )  {
 	 
 	       //complete the last info about the father 
@@ -890,8 +932,11 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	       currNode->minPx1_vert = minPx1_vert;
 	       currNode->minPx2_vert = minPx2_vert;
                currNode->thres = bestThres;
+               #ifdef PARALLEL
 	       currNode->mse = minSquareError[tid];
-	
+	       #else
+	       currNode->mse = minSquareError;
+	       #endif
 	       //create left child
 	       currNode->left = (treeT *)malloc( sizeof(treeT) );
 	       if (currNode->left==NULL)  { 
@@ -910,7 +955,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	       currNode->left->right = NULL;
                currNode->left->left = NULL;
                for (j = 0; j < ltreeSize; j++) {
-	          currNode->left->ptrs[j] = l_r_fl_fr_ptrs[2*fatherSize[i] + j];
+	          currNode->left->ptrs[j] = l_r_fl_fr_ptrs[(fatherSize[i]<<1) + j];
                }
 		
 	       //create right child
@@ -954,19 +999,25 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	          currNode = savedNode[stackindex];              
 	       }
             }
-           
+         
+	 #ifdef PARALLEL  
          }// end of bestworker update staff
-
-	 #pragma omp barrier
+         #pragma omp barrier
+         #endif
 
       }//while state!=2
 
+      #ifdef PARALLEL
       #pragma omp barrier
+      #endif
 
 
-
+      #ifdef PARALLEL
       if (tid == 0 )
-         cout << "thread " << tid << ", i = " << i << endl;  
+         cout << "thread " << tid << ", i = " << i << endl; 
+      #else 
+         cout << "i = " << i << endl; 
+      #endif 
       /*
       if (i == 5 && tid==0)  {
          try{	
