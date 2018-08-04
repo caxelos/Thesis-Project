@@ -1,10 +1,12 @@
 #define PARALLEL
+#define STDEV_CALC
 
 #ifdef PARALLEL
    #define NUM_OF_THREADS 4
 #endif
 
-#define NUM_OF_TREES 514
+
+#define NUM_OF_TREES 690//690//940//
 #define MAX_SAMPLES_PER_TREE 1000
 #define MAX_RECURSION_DEPTH 15
 #define MAX_GRP_SIZE 500
@@ -15,7 +17,7 @@
 #define LEFT 1
 #define RIGHT 2
 
-#define RADIUS 	30
+#define RADIUS 5
 
 
 #ifdef OLD_HEADER_FILENAME
@@ -42,6 +44,7 @@ const H5std_string FILE_NAME( "myfile.h5" );
 
 struct tree {
    double mean[2];
+   double stdev[2];
    double mse;
    struct tree *left;
    struct tree *right;
@@ -516,10 +519,17 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
 	  for (int k = 0; k < RADIUS+1; k++)  {     
 
              //each tree's prediction
+
              temp_predict = testSampleInTree(trees[ test_nearest[j*max_neighbours + k]-1 ], test_imgs, test_poses, j );
 	     predict[0] = predict[0] + temp_predict->mean[0];
 	     predict[1] = predict[1] + temp_predict->mean[1];
-	     cout << "\t" << k << ": mean=(" << temp_predict->mean[0]*(180.0/M_PI) << ", " << temp_predict->mean[1]*(180.0/M_PI) << "), tree=" << test_nearest[j*max_neighbours + k]-1 <<  ", RADIUS=" <<k  << ", error=" <<   sqrt( pow(temp_predict->mean[0]-test_gazes[(j<<1) ],2) + pow(temp_predict->mean[1]-test_gazes[(j<<1)+1],2) )*(180.0/M_PI) << ", n=" << temp_predict->numOfPtrs << endl;
+	     cout << "\t" << k << ": mean=(" << temp_predict->mean[0]*(180.0/M_PI) << ", " << temp_predict->mean[1]*(180.0/M_PI)  << "), stdev=" <<     sqrt(pow(temp_predict->stdev[0],2)+pow(temp_predict->stdev[1],2)) *(180.0/M_PI)  << ", tree=" << test_nearest[j*max_neighbours + k]-1 <<  ", RADIUS=" <<k  << ", error=" <<   sqrt( pow(temp_predict->mean[0]-test_gazes[(j<<1) ],2) + pow(temp_predict->mean[1]-test_gazes[(j<<1)+1],2) )*(180.0/M_PI) << ", n=" << temp_predict->numOfPtrs << endl;
+
+
+             for (unsigned int h=0; h < temp_predict->numOfPtrs; h++) {
+	       cout << "\t\t" <<h << " prediction=(" << treeGazes[test_nearest[j*max_neighbours + k]-1][2*temp_predict->ptrs[h]]*(180.0/M_PI)  << ","<< treeGazes[test_nearest[j*max_neighbours + k]-1][2*temp_predict->ptrs[h]+1]*(180.0/M_PI)  << ")" << endl;
+
+	     }
 	     
           }
 	        
@@ -532,20 +542,20 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
        }
 
 
-       // error calculation
-
+      
        //mean error
        double mean_error = 0;
        for (j = 0; j < dims[0]; j++)  {
           mean_error =  mean_error + errors[j]/dims[0];       
        }
 
+
        //stdev error
        double stdev_error = 0;
        for (j = 0; j < dims[0]; j++)  {
           stdev_error = stdev_error + pow(errors[j]-mean_error,2);
        }
-       stdev_error = stdev_error/dims[0];
+       stdev_error = stdev_error/(dims[0]);
        stdev_error = sqrt( stdev_error ); 
        cout << "mean_error(deg) is: " << mean_error*(180.0/M_PI) << endl;
        cout << "stdev_error(deg) is: " << stdev_error*(180.0/M_PI) << endl;        
@@ -691,7 +701,8 @@ unsigned int max_size(unsigned int *fatherSize)  {
 
 treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,double **treeGazes,double**treePoses) {
       
-   treeT **trees = NULL; 
+   treeT **trees = NULL;
+   char buffer[50]; 
 
    #ifdef PARALLEL 
       volatile treeT *currNode = NULL;
@@ -725,7 +736,11 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
    unsigned int counter, counter2;
    double meanLeftGaze[2], meanRightGaze[2];
    double rtree_meanGaze[2], ltree_meanGaze[2]; 
-   double squareError; 
+   double squareError;
+   #ifdef STDEV_CALC
+   double stdev_node[2];
+   #endif
+ 
    #ifdef PARALLEL
    unsigned int tid;
    double minError; unsigned int bestworker;
@@ -772,7 +787,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
       while (state != 2) {
 	 
 
-         if (currNode->numOfPtrs >= 3)  {
+         if (currNode->numOfPtrs >= 7)  {
 	    #ifdef PARALLEL
             minSquareError[tid] = 10000;//a huge value
 	    #else
@@ -792,7 +807,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    counter = 0;
 	    #endif
 
-	    while (counter < WIDTH*HEIGHT )  {
+	    while (counter < WIDTH*HEIGHT-1 )  {
 	
                px1_vert = counter/WIDTH;   
 	       px1_hor = counter%WIDTH;
@@ -801,7 +816,8 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	       while (counter2 < WIDTH*HEIGHT)  {
 
 	          px2_vert = counter2/WIDTH;   
-	          px2_hor = counter2%WIDTH;	
+	          px2_hor = counter2%WIDTH;
+
 	          if  ( sqrt( pow(px1_vert -px2_vert,2) + pow(px1_hor-px2_hor,2) ) < 6.5 )  {  
 	
                      for (j = 0; j < currNode->numOfPtrs; j++)  {
@@ -924,6 +940,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
          if (tid == bestworker)  {
 	 #endif
             if (ltreeSize > 0 && rtreeSize > 0 && (ltreeSize+rtreeSize>2) )  {
+	       
 	 
 	       //complete the last info about the father 
                currNode->minPx1_hor = minPx1_hor; 
@@ -937,6 +954,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	       currNode->mse = minSquareError;
 	       #endif
 
+		
 	       //create left child
 	       currNode->left = (treeT *)malloc( sizeof(treeT) );
 	       if (currNode->left==NULL)  { 
@@ -957,6 +975,19 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
                for (j = 0; j < ltreeSize; j++) {
 	          currNode->left->ptrs[j] = l_r_fl_fr_ptrs[(fatherSize[i]<<1) + j];
                }
+
+	       //stdev
+	       #ifdef STDEV_CALC
+	       stdev_node[0] = 0; 
+               stdev_node[1]=0;
+               for (j = 0; j < ltreeSize; j++)  {
+                  stdev_node[0] = stdev_node[0] + pow( treeGazes[i][ 2*currNode->left->ptrs[j] ]-   ltree_meanGaze[0],2);
+		  stdev_node[1] = stdev_node[1] + pow( treeGazes[i][ 2*currNode->left->ptrs[j]+1] - ltree_meanGaze[1],2);
+               }
+	       currNode->left->stdev[0] = stdev_node[0]/(ltreeSize);
+	       currNode->left->stdev[1] = stdev_node[1]/(ltreeSize);
+	       #endif
+	       
 		
 	       //create right child
 	       currNode->right = (treeT *)malloc( sizeof(treeT) ); 
@@ -979,6 +1010,18 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	       for (j = 0; j < rtreeSize; j++) {
 	          currNode->right->ptrs[j] = l_r_fl_fr_ptrs[/*3*fatherSize[i]*/(fatherSize[i]<<2)-fatherSize[i] + j];
                }
+
+
+	       #ifdef STDEV_CALC
+	       stdev_node[0] = 0;
+	       stdev_node[1] = 0;
+               for (j = 0; j < rtreeSize; j++)  {
+                  stdev_node[0] = stdev_node[0] + pow( treeGazes[i][ 2*currNode->right->ptrs[j] ] - rtree_meanGaze[0],2);
+		  stdev_node[1] = stdev_node[1] + pow( treeGazes[i][ 2*currNode->right->ptrs[j]+1]- rtree_meanGaze[1],2);
+               }
+	       currNode->right->stdev[0] = stdev_node[0]/(rtreeSize);
+	       currNode->right->stdev[1] = stdev_node[1]/(rtreeSize);
+	       #endif
 
 	       //save left brother in stack
                savedNode[stackindex] = currNode->left;
@@ -1020,10 +1063,12 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
       #endif 
 
 
-/*
-      if (i == 5 && tid==0)  {
-         try{	
-            outputFile.open("mytree.dot");
+
+      
+      if (tid==0)  {
+         try{
+            sprintf(buffer, "../trees/%d_mytree.dot", i);  	
+            outputFile.open( buffer );//"mytree.dot");
 	    drawTree(trees[i]);
 	    outputFile.close();		
          }catch(...){
@@ -1031,7 +1076,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    exit(1);
          }
       }
-*/
+
    
    }// for i
 

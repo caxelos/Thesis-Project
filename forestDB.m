@@ -3,22 +3,22 @@ function forestDB()
 clear;
 clc;
 
-TOTAL_DATA = [10000 6000];
-CENTER_SIZE = [0.03];%evgala to 0.06
-MAX_NEIGHBOURS = 12;
+%TOTAL_DATA = [10000 20000 30000 40000 50000 60000];
+TOTAL_DATA = [10000 50000 60000];
+CENTER_SIZE = [0.03 0.04 0.05 0.06 0.07];%evgala to 0.06
+MAX_NEIGHBOURS = 60;
 
 WIDTH = 15;
 HEIGHT = 9;
 
 
-MAX_NUM_OF_GROUPS = 1500;
+MAX_NUM_OF_GROUPS = 1000%1500;
 MAX_SIZE_PER_GROUP = 1500;
 
 
 
 %%% structure allocation %%%
 groups(1:MAX_NUM_OF_GROUPS) = struct('centerTheta', zeros(1) , 'centerPhi', zeros(1), 'index', 0,  'RnearestCenters', uint16(zeros(MAX_NEIGHBOURS,1)), 'trainData', [], 'numberOfSamples', uint16(zeros(1)), 'confidence', zeros(1) );
-
 
 
 
@@ -31,7 +31,9 @@ for q=1:length(CENTER_SIZE)
 
 for p=1:length(TOTAL_DATA)
   curr_size = TOTAL_DATA(p);
-
+  for q = 1:MAX_NUM_OF_GROUPS
+    groups(q).index = 0;
+  end
   
   if exist('myfile.h5', 'file') == 2
     delete('myfile.h5');
@@ -48,7 +50,7 @@ TEST_SIZE= curr_size/5;
 dirData = dir(pwd);
 dirIndex = [dirData.isdir];
 Pij = dirData(dirIndex);
-%for each Pij...
+
 
  numGrps = 0;
  tester = 0;
@@ -260,8 +262,6 @@ Pij = dirData(dirIndex);
 		groups(groupID).trainData.gaze(:,groups(groupID).index) = tempData.label(:,2);
 		groups(groupID).trainData.headpose(:,groups(groupID).index) = tempData.headpose(:,2);
 		
-	
-
 	end % training Or Test????
 
         votes(num_Pij-2)  = votes(num_Pij-2) + 1;
@@ -311,7 +311,7 @@ end  % for each pij
 
 
 %start creating data file for training(HDF5)
-fid = H5F.create('myfile.h5');
+fid = H5F.create( strcat('TRAIN_samples_', num2str(curr_size), '_dist', num2str(curr_dist), '.h5'));%'myfile.h5');
 
 dcpl = 'H5P_DEFAULT';
 plist = 'H5P_DEFAULT';
@@ -402,6 +402,8 @@ for i = 1:numGrps
 	H5D.close(dset);
 	H5S.close(space_id);	
 
+        fprintf('i is %d\n\n', i);
+ 
 end
 H5F.close(fid);
 
@@ -415,7 +417,7 @@ testData.gaze = single(testData.gaze);
 testData.headpose = single(testData.headpose);
 
 
-fid = H5F.create('mytest.h5');
+fid = H5F.create(strcat('TEST_samples_', num2str(curr_size), '_dist', num2str(curr_dist), '.h5'));%'mytest.h5');
 
 %%%%%% Dataset 1: numx1xHEIGHTxWIDTH image data %%%%	
 
@@ -476,12 +478,7 @@ fid = H5F.create('mytest.h5');
 	fprintf('done\n\n');	
 
 
-        tempforest(numGrps, curr_size, curr_dist);
-
-
-
-
-
+   %     tempforest(numGrps, curr_size, curr_dist);
 
    end %curr_dist
   end %curr_size
