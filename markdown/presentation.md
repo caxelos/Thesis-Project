@@ -92,9 +92,9 @@ __μοίρες__
 
 
 <div id="foto" style="text-align: center;">
-   <img src="visualization.jpg"  alt="foto1">
+   <img src="centers.jpg"  alt="foto1">
+   <figcaption><i>Διάγραμμα που απεικονίζει τα  <b>Head Poses</b> όλων των σημείων του Training Phase. Με <b>πράσινο</b> χρώμα απεικονίζονται τα κέντρα των Clusters, ενώ με <b>μπλέ</b> χρώμα τα υπόλοιπα σημεία. Η παραπάνω εικόνα χρησιμοποιεί <b>44640</b> training δείγματα, ενώ τα <b>κέντρα</b> απέχουν μεταξύ τους απόσταση <b>μεγαλύτερη</b> των <b>0.03 radians</b>(1.718873) μοίρες)</i></figcaption>
 </div>
-
 
 
 
@@ -108,12 +108,13 @@ __μοίρες__
 * Κάθε δέντρο παίρνει training data από τα __R-nearest Clusters__. Δηλαδή R Clusters
   με τα __κοντινότερα__ Head Poses
 
-* Ως __error__ παίρνουμε το __μέσο gaze error__ από όλα τα regression trees. Καταγράφουμε ωστόσο και την __τυπική απόκλιση__
+* Ως __error__ παίρνουμε το __μέσο gaze error__ από όλα τα regression trees.
 
 
 
 <div id="foto" style="text-align: center;">
-   <img src="rnearest.jpeg" width="400" alt="foto1">
+   <img src="visualization.jpeg" width="400" alt="foto1">
+   <figcaption><i>Παράδειγμα όπου <b>γειτονικά Clusters</b> συνεισφέρουν στην κατασκευή ενός δέντρου. Στα Clusters ανοίκουν δείγματα με <b>παρόμοια Head Poses</b></i></br></figcaption>
 </div>
 
 
@@ -159,9 +160,11 @@ $$
 
 
 * Διαλέγουμε τα $px1$,$px2$,$thres$ που __ελαχιστοποιούν__ το παραπάνω άθροισμα
-* Παρακάτω φαίνεται ένα στιγμιότυπο ενός δέντρου
 
-    (δείξε εικόνα εδώ)
+<div id="foto" style="text-align: center;">
+   <img src="stigmiotupo.png" alt="foto1">
+    <figcaption><i>Στιγμιότυπο υποδέντρου <b>10 δειγμάτων</b>. Ανάλογα με τις τιμές των <b>Pixel</b> του δείγματος, το τελευταίο θα οδηγηθεί σε έναν <b>τερματικό κόμβο</b>(φύλλο)</i></br></br> </figcaption>
+</div>
 
 
 * Ο τρόπος μάθησης των στοιχείων διαχωρισμού περιγράφεται παρακάτω:
@@ -189,10 +192,11 @@ $$
 
 
 * Μόλις θέλουμε να ελέγξουμε ένα testing sample, δεν το στέλνουμε σε όλα τα
-  δέντρα, αλλά στα R-nearest δέντρα με βάσει το head pose
+  δέντρα, αλλά στα __R-nearest δέντρα__ με βάσει το head pose
 
-* Τότε υπολογίζουμε το average σφάλμα σε όλα τα regression δέντρα, καθώς και
-  το Standar Deviation
+* Τότε υπολογίζουμε το __average error__ από τα R-nearest regression δέντρα.
+
+* Μας ενδιαφέρει ωστόσο να γνωρίζουμε και την __τυπική απόκλιση__(standard deviation), για να βλέπουμε __πόσο κοντά__ είναι οι προβλέψεις μας στο __mean error__
 
 
 
