@@ -1,29 +1,99 @@
-#define PARALLEL
-#define STDEV_CALC
+/* Eidiko thema: Axelos Christos, Aem 1814, etos 5o, eksamino 10o
+ * Titlos Eidikou Thematos: Epeksergasia dedomenwn video proswpou apo pollaples pozes 
+ */
 
+
+
+
+#define PARALLEL
 #ifdef PARALLEL
    #define NUM_OF_THREADS 4
 #endif
+/* - If you don't want to parallelize the algorithm, just put in comments the below define 
+ * - Parallelization is done using OpenMP
+ * - You can define number of threads below
+ */
 
 
-#define NUM_OF_TREES 514//109//2475//238//179//331//2475//940//690//
+
+//#define PRINT_TREES_PREDICTIONS
+/* 
+ * - If you comment that out, the terminal will make the output the full predictions
+ *   of all trees and not just the final mean error and standar deviation
+ */
+
+
+//#define PRINT_LEAF_SAMPLES
+/*
+ * - If you comment that out, the terminal will print also the data of all leaf node
+ * that is predicted. Usefull if you want to make a regression function in the leaves
+ *
+ * 
+ */
+
+
+
+#define STDEV_CALC
+/*
+ * - useful if you need to include the standar deviation for each node for some 
+ * optimizations of the algorithm(eg. "confidence" values in the leaves)
+ */
+
+
+
+//#define LEAF_OPTIMIZATION
+#ifdef LEAF_OPTIMIZATION
+   #define MIN_SAMPLES_PER_LEAF 3
+#endif
+/*
+ * - If you want to apply leaf_optimization(using minimum number of training samples per leaf,
+ * just put the comments of
+ * - You can define below the minimum number of training samples per leaf
+ */
+
+
+
+#define NUM_OF_TREES 238
+/*
+ * - total number of trees that get build built
+ * - the number of clusters must be equal with the number below
+ */
+
+
+
+/*
+ * - just some defines..
+ */
 #define MAX_SAMPLES_PER_TREE 1000
 #define MAX_RECURSION_DEPTH 15
 #define MAX_GRP_SIZE 500
-
-
-#define HEIGHT 9
-#define WIDTH 15
 #define LEFT 1
 #define RIGHT 2
 
-#define RADIUS 20
 
 
+/*
+ * - Normalized image dimensions 
+ */
+#define HEIGHT 9
+#define WIDTH 15
+
+
+
+/*
+ * - This parameter sets the number of neighbours(R) used by the algorithm
+ */
+#define RADIUS 30
+
+
+
+/*
+ * Libraties
+ */
 #ifdef OLD_HEADER_FILENAME
 #include <iostream.h>
 #else
-#include <iostream>
+#include <iostream>	
 #endif
 
 using std::cout;
@@ -42,6 +112,21 @@ using namespace H5;
 
 const H5std_string FILE_NAME( "myfile.h5" );
 
+/*
+ *  - every tree node or leaf is described by the following structure:
+ *     a) mean: mean gaze prediction of this node
+ *     b) stdev: standard deviation of this node
+ *     c) mse: mean square error( calculated in buildRegressionForest function )
+ *     d) left: pointer to left subtree
+ *     e) right: pointer to right subtree
+ *     f) ptrs: pointer(dynamic array) that shows the list of training samples in current subtree.
+ *     g) numPtrs: number of training samples in current subtree. Needed because "ptrs" is dynamic array
+ *     h) thres: threshold in each tree node( calculated in buildRegressionForest function )
+ *     i) minPx1_hor: width of pixel 1 in each tree node ( calculated in buildRegressionForest function )
+ *     j) minPx2_hor: width of pixel 2 in each tree node ( calculated in buildRegressionForest function )
+ *     k) minPx1_vert: height of pixel 1 in each tree node ( calculated in buildRegressionForest function )
+ *     l) minPx2_vert: height of pixel 2 in each tree node ( calculated in buildRegressionForest function )
+ */
 struct tree {
    double mean[2];
    double stdev[2];
@@ -59,42 +144,132 @@ struct tree {
 typedef struct tree treeT;
 
 ofstream outputFile;
+
+
+
 /**************** FUNCTIONS *************************************/
 
-void print_dims(int rank,  hsize_t *dims)  {
-   cout << "dims are: ";
-   for (int i = 0; i < rank; i++)  {
-      cout  << dims[i] << ", ";
-   }
-   cout << "\n";
 
-   return ;
-}
+treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,double **treeGazes,double**treePoses);
+/*
+ * - function buildRegressionForest
+
+ * - here is implemented the main algorithm. All the decision trees are trained based on the random forest algorithm.
+   More info about the algorithm's implementation can be found here https://github.com/trakaros/MPIIGaze
 
 
-treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,double **treeGazes,double**treePoses);
-treeT *testSampleInTree(treeT *currNode, unsigned char *test_img, double *test_pose, int j); 
+ * - inputs are:
+
+      a) int *rootSize: It is an array with size equal to the number of trees. It 
+      contains the number of training samples in the root node of each tree
+
+      b) unsigned char **treeImgs: This variable is a pointer to the image data of all trees that are 
+      inputs to the algorithm. The reason why is '**' instead of '*' is because the this variable is a 
+      pointer to an array of pointers. Each element in the array of pointer is a '*' pointer and
+      points out the memory where the image data for tree i are saved. It works as described bellow: 
+
+      Example 1: Get 3rd training sample Image from the 2nd tree:
+        treeImgs[1]=2nd tree(counting from zero) = the pointer treeImgs[1] contains all data about
+        the images of training samples that are used in tree number 2
+ 
+        treeImgs[1][ 2*WIDTH*HEIGHT] = pointer to 1st pixel of 3rd image of 2nd tree. In order to get
+        the data of the 3rd training sample, we shift "2*WIDTH*HEIGHT" bytes in order to get the adress 
+        of that pixel. So if we get all the data between treeImgs[1][2*WIDTH*HEIGHT] and 
+        treeImgs[1][2*WIDTH*HEIGHT - 1] we get the full image of that sample
+
+      Example 2: Get pixel (6,8) from 3rd training sample Image from the 2nd tree
+        In Example 1, we found that the region of 3rd training sample Image of the 2nd tree is between
+        treeImgs[1][2*WIDTH*HEIGHT] and treeImgs[1][2*WIDTH*HEIGHT-1]. So, pixel (6,8) can be found as bellow:
+        treeImgs[1][2*WIDTH*HEIGHT + (6-1)*WIDTH + (8-1)]
+
+      Generally: 
+	treeImgs[numOfTree-1][ (sampleNum-1)*WIDTH*HEIGHT + (row_num-1)*WIDTH+ (col_num-1) ]
+
+
+     c) double **treeGazes: This variable is a pointer to the gaze data(2d) of all trees that are inputs 
+      to the algorithm. The reason why is '**' instead of '*' is because the this variable is a 
+      pointer to an array of pointers. Each element in the array of pointer is a '*' pointer and
+      points out the memory where the gaze data(2d) for tree i are saved. It works as described bellow:
+    
+      Example 1: Get 3rd training sample Gaze Data from the 2nd tree:
+        treeGazes[1]=2nd tree(counting from zero) = the pointer treeGazes[1] contains all data about
+        the Gazes of training samples that are used in tree number 2
+
+        treeGazes[1][(numOfSample-1)*2] = treeGazes[1][(3-1)*2] = treeGazes[1][4], is the pointer to that
+        sample. The reason why we calculate by 2 is because each sample has a (theta,phi) angle(rads), so
+        i save it as: [sample1Theta, sample1Phi, sample2Theta, sample2Phi, ...] and every new sample must
+        be in a position multiple of 2
+  
+     Example 2: Get "theta" and "phi" angles of 3rd training sample Gaze Data from the 2nd tree:
+        - We already calculated the pointer to the 3rd training sample Gaze Data of the 2nd tree and it is
+        treeGazes[1][4]. So theta = treeGazes[1][4] and phi = treeGazes[1][4+1]
+
+
+    c) double **treePoses: This variable works in the exact same way as treesGazes, however it describes the
+    2d pose angle(rad) instead of the 2d gaze angle(rad)
+
+
+  *  - outputs are:
+
+    a) treeT **trees: It contains an array of pointers. Each of these pointers are the root pointers of all 
+    decision trees created. This is the trained model and it's used for the algorithm evaluation
+
+
+   - Some extra info: I use 3 types of defines in that function. These defines have to do with parallelization
+   and data printing. I explain them in the define session above
+
+ */
+
+
+
+
+treeT *testSampleInTree(treeT *currNode, unsigned char *test_img, double *test_pose, int numOfSample); 
+/*
+ * - function testSampleInTree
+
+ * - In this function we extract the 2d-gaze data from each leaf of the R-neighbour-trees. It's a recursive
+ function where we check all children until we reach a NULL node(leaf). Then we take that leaf value
+
+ * - inputs are:
+
+      a) treeT *currNode: the current children node of the tree.  (that variable recursively changes untill NULL is reached)
+      b) unsigned char *test_img: the current image of the test sample that is evaluated(dynamically allocated)
+      c) double *test_pose: the current  pose of the test sample that is evaluated(dynamically allocated)
+      d) int numOfSample: number of test sample(it is needed as index for the dynamically allocated test_pose, test_img vectors)
+
+*/
+
 
 /*************** MAIN ********************************************/
 int main(int argc, char *argv[])  {
 
  
   /*
+   * - For the training and test data, i use the HDF5 functionality, where I use one .h5 file for training
+   * an one .h5 for testing
+  
+   * - You can  view what view what these files contain, using the command "hdfview <file-name>.h5
+   */
+
+  /*
    * read hdf5 data
    */
    int curr_nearest[RADIUS];
-   double curr_center[2];
+  /*
+   * - curr_nearest is a temporary variable and contains the R-nearest clusters from the current Cluster
+   */
+   double curr_center[2];//(theta,phi) cluster center
    double *curr_gazes=NULL;
-   double *curr_poses=NULL;//[MAX_GRP_SIZE][2];
-   unsigned char *curr_imgs=NULL;//[MAX_GRP_SIZE][HEIGHT][WIDTH];
+   double *curr_poses=NULL;
+   unsigned char *curr_imgs=NULL;
    unsigned int curr_size;
-   unsigned int *samplesInTree = NULL;
+   unsigned int *samplesInTree = NULL;//vector that contains number of samples used in each tree(dynamically allocated based on num of trees)
 
 
    int *test_nearest;
-   double *test_gazes;
-   double *test_poses;//[MAX_GRP_SIZE][2];
-   unsigned char *test_imgs;//[MAX_GRP_SIZE][HEIGHT][WIDTH];
+   double *test_gazes;//Total test gazes read from TEST.h5 file, if it was a static array, you can consider it as: test_gazes[MAX_GRP_SIZE][2];
+   double *test_poses;//Total test poses read from TEST.h5 file,if it was a static array, you can consider it as: test_poses[MAX_GRP_SIZE][2];
+   unsigned char *test_imgs;//Total test image data read from TEST.h5 file, if it was a static array, you can consider it as: test_imgs[MAX_GRP_SIZE][HEIGHT][WIDTH];
 
 
    
@@ -123,6 +298,10 @@ int main(int argc, char *argv[])  {
    unsigned char **treeImgs;
    double **treeGazes;
    double **treePoses;
+
+/* 
+ * MEMORY ALLOCATION
+ */
    treeImgs = (unsigned char **)malloc( NUM_OF_TREES * sizeof(unsigned char *) );
    if (treeImgs == NULL)  {
       cout << "Error allocating memory\n";
@@ -151,8 +330,6 @@ int main(int argc, char *argv[])  {
      
 
 
-
-
    /*
     * Try block to detect exceptions raised
     */   
@@ -172,10 +349,25 @@ int main(int argc, char *argv[])  {
       }
 
 
+
+
+     /*
+      * - The following for loop builds the training samples for each tree
+      *
+      * - The data are gained from the <TRAIN>.h5 file, where if you open that
+      * file using the "hdfview" command you will see several groups
+      *
+      * - Each group contains the training samples(gaze,pose,img) that are near that group
+      *
+      * - The NUM_OF_TREES must be equal to the number of groups.
+      *
+      * - Finally, to build a tree, several clusters(the R-nearest) must contribute
+      */
       //for every group
       curr_size = 0;
       for (i = 0; i < NUM_OF_TREES; i++ )  {
- 	
+ 	// read data of group i
+        
 	sprintf(grpName, "g%d", i+1); 
         group = new Group(file->openGroup( grpName ) );       
         /*
@@ -274,10 +466,13 @@ int main(int argc, char *argv[])  {
 	 }
 
 	 /*
-	  * main Group
+	  * main Group's contribution. Based on Breiman's 2001 paper, each cluster of the
+          * R nearest contribure the square root of their samples to construct a tree. These
+          * square root samples are chosen randomly
 	  */
 	 for (j = 0; j < grpContribution; j++)  {
-	    
+	  	    
+
 	    std::uniform_int_distribution<> distr(0, dims[0]-1); // range
 	    randNum = distr(eng);
 
@@ -307,7 +502,8 @@ int main(int argc, char *argv[])  {
 
 
 	 /*
-	  * R-nearest
+	  * now that we finished with the central group we continue with the
+          * R-nearest groups/clusters
 	  */
 	 for (int r = 0; r < RADIUS; r++)  {
 	   
@@ -387,6 +583,9 @@ int main(int argc, char *argv[])  {
 	    }
 
 	    for (j= 0; j < grpContribution; j++)  {
+	      /*
+	       * we repeat here the random selection for the R-nearest groups
+	       */ 
 	       std::uniform_int_distribution<> distr(0, dims[0]-1); // range
 	       randNum = distr(eng);
 
@@ -422,9 +621,16 @@ int main(int argc, char *argv[])  {
       free( curr_poses );
       free( curr_gazes );
       free( curr_imgs  );	
+/************************************************************************************************************
+ ******** c h e c k p o i n t    h e r e ********************************************************/
 
-      // build forest
-      trees = buildRegressionTree(samplesInTree, treeImgs, treeGazes, treePoses);
+
+     /*
+      * - Here we start the building of the tree nodes. This function takes a lot of time
+      * - After that function, we continue with the algorithm evaluation
+      */ 
+      trees = buildRegressionForest(samplesInTree, treeImgs, treeGazes, treePoses);
+
 
 
       /*
@@ -444,7 +650,6 @@ int main(int argc, char *argv[])  {
        DataSet dataset = file->openDataSet("nearestIDs");
        DataSpace dataspace = dataset.getSpace();
        rank = dataspace.getSimpleExtentDims( dims );
-cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dims[3] << endl;
        DataSpace memspace( rank, dims);
 	
 
@@ -461,7 +666,6 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
        dataset = file->openDataSet("headpose");     
        dataspace = dataset.getSpace();//dataspace???
        rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
-       cout << "headpose dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dims[3] << endl;
        memspace.setExtentSimple( rank, dims );
        test_poses = (double *)malloc( dims[0]*dims[1]*sizeof(double));//me -24 varaei memory error
        if (test_poses == NULL) {//n x 2
@@ -476,7 +680,6 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
        dataset = file->openDataSet("gaze");     
        dataspace = dataset.getSpace();//dataspace???
        rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
-       cout << "gaze dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dims[3] << endl;
        memspace.setExtentSimple( rank, dims );
        test_gazes = (double *)malloc( dims[0]*dims[1]*sizeof(double) );
        if (test_gazes == NULL) {// n x 2
@@ -493,7 +696,6 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
        dataset = file->openDataSet("data");     
        dataspace = dataset.getSpace();//dataspace???
        rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
-       cout << "data dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dims[3] << endl;
        memspace.setExtentSimple( rank, dims );//24x1x9x15
        test_imgs = (unsigned char  *)malloc( dims[0]*dims[1]*dims[2]*dims[3]*sizeof(unsigned char));
        if (test_imgs == NULL) {// n x 9 x 15
@@ -511,11 +713,20 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
        }
 
 
+
+      /*
+       * - here starts the evaluation part
+       */
+     
        // test phase
        for (j = 0; j < dims[0]; j++)  {
           predict[0] =  0;
           predict[1] =  0;
+          #ifdef PRINT_TREES_PREDICTIONS
 	  cout << endl << "***** no." << j << ". Test sample=(" << test_gazes[(j<<1)]*(180.0/M_PI) << ", " << test_gazes[(j<<1)+1]*(180.0/M_PI) << ") " << "******" << endl;
+	  #endif
+
+           
 	  for (int k = 0; k < RADIUS+1; k++)  {     
 
              //each tree's prediction
@@ -523,14 +734,19 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
              temp_predict = testSampleInTree(trees[ test_nearest[j*max_neighbours + k]-1 ], test_imgs, test_poses, j );
 	     predict[0] = predict[0] + temp_predict->mean[0];
 	     predict[1] = predict[1] + temp_predict->mean[1];
+	   
+             
+	     #ifdef PRINT_TREES_PREDICTIONS
 	     cout << "\t" << k << ": mean=(" << temp_predict->mean[0]*(180.0/M_PI) << ", " << temp_predict->mean[1]*(180.0/M_PI)  << "), stdev=" <<     sqrt(pow(temp_predict->stdev[0],2)+pow(temp_predict->stdev[1],2)) *(180.0/M_PI)  << ", tree=" << test_nearest[j*max_neighbours + k]-1 <<  ", RADIUS=" <<k  << ", error=" <<   sqrt( pow(temp_predict->mean[0]-test_gazes[(j<<1) ],2) + pow(temp_predict->mean[1]-test_gazes[(j<<1)+1],2) )*(180.0/M_PI) << ", n=" << temp_predict->numOfPtrs << endl;
+	    #endif
 
-/*
+	      
+	     #ifdef PRINT_LEAF_SAMPLES
              for (unsigned int h=0; h < temp_predict->numOfPtrs; h++) {
 	       cout << "\t\t" <<h << " prediction=(" << treeGazes[test_nearest[j*max_neighbours + k]-1][2*temp_predict->ptrs[h]]*(180.0/M_PI)  << ","<< treeGazes[test_nearest[j*max_neighbours + k]-1][2*temp_predict->ptrs[h]+1]*(180.0/M_PI)  << ")" << endl;
 
 	     }
-*/	     
+	     #endif
           }
 	        
           // prediction = mean prediction of all trees
@@ -545,7 +761,10 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
 	  if (errors[2*j+1] < 0)
 	     errors[2*j+1] = -errors[2*j+1];
 
+
+	 #ifdef PRINT_TREES_PREDICTIONS
 	  cout << "Final prediction=(" << predict[0]*(180.0/M_PI) << ", " << predict[1]*(180.0/M_PI) << ") and error is:(" << errors[2*j]*(180.0/M_PI) << ","<< errors[2*j+1]*(180.0/M_PI) << ")" << endl;
+         #endif
        }
 
 
@@ -603,17 +822,17 @@ cout << "nearest dims are " << dims[0] <<", "<<dims[1]<<", "<<dims[2]<<", "<<dim
    return 0;
 }
 
-treeT *testSampleInTree(treeT *curr, unsigned char *test_img, double *test_pose, int j)  {
+treeT *testSampleInTree(treeT *curr, unsigned char *test_img, double *test_pose, int numOfSample)  {
 
 
    if (curr->right == NULL)  {//leaf reached
       return curr;
    } 
    else  { // right or left?
-      if ( abs( test_img[ j*WIDTH*HEIGHT + curr->minPx1_vert*WIDTH+curr->minPx1_hor ] - test_img[ j*WIDTH*HEIGHT + curr->minPx2_vert*WIDTH+curr->minPx2_hor ]) >= curr->thres  )
-         curr = testSampleInTree(curr->right, test_img, test_pose, j);
+      if ( abs( test_img[ numOfSample*WIDTH*HEIGHT + curr->minPx1_vert*WIDTH+curr->minPx1_hor ] - test_img[ numOfSample*WIDTH*HEIGHT + curr->minPx2_vert*WIDTH+curr->minPx2_hor ]) >= curr->thres  )
+         curr = testSampleInTree(curr->right, test_img, test_pose, numOfSample);
       else
-	 curr = testSampleInTree(curr->left, test_img, test_pose, j);
+	 curr = testSampleInTree(curr->left, test_img, test_pose, numOfSample);
    }
 
 
@@ -621,9 +840,11 @@ treeT *testSampleInTree(treeT *curr, unsigned char *test_img, double *test_pose,
 }
 
 /*
- * falloc = forest allocation
+ * function falloc(forest allocation)
+ *
+ * - Here we initialize all the memory that we need to construct our forest
  */
-tree **falloc(unsigned int *fatherSize)   {
+tree **falloc(unsigned int *rootSize)   {
 
    
    treeT **trees = (treeT **)malloc( NUM_OF_TREES * sizeof(treeT *) );
@@ -640,15 +861,15 @@ tree **falloc(unsigned int *fatherSize)   {
          cout << "Error allocating tree memory at falloc(1). Exiting\n" << endl;
          return NULL;
       }
-      trees[i]->ptrs = (unsigned int *)malloc( fatherSize[i] * sizeof(unsigned int) );
+      trees[i]->ptrs = (unsigned int *)malloc( rootSize[i] * sizeof(unsigned int) );
       if (trees[i]->ptrs == NULL)  {
          cout << "Error allocating tree memory at falloc(1). Exiting\n" << endl;
          return NULL;
       }
 
     
-      trees[i]->numOfPtrs = fatherSize[i];
-      for (j = 0; j < fatherSize[i]; j++)  {
+      trees[i]->numOfPtrs = rootSize[i];
+      for (j = 0; j < rootSize[i]; j++)  {
          trees[i]->ptrs[j] = j;
       } 
       trees[i]->right = NULL;
@@ -661,6 +882,9 @@ tree **falloc(unsigned int *fatherSize)   {
 }
 
 
+/*
+ *  - function treeDepth
+ */
 int treeDepth(treeT *root, int depth)  {
    static int max_depth = -1;
 
@@ -675,7 +899,7 @@ int treeDepth(treeT *root, int depth)  {
    return max_depth;
 }
 
-
+/*
 void toDotString(treeT *curr, int myID){
 	
 
@@ -701,32 +925,48 @@ void drawTree(treeT *root){
 	
 	return;
 }
+*/
 
-unsigned int max_size(unsigned int *fatherSize)  {
+
+/*
+ * - function max_size
+ *
+ * - it calculates the max number of training samples that a tree can have, in order
+ *   to allocate the proper memory
+ */
+unsigned int max_size(unsigned int *rootSize)  {
    int i = 0;
-   unsigned int max_size = fatherSize[0];
+   unsigned int max_size = rootSize[0];
    for (i = 1; i < NUM_OF_TREES; i++)  {
-      if (max_size < fatherSize[i])
-         max_size = fatherSize[i]; 
+      if (max_size < rootSize[i])
+         max_size = rootSize[i]; 
    }
 
    return max_size;
 }
 
-treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,double **treeGazes,double**treePoses) {
+
+/*
+ * - function buildRegressionForest
+ *
+ * - i explain the the details in the prototype definition of this function above
+ */
+treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,double **treeGazes,double**treePoses) {
+  
+
       
    treeT **trees = NULL;
    char buffer[50]; 
 
    #ifdef PARALLEL 
       volatile treeT *currNode = NULL;
-      volatile treeT *savedNode[MAX_RECURSION_DEPTH];
-      volatile unsigned int  stackindex, state;
+      volatile treeT *savedNode[MAX_RECURSION_DEPTH];//variable used for stack emulation( explained above )
+      volatile unsigned int  stackindex, state; //variable used for stack emulation( explained above )
       volatile double minSquareError[NUM_OF_THREADS];
    #else
       treeT *currNode = NULL;
-      treeT *savedNode[MAX_RECURSION_DEPTH];
-      unsigned int  stackindex, state;
+      treeT *savedNode[MAX_RECURSION_DEPTH]; //variable used for stack emulation( explained above )
+      unsigned int  stackindex, state; //variable used for stack emulation( explained above )
       double minSquareError;
    #endif
   
@@ -734,7 +974,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
   /*
    * allocate **trees memory
    */
-   trees = falloc(fatherSize);
+   trees = falloc(rootSize);
    if (trees == NULL) {
       return NULL;
    }
@@ -746,7 +986,59 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
    //define randomization   
    std::random_device rd; // obtain a random number from hardware
    std::mt19937 eng(rd()); // seed the generator
- 	
+ 
+  
+  /*
+   * - Variable definitions:
+   *
+   *  1)minPx1_vert, minPx1_hor, minPx2_vert, minPx2_hor:
+   *  - These are values/features that we need to calculate when we create each node
+   *  -  We need to calculate/learn these pixel 1 and pixel 2 coordinates via training.
+   *
+   *  2) ltreeSize, rtreeSize:
+   *  - These variables save the number of training samples that are in the left and right
+   *    subtree when we create a splitting node
+   *
+   *  3) meanLeftGaze, meanRightGaze:
+   *  - Temporary variables that save the mean gaze value of the right and left subtree
+   *  
+   *  4) rtree_meanGaze, ltree_meanGaze:
+   *  - Variables that get the final mean gaze value of the right and left subtree. When
+   *    we find a new minimum square error we assign them as rtree_meanGaze = meanRightGaze
+   *    and ltree_meanGaze = meanLeftGaze
+   * 
+   *  5) squareError, minSquareError:
+   *  - Temporary variable used to calculate error. We save the min(squareError) in minSquareError
+   *
+   *  6) counter:
+   *  - This variable counts the number of searches until it reaches value square root of all possible
+   *  feature compinations. Used to implement the random search method
+   *
+   *  7) l_r_fl_fr_ptrs:
+   *  - I'm sorry for this awful variable name, but i tried to give a short and as well explained variable
+   *    name as I could. The reason why I gave that awful variable name is because I wanted to "cache" all
+   *    the important data of 4 variables in one, because it made great improvement in Performance
+   *
+   *  - It comes from: "left_pointers, right_pointers, final_left_pointers and final_right_pointers" and it is
+   *    a 2d variable with dimensions: 4 x max_root_size(max_root_size is the maximum number of samples that  
+   *    root of the trees can have
+   *
+   *  - The left_pointers and right_pointers save TEMPORARILY the indexes of training samples. These indexes then
+   *    can be used then to "load" values from variables treeImgs, treeGazes, treePoses.
+   *
+   *  - The final_left and final_right pointers save the final value of these indexes described above. When we 
+   *    calculate the final_left and final_right indexes, we assign the left to the final_left and right to the
+   *    final right positions  
+   *
+   *  - For example, the following code assigns left to final_left and right to final_right indexes
+   *    for (i = 0; i < ltree_size; i++)  { // assign left to final_left
+   *       l_r_fl_fr_ptrs[2*max_root_size + i] = l_r_fl_fr_ptrs[0*max_root_size + i];
+   *    }	  
+   *    for (i = 0; i < rtree_size; i++) { // assign right to final_right
+   *       l_r_fl_fr_ptrs[3*max_root_size + i] = l_r_fl_fr_ptrs[1*max_root_size + i];
+   *    }   
+   */	
+
    unsigned int *l_r_fl_fr_ptrs = NULL;
    unsigned int i, j,l,r,ltreeSize=-1, rtreeSize=-1;
    unsigned short minPx1_vert, minPx1_hor, minPx2_vert, minPx2_hor, bestThres;
@@ -755,6 +1047,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
    double meanLeftGaze[2], meanRightGaze[2];
    double rtree_meanGaze[2], ltree_meanGaze[2]; 
    double squareError;
+
    #ifdef STDEV_CALC
    double stdev_node[2];
    #endif
@@ -769,12 +1062,12 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
    unsigned char *cache_treeImgs; 
    
 
-   cache_treeImgs = (unsigned char *)malloc( ( max_size(fatherSize) *sizeof(unsigned char))<<1 );
+   cache_treeImgs = (unsigned char *)malloc( ( max_size(rootSize) *sizeof(unsigned char))<<1 );
    if (cache_treeImgs == NULL) {
       cout << "error allocating memory for caching. Exiting\n"; 
       exit(-1);
    }    
-   l_r_fl_fr_ptrs = (unsigned int *)malloc( (max_size(fatherSize) *sizeof(unsigned int))<<2 ); 
+   l_r_fl_fr_ptrs = (unsigned int *)malloc( (max_size(rootSize) *sizeof(unsigned int))<<2 ); 
    if (l_r_fl_fr_ptrs == NULL) {
       cout << "error allocating memory for ptrs2. Exiting\n";
       exit(-1);
@@ -800,13 +1093,39 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
       currNode = trees[i];
       }
 
+      
+     /*
+      * - state variable can get the following values:
+      *    a) state = 1: tree is in the building phase
+      *    b) state = 2: tree has been built. Go to next tree
+      */
+     
       #ifdef PARALLEL
       #pragma omp barrier
       #endif
       while (state != 2) {
-	 
 
-       // if (currNode->numOfPtrs >= 7)  {
+         /*
+          - In every loop of this while, I emulate the following recursion:
+
+          - Lets say that a tree has only the root node and we have done our 1st split in this node.
+	  - Then, there are created 2 child nodes which have the root as father
+          - What we do is put the left children in the "stack" and make the right as a root
+          - Now repeat that for the new root, until the new root becomes NULL
+          - Then "pop" from the stack the last "left" node and make him the new root
+          - The algorithm repeats until there are not any left children in the stack
+
+          - That's how every tree is built. However i dont make that recursively. Instead, i emulate it
+          by using the variables: stackindex, currNode and savedNode
+    
+          */
+
+
+    
+	#ifdef LEAF_OPTIMIZATION
+        if (currNode->numOfPtrs >= MIN_SAMPLES_PER_LEAF)  {
+	#endif
+
 	    #ifdef PARALLEL
             minSquareError[tid] = 10000;//a huge value
 	    #else
@@ -826,10 +1145,22 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    counter = 0;
 	    #endif
 
-	    //while (counter < WIDTH*HEIGHT-1 )  {
-	    while (counter <  WIDTH*HEIGHT)  {
 
+	   /*
+            * - The number of loop iterations should normaly be (WIDTH*HEIGHT)^2 if we had made grid search of all
+            *   features, because the features pixe1 and pixel2 can both get values between [0 -> WIDTH*HEIGHT-1]. 
+            *
+            * - However, as i have described in the report, i use the square root of that and i make (random search)
+  	    *
+      	    * - So, the number of iterations should be sqrt( (WIDTH*HEIGHT)^2) = WIDTH*HEIGHT
+            */
+	    while (counter <  WIDTH*HEIGHT )  {
                           
+
+	      /*
+               * - as Breiman says in his paper(2001), feature selection should be random
+	       * - that's why i randomly select pixel1 and pixel2	
+               */
                   std::uniform_int_distribution<> distr(0, WIDTH*HEIGHT - 1); // range
 	          randNum = distr(eng);
                   px1_vert = randNum/WIDTH;   
@@ -840,15 +1171,34 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	          px2_hor =  randNum%WIDTH;
 
 	      } while ( (sqrt( pow(px1_vert -px2_vert,2) + pow(px1_hor-px2_hor,2) ) > 6.5 ) || (randNum == px1_vert*WIDTH+px1_hor ));
-
-	//       if  ( sqrt( pow(px1_vert -px2_vert,2) + pow(px1_hor-px2_hor,2) ) < 6.5 )  {  
+	      /*
+		- pixel1 and pixel2 should not be more far than 6.5 pixel distance
+		- I follow the instructions of Sugano's paper
+	      */
 	
+
+		 /*
+		  * - I use right/left shifts in order to implement some multiplications/divisions faster
+ 		  *
+		  * - Now in this loop we classify the training samples that have reached the current node into the left subtree or right,
+ 		  *   based on the px1, px2 that we randomly selected
+		  * 
+		  * - We randomly select also the threshold between 10 and 100  
+		  */
                   for (j = 0; j < currNode->numOfPtrs; j++)  {
+
+
+		    /*
+		     * - here i just want to make the cache memory more effective
+  		     * - so, i extract the really usable data into a special variable "cache_treeImgs"
+		     * - i need to extract only two pixel-ascii values per sample(2 Bytes each sample)
+		     */
 		     cache_treeImgs[(j<<1)] = treeImgs[i][ currNode->ptrs[j]*WIDTH*HEIGHT + (px1_vert<<4)-px1_vert/*px1_vert*WIDTH*/+ px1_hor];  
 	      	        cache_treeImgs[(j<<1) + 1] = treeImgs[i][currNode->ptrs[j]*WIDTH*HEIGHT + (px2_vert<<4)-px2_vert/*px2_vert*WIDTH*/ + px2_hor];
                      }
 
-		     //for (thres = 20; thres <= 40; thres++) {
+
+		     //q is just a counter
 		     for (int q = 0; q < sqrt(50); q++)  {
 		        std::uniform_int_distribution<> distr(10, 100); // range
 	       		thres =  distr(eng); 
@@ -860,7 +1210,18 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			meanRightGaze[0] = 0;
 			meanRightGaze[1] = 0;
 
+
+		       /*
+			* - split all samples in the current node into the left and right subtree
+			*/
 			for (j = 0; j < currNode->numOfPtrs; j++)  {
+
+			  /*
+			   * - Here is the split part
+			   *
+ 			   * - If the ascii distance between the pixel1 and pixel2(their values are cached in cache_treeImgs)
+			   *   is smaller than the thres, then the sample goes in left subtree, else in the right 
+			   */
 			   if ( abs(cache_treeImgs[j<<1]-cache_treeImgs[(j<<1) +1])< thres )  {
 				
 			      //left child
@@ -873,7 +1234,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			   else {
 
 			      //right child
-			      l_r_fl_fr_ptrs[fatherSize[i]+r] = currNode->ptrs[j];
+			      l_r_fl_fr_ptrs[rootSize[i]+r] = currNode->ptrs[j];
   			      r++;	   
                                 
 			      meanRightGaze[0] = meanRightGaze[0] + treeGazes[i][(currNode->ptrs[j]<<1)];
@@ -885,6 +1246,10 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			meanRightGaze[0] = meanRightGaze[0]/ r;
 			meanRightGaze[1] = meanRightGaze[1]/ r;
 			
+
+			/*
+			 * - here we calculate the squareError that caused the specific split
+			 */
 			squareError = 0;
 			for (j = 0; j < l; j++)  {
 			   squareError = squareError + pow(meanLeftGaze[0]-treeGazes[i][ l_r_fl_fr_ptrs[j ]<<1   ], 2)  
@@ -892,10 +1257,15 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 
 			}
 			for (j = 0; j < r; j++)  {
-			   squareError = squareError + pow(meanRightGaze[0]-treeGazes[i][ (l_r_fl_fr_ptrs[fatherSize[i] + j ]<<1) ], 2)  
-						     + pow(meanRightGaze[1]-treeGazes[i][ (l_r_fl_fr_ptrs[fatherSize[i] + j]<<1) +1], 2);
+			   squareError = squareError + pow(meanRightGaze[0]-treeGazes[i][ (l_r_fl_fr_ptrs[rootSize[i] + j ]<<1) ], 2)  
+						     + pow(meanRightGaze[1]-treeGazes[i][ (l_r_fl_fr_ptrs[rootSize[i] + j]<<1) +1], 2);
 		  	}
 
+
+		       /*
+			* -if that split caused the minimum square error, then we save 
+			* these parameters that minimize the error
+			*/
 			#ifdef PARALLEL
 			if (squareError < minSquareError[tid] )  {
 			   minSquareError[tid] = squareError;
@@ -913,10 +1283,14 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 			   rtreeSize = r;
 
 			   for (j = 0; j < l; j++)  {
-			      l_r_fl_fr_ptrs[(fatherSize[i]<<1) + j] =  l_r_fl_fr_ptrs[j];
+			      l_r_fl_fr_ptrs[(rootSize[i]<<1) + j] =  l_r_fl_fr_ptrs[j];
 			   }
 			   for (j = 0; j < r; j++)  {
-			      l_r_fl_fr_ptrs[/*3*fatherSize[i]*/(fatherSize[i]<<2)-fatherSize[i] + j] =  l_r_fl_fr_ptrs[fatherSize[i] + j];
+			 
+			      /*
+			       * - here instead of making a multiplication by three, a make a left shift by 2 and make a substract
+			       */	
+			      l_r_fl_fr_ptrs[/*3*rootSize[i]*/(rootSize[i]<<2)-rootSize[i] + j] =  l_r_fl_fr_ptrs[rootSize[i] + j];
 			   }
 
 			   rtree_meanGaze[0] = meanRightGaze[0];
@@ -941,17 +1315,24 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
             }// while outter counter
        // }//>=3  
 
-       // else {
-       //     ltreeSize = 0;
-//	    rtreeSize = 0;
-  //      }
 
+         #ifdef LEAF_OPTIMIZATION
+	 }
+         else {
+            ltreeSize = 0;
+	    rtreeSize = 0;
+         }
+	 #endif
         
+
 	 #ifdef PARALLEL
          #pragma omp barrier
          #endif
 
 
+	/*
+	 * - sychronization staff, if #PARALLEL is defined
+	 */
 	 #ifdef PARALLEL
 	 minError = minSquareError[0];
 	 bestworker = 0;	
@@ -962,10 +1343,18 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    }
 	 }
 	 #endif
+
+
 	
          #ifdef PARALLEL
          if (tid == bestworker)  {
 	 #endif
+
+	    /*
+	     * - if both left and right subtrees have at least one sample, then create those 2 children
+	     * - else if left or right have not any samples, don't create any left or right children and
+	     *   the current node will be a terminal node 
+	     */
             if (ltreeSize > 0 && rtreeSize > 0 && (ltreeSize+rtreeSize>2) )  {
 	       
 	 
@@ -1000,7 +1389,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	       currNode->left->right = NULL;
                currNode->left->left = NULL;
                for (j = 0; j < ltreeSize; j++) {
-	          currNode->left->ptrs[j] = l_r_fl_fr_ptrs[(fatherSize[i]<<1) + j];
+	          currNode->left->ptrs[j] = l_r_fl_fr_ptrs[(rootSize[i]<<1) + j];
                }
 
 	       //stdev
@@ -1035,7 +1424,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	       currNode->right->right = NULL;
 	       currNode->right->left = NULL;
 	       for (j = 0; j < rtreeSize; j++) {
-	          currNode->right->ptrs[j] = l_r_fl_fr_ptrs[/*3*fatherSize[i]*/(fatherSize[i]<<2)-fatherSize[i] + j];
+	          currNode->right->ptrs[j] = l_r_fl_fr_ptrs[/*3*rootSize[i]*/(rootSize[i]<<2)-rootSize[i] + j];
                }
 
 
@@ -1060,11 +1449,17 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
  	    
             }
             else {
-               if (stackindex == 0)  {
 
+               if (stackindex == 0)  {
+		  /*
+		   * - there are no more left children waiting in the stack, so the tree is done. Go to the next tree!
+		   */
 	          state = 2;
                }
                else {
+		 /*
+		  * - repeat the procedure for the left child that is saved in the  stack
+		  */
 	          stackindex--;
 	          currNode = savedNode[stackindex];              
 	       }
@@ -1075,6 +1470,8 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
          #pragma omp barrier
          #endif
 
+
+
       }//while state!=2
 
       #ifdef PARALLEL
@@ -1084,14 +1481,14 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 
       #ifdef PARALLEL
       if (tid == 0 )
-         cout << "thread " << tid << ", i = " << i << endl; 
+         cout << "tree: " << i << endl; 
       #else 
-         cout << "i = " << i << endl; 
+         cout << "current tree:  " << i << endl; 
       #endif 
 
 
 
-      
+      /*
       if (tid==0)  {
          try{
             sprintf(buffer, "../trees/%d_mytree.dot", i);  	
@@ -1103,7 +1500,7 @@ treeT **buildRegressionTree(unsigned int *fatherSize,unsigned char **treeImgs,do
 	    exit(1);
          }
       }
-
+      */
    
    }// for i
 
