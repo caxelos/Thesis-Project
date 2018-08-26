@@ -620,7 +620,8 @@ int main(int argc, char *argv[])  {
 
       free( curr_poses );
       free( curr_gazes );
-      free( curr_imgs  );	
+      free( curr_imgs  );
+	
 /************************************************************************************************************
  ******** c h e c k p o i n t    h e r e ********************************************************/
 
@@ -716,6 +717,9 @@ int main(int argc, char *argv[])  {
 
       /*
        * - here starts the evaluation part
+       *
+       * - We calculate the final mean error and final standar deviation of mean error, as well as other statistical
+       *   info about the trees' predictions
        */
      
        // test phase
@@ -749,10 +753,11 @@ int main(int argc, char *argv[])  {
 	     #endif
           }
 	        
-          // prediction = mean prediction of all trees
+         /*
+          * predict = mean gaze prediction of all trees(theta, phi)
+	  */ 
           predict[0] = predict[0]/(RADIUS+1);
           predict[1] = predict[1]/(RADIUS+1);
-	  //errors[j] = sqrt( pow(predict[0]-test_gazes[(j<<1) ],2) + pow(predict[1]-test_gazes[(j<<1)+1],2) );
 	  errors[2*j] = predict[0]-test_gazes[(j<<1)];
           if (errors[2*j] < 0)
              errors[2*j] = -errors[2*j];
@@ -822,6 +827,13 @@ int main(int argc, char *argv[])  {
    return 0;
 }
 
+
+/*
+ * - function testSampleInTree
+ * 
+ * - Here we find the mean gaze value of the leaf node of each tree. This value is the prediction
+ *   of current tree in the evaluation stage
+ */
 treeT *testSampleInTree(treeT *curr, unsigned char *test_img, double *test_pose, int numOfSample)  {
 
 
@@ -899,33 +911,7 @@ int treeDepth(treeT *root, int depth)  {
    return max_depth;
 }
 
-/*
-void toDotString(treeT *curr, int myID){
-	
 
-	if(curr->left != NULL){
-
-                outputFile << "\t" << myID << " [label=\"Samples:" << curr->numOfPtrs <<  "\npx1:(" << curr->minPx1_vert << "," << curr->minPx1_hor << ")" << "\npx2:(" << curr->minPx2_vert << "," << curr->minPx2_hor << ")" << "\nthres:" << curr->thres << "\nmse:" << curr->mse << "\", shape=rectangle, color=black]\n";
-		outputFile << "\t" << myID << " -> " << (myID<<1) + 1 << "\n";
-		toDotString(curr->left, (myID<<1) + 1);
-		
-		outputFile << "\t" << myID << " -> " << (myID<<1) + 2 << "\n";
-		toDotString(curr->right, (myID<<1) + 2);
-	}else{ //leaf
-            outputFile << "\t" << myID << " [label=\"Samples:"  << curr->numOfPtrs << "\nmeanGaze = \n=(" << curr->mean[0] <<","<<curr->mean[1] << ")"  << "\", shape=circle, color=green]\n";
-        }
-}
-
-void drawTree(treeT *root){
-	outputFile << "digraph Tree{\n";
-	outputFile << "\tlabel=\"Tree\"\n";
-	toDotString(root, 0);
-	outputFile << "}\n";
-
-	
-	return;
-}
-*/
 
 
 /*
@@ -1486,21 +1472,6 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
          cout << "current tree:  " << i << endl; 
       #endif 
 
-
-
-      /*
-      if (tid==0)  {
-         try{
-            sprintf(buffer, "../trees/%d_mytree.dot", i);  	
-            outputFile.open( buffer );//"mytree.dot");
-	    drawTree(trees[i]);
-	    outputFile.close();		
-         }catch(...){
-	    std::cerr << "problem. Terminating\n";
-	    exit(1);
-         }
-      }
-      */
    
    }// for i
 
@@ -1515,152 +1486,5 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
 
 
 
-
-
-/*
-void drawTree(treeT * root, int indent=0)
-{
- treeT **list;
- int nodesInLine;
- int i, j, k; 
- 
- 
-cout << "Current Depth:\t\t\t\t\t******************************* TREE  *****************************************" << "\n" << endl;
-
-
- int depth = treeDepth(root, 0); 
- levelOrder = (treeT **)malloc( pow(2,depth+1) * sizeof( treeT *) );
- if (levelOrder == NULL) {
-    cout << "Error allocating memory" << endl;
-    return ;
- }
-
- howManyTabs = (int *)malloc( pow(2,depth+1) * sizeof( sizeof(int) ) );
- if (howManyTabs == NULL)  {
-    cout << "Error allocating memory" << endl;
-    return ;
- }
-
- levelOrder[0] = root;
- howManyTabs[0] = root->numOfPtrs;
- //howManyTabs = 10;
-
- nodesInLine = 1;
- for (i = 0; i <= depth; i++)  { 
-
-    //t samples    
-    cout << "depth:" << i; 
-    for (k = 0; k < howManyTabs[0]; k++) { // d=0/tabs=9, d=1/tabs=8
-          cout << "\t";
-    } 
-    for (j = 0; j < nodesInLine; j++)  {
-       if (levelOrder[j]) {
-          cout << "Samples:" << levelOrder[j]->numOfPtrs;
-       }
-       else
-          cout << "            "; 
-
-       for (k = 0; k <= depth - i; k++) {
-          cout << "\t\t";
-       }
-
-    }
-    cout  << endl;
-
-
-    //print pixel 1(if node) or mean Gaze(if leaf)
-    for (k = 0; k < howManyTabs[0]; k++) { // d=0/tabs=9, d=1/tabs=8
-          cout << "\t";
-    } 
-    for (j = 0; j < nodesInLine; j++)  {
-
-
-       if (levelOrder[j] == NULL)
-          cout << "            "; 
-       else if (levelOrder[j]->right == NULL)
-          cout << "m:(" << levelOrder[j]->mean[0];// << "," << list[j]->mean[1] << ")"; 
-       else 
-          cout << "px1:("<< levelOrder[j]->minPx1_vert << "," << levelOrder[j]->minPx1_hor << ")";
-      
-          
-       for (k = 0; k <= depth - i; k++) {
-          cout << "\t\t";
-       }
-    }
-    cout << endl;
-
-   //print pixel 2(if node)
-    for (k = 0; k < howManyTabs[0]; k++) { // d=0/tabs=9, d=1/tabs=8
-          cout << "\t";
-    } 
-    for (j = 0; j < nodesInLine; j++)  {
-
-       if (levelOrder[j] == NULL)  
-	  cout << "            ";
-       else if (levelOrder[j]->right == NULL)
-          cout << "   " << levelOrder[j]->mean[1] << ")"; 
-       else
-	  cout << "px2:("<< levelOrder[j]->minPx2_vert << "," << levelOrder[j]->minPx2_hor << ")";
-
-       for (k = 0; k <= depth - i; k++) {
-          cout << "\t\t";
-       }
-    }
-    cout << endl;
-
-  
-   //print thres(if node)
-    for (k = 0; k < howManyTabs[0]; k++) { // d=0/tabs=9, d=1/tabs=8
-          cout << "\t";
-    } 
-    for (j = 0; j < nodesInLine; j++)  {
-
-       if (levelOrder[j] == NULL)
-	  cout << "            "; 
-       else if (levelOrder[j]->right == NULL)
-	  cout << "            "; 
-       else 
-          cout << "thres:"<< levelOrder[j]->thres;
-       
-          
-       for (k = 0; k <= depth - i; k++) {
-          cout << "\t\t";
-       }
-    }
-    cout << endl;
-    cout << endl;
-
-    for (j = i; j >= 0; j--)  {
-      if (levelOrder[j] == NULL)  { 
-          levelOrder[2*j+1] = NULL;
-          levelOrder[2*j] = NULL; 
-       }
-       else {   
-          levelOrder[2*j+1] = levelOrder[j]->right;
-          levelOrder[2*j] = levelOrder[j]->left; 
-	  howManyTabs[2*j+1] = 
-       }
-    }
-
-    for (j = i; j >= 0; j--)  {
-      if (levelOrder[j] == 0)  { 
-          levelOrder[2*j+1] = 0;
-          levelOrder[2*j] = 0; 
-       }
-       else {   
-          levelOrder[2*j+1] = levelOrder[j]->right;
-          levelOrder[2*j] = levelOrder[j]->left; 
-       }
-    }
-    //update values
-    howManyTabs = howManyTabs - 2;
-    nodesInLine = nodesInLine << 1;//pow(i+1,2);
- }   
-
-free(levelOrder);
- exit(-1);
-  
-}
-*/
 
 
