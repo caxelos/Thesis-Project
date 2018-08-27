@@ -1,5 +1,15 @@
+
+---
+title: "R Notebooks"
+output:
+  html_notebook:
+    css: /home/oly/MPIIGaze/markdown/format.css
+    
+---
+
+
 <html>
-<body style="background: url(Downloads/gaze1_colorized.jpg) no-repeat center center fixed;
+<body style="background: url(/home/oly/MPIIGaze/markdown/gazeview.jpg) no-repeat center center fixed;
   -webkit-background-size: cover;
   -moz-background-size: cover;
   -o-background-size: cover;
@@ -7,16 +17,6 @@
 </body>
 </html>
 
-
-
-<!-- background="Downloads/gaze1_colorized.jpg"; -->
-
----
-title: Gaze prediction με χρήση Regression Random Forests
-output:
-  html_notebook:
-    css: /home/trakis/format.css
----
 
 
 <!---
@@ -208,9 +208,11 @@ $$
 
   1. Ποιός είναι ο βέλτιστος __αριθμός__ από __Clusters__ ή ισοδύναμα ποιά θα είναι η __μικρότερη δυνατή απόσταση__ μεταξύ 2 κέντρων
 
-	2. Ποιός είναι ο βέλτιστος __αριθμός δειγμάτων__ εκπαίδευσης
+  2. Ποιός είναι ο βέλτιστος __αριθμός δειγμάτων__ εκπαίδευσης
 
   3. Ποιός είναι ο βέλτιστος __αριθμός γειτόνων__ κάθε Cluster
+
+  4. Κατά τη διαδικασία δημιουργίας υποδέντρων σε ένα δέντρο, πόσες __μεταβλητές διαχωρισμού__ χρησιμοποιούμε?
 
   4. Πόσο __βάθος__ πρέπει να έχει το κάθε δέντρου
 
@@ -225,11 +227,15 @@ $$
 
 * Επίσης, για να μειώσω τον χρόνο εκπαίδευσης, χρησιμοποιώ αρχικά __10,000 training samples__
 
-* Για να περιοριστεί το βάθος του δέντρου, θέτω __αυθαίρετα__ πως ένας μη-τερματικός κόμβος __απαγορεύεται__ να έχει δεξί ή αριστερό παιδί με __λιγότερα από 7__ training samples
+* Ο αριθμός των __μεταβλητών διαχωρισμού__ που θα χρησιμοποιούσαμε είναι WIDTH*HEIGHT*THRESHOLD_RANGE = 15*16*255. Επειδή ο αριθμός αυτός είναι υπερβολικά μεγάλος, σύμφωνα με το paper του Breiman θα χρησιμοποιήσουμε την __τετραγωνική ρίζα__ αυτού του αριθμού
 
 * Τέλος, αν ένα φύλλο ενός δέντρου περιέχει __παραπάνω από ένα__ training samples, υπολογίζω απλώς τον __μέσο όρο__ των __2-d gazes__ και προκύπτει ένα 2d-gaze διάνυσμα
 
+* Δεν περιορίζουμε το βάθος του κάθε δέντρου
+
 * Με βάση τα παραπάνω, υπολογίζουμε το __mean error__ και το __standard deviation__
+
+
 
 ## Aναφορές σε βιβλιογραφίες/δημοσιεύσεις
 
