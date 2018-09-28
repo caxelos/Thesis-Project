@@ -41,7 +41,7 @@
 
 
 
-//#define LEAF_OPTIMIZATION
+#define LEAF_OPTIMIZATION
 #ifdef LEAF_OPTIMIZATION
    #define MIN_SAMPLES_PER_LEAF 3
 #endif
@@ -704,7 +704,14 @@ int main(int argc, char *argv[])  {
 	  return -1;
        }
        dataset.read(test_imgs, PredType::C_S1, memspace, dataspace );
+       
 
+       dataspace.close();
+       dataset.close();
+       memspace.close();
+       file->close(); 	
+       delete file;
+     
        double predict[2];
        treeT *temp_predict=NULL;
        double *errors = (double *)malloc( 2* dims[0] * sizeof(double) );
@@ -712,9 +719,9 @@ int main(int argc, char *argv[])  {
           cout << "Error allocating memory" << endl; 
 	  return -1;
        }
+    
 
-
-
+    
       /*
        * - here starts the evaluation part
        *
@@ -795,10 +802,11 @@ int main(int argc, char *argv[])  {
        stdev_error[0] = sqrt( stdev_error[0] );
        stdev_error[1] = sqrt( stdev_error[1] );  
 
-       cout << "mean_error(deg) is: (" << mean_error[0]*(180.0/M_PI) << ","<< mean_error[1]*(180.0/M_PI) << ") or better: " << sqrt(pow(mean_error[0],2)+pow(mean_error[1],2))*(180.0/M_PI) << endl;
-       cout << "stdev_error(deg) is: (" << stdev_error[0]*(180.0/M_PI) << "," << stdev_error[1]*(180.0/M_PI) <<  ") or better: " << sqrt( pow(stdev_error[0],2)+pow(stdev_error[1],2))*(180.0/M_PI) << endl;        
+       cout << "mean_error(deg) is: (" << mean_error[0]*(180.0/M_PI) << ","<< mean_error[1]*(180.0/M_PI) << ") or better: " << sqrt(pow(mean_error[0],2)+pow(mean_error[1],2))*(180.0/M_PI) << " degrees" << endl;
+       cout << "stdev_error(deg) is: (" << stdev_error[0]*(180.0/M_PI) << "," << stdev_error[1]*(180.0/M_PI) <<  ") or better: " << sqrt( pow(stdev_error[0],2)+pow(stdev_error[1],2))*(180.0/M_PI) << "degrees" <<  endl;        
 
-       //free( errors );
+   
+       free( errors );
 
     }//try 
     catch(  FileIException error)  {
@@ -807,22 +815,27 @@ int main(int argc, char *argv[])  {
      }
     
 
+  
    for (i = 0; i < NUM_OF_TREES; i++)  {
       free( treeGazes[i] );
       free( treeImgs[i]  );
       free( treePoses[i] );
       free( trees[i]     );
    }
+
    free( treeGazes );
    free( treeImgs  );
    free( treePoses );
    free( trees     );    
 
 
-   free( test_nearest );
+   //free( test_nearest );
    free( test_poses );
    free( test_gazes );
    free( test_imgs );
+
+        	
+
 
    return 0;
 }
@@ -911,6 +924,35 @@ int treeDepth(treeT *root, int depth)  {
    return max_depth;
 }
 
+
+void toDotString(treeT *curr, int myID){
+	
+
+	if(curr->left != NULL){
+
+                outputFile << "\t" << myID << " [label=\"Samples:" << curr->numOfPtrs <<  "\npx1:(" << curr->minPx1_vert << "," << curr->minPx1_hor << ")" << "\npx2:(" << curr->minPx2_vert << "," << curr->minPx2_hor << ")" << "\nthres:" << curr->thres << "\nmse:" << curr->mse << "\", shape=rectangle, color=black]\n";
+		outputFile << "\t" << myID << " -> " << (myID<<1) + 1 << "\n";
+		toDotString(curr->left, (myID<<1) + 1);
+		
+		outputFile << "\t" << myID << " -> " << (myID<<1) + 2 << "\n";
+		toDotString(curr->right, (myID<<1) + 2);
+	}else{ //leaf
+            outputFile << "\t" << myID << " [label=\"Samples:"  << curr->numOfPtrs << "\nmeanGaze = \n=(" << curr->mean[0] <<","<<curr->mean[1] << ")"  << "\", shape=circle, color=green]\n";
+        }
+}
+
+
+
+
+void drawTree(treeT *root){
+	outputFile << "digraph Tree{\n";
+	outputFile << "\tlabel=\"Tree\"\n";
+	toDotString(root, 0);
+	outputFile << "}\n";
+
+	
+	return;
+}
 
 
 
@@ -1472,6 +1514,19 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
          cout << "current tree:  " << i << endl; 
       #endif 
 
+
+      if (tid==0)  {
+         try{
+            sprintf(buffer, "../trees/%d_mytree.dot", i);  	
+            outputFile.open( buffer );//"mytree.dot");
+	    drawTree(trees[i]);
+	    outputFile.close();		
+         }catch(...){
+	    std::cerr << "problem. Terminating\n";
+	    exit(1);
+         }
+      }
+
    
    }// for i
 
@@ -1480,6 +1535,9 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
    } // end of "omp parallel"
 
    
+
+ 
+
 
    return trees;
 }
