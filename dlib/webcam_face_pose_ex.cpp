@@ -39,6 +39,64 @@
 using namespace dlib;
 using namespace std;
 
+
+/*
+void getEulerAngles(cv::Mat &rotCamerMatrix,cv::Vec3d &eulerAngles){
+	cv::Mat cameraMatrix,rotMatrix,transVect,rotMatrixX,rotMatrixY,rotMatrixZ;
+	double* _r = rotCamerMatrix.ptr();
+	double projMatrix[12] = {_r[0],_r[1],_r[2],0,
+	_r[3],_r[4],_r[5],0,
+	_r[6],_r[7],_r[8],0};
+
+	decomposeProjectionMatrix( cv::Mat(3,4,CV_64FC1,projMatrix),
+											cameraMatrix,
+											rotMatrix,
+											transVect,
+											rotMatrixX,
+											rotMatrixY,
+											rotMatrixZ,
+											eulerAngles);
+}*/
+
+// Checks if a matrix is a valid rotation matrix.
+bool isRotationMatrix(cv::Mat &R)
+{
+    cv::Mat Rt;
+    transpose(R, Rt);
+    cv::Mat shouldBeIdentity = Rt * R;
+    cv::Mat I = cv::Mat::eye(3,3, shouldBeIdentity.type());
+     
+    return  norm(I, shouldBeIdentity) < 1e-6;
+     
+}
+ 
+// Calculates rotation matrix to euler angles
+// The result is the same as MATLAB except the order
+// of the euler angles ( x and z are swapped ).
+cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R)
+{
+ 
+    assert(isRotationMatrix(R));
+     
+    float sy = sqrt(R.at<double>(0,0) * R.at<double>(0,0) +  R.at<double>(1,0) * R.at<double>(1,0) );
+ 
+    bool singular = sy < 1e-6; // If
+ 
+    float x, y, z;
+    if (!singular)
+    {
+        x = atan2(R.at<double>(2,1) , R.at<double>(2,2));
+        y = atan2(-R.at<double>(2,0), sy);
+        z = atan2(R.at<double>(1,0), R.at<double>(0,0));
+    }
+    else
+    {
+        x = atan2(-R.at<double>(1,2), R.at<double>(1,1));
+        y = atan2(-R.at<double>(2,0), sy);
+        z = 0;
+    }
+    return cv::Vec3f(x, y, z);    
+}
 int main()
 {
     try
@@ -117,13 +175,12 @@ int main()
                 shapes2d.push_back(pose_model(cimg, faces[i]));//size=68, shape.part(0)         
 
 
-
 				//Estimation of intristic characteristics(We can also use calibrateCamera() from opencv) 
     			double focal_length = temp.cols;// Approximate focal length.
    				cv::Point2d center = cv::Point2d(temp.cols/2,temp.rows/2);//rows=460, cols=640
     			cv::Mat camera_matrix = (cv::Mat_<double>(3,3) << focal_length, 0, center.x, 0 , focal_length, center.y, 0, 0, 1);
     			cv::Mat dist_coeffs = cv::Mat::zeros(4,1,cv::DataType<double>::type);// Assuming no lens distortion
-				cout << "Camera Matrix " << endl << camera_matrix << endl ;
+				//cout << "Camera Matrix " << endl << camera_matrix << endl ;
     	
     			// Output rotation and translation
     			cv::Mat rotation_vector; // Rotation in axis-angle form
@@ -131,24 +188,23 @@ int main()
 				
 				//Calculate from "solvePnP" the rvec and tvec(extrinsics params). These values are in the Camera-Coordinate System
     			cv::solvePnP(model3Dpoints, image_points, camera_matrix, dist_coeffs, rotation_vector, translation_vector);
-    			cout << "Rotation_vector " << endl << rotation_vector << endl;
-    			cout << "translation_vector " << endl << translation_vector << endl;		 
+    			//cout << "Rotation_vector " << endl << rotation_vector << endl;
+    			//cout << "translation_vector " << endl << translation_vector << endl;		 
 
     			//Calculate Rotation_matrix from rotation_vector using Rodriguez(), find 3d points from 2d
     			cv::Mat rotation_matrix;
     			cv::Rodrigues(rotation_vector, rotation_matrix);
-    			cout << "Rotation_matrix " << endl << rotation_matrix << endl;
+    			//cout << "Rotation_matrix " << endl << rotation_matrix << endl;
 
 
-    			// TODO: calculate Roll, Pitch and Yaw from solvePnP output from decomposeProjectionMatrix()
-    			//Check here:
-    			//https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#decomposeprojectionmatrix
-    			//https://github.com/mpatacchiola/deepgaze/issues/3
-    			//http://answers.opencv.org/question/16796/computing-attituderoll-pitch-yaw-from-solvepnp/
-    			//https://stackoverflow.com/questions/50584809/camera-rotation-solvepnp
-    			//check file Mat2hdf
+    			//obtain yaw, pitch and roll(x,y,z) from Rotation Matrix.Rotation is calculated as: R=Rx*Ry*Rz,where Rx,Ry,Rz are the rotation matrices around the axes
+    			cv::Vec3f eulerAngles;
+    			eulerAngles = rotationMatrixToEulerAngles(rotation_matrix);
+    			eulerAngles = eulerAngles * 180.0/M_PI;
+    			cout << "("<<eulerAngles[1]<<","<<eulerAngles[0]<<")"<<endl;
 
-
+    			//TODO: check why eulerAngles[0](x axis) performs bad
+    			//check file Mat2hdf.How are the (theta,phi) obtained?
 
 
 				//now that we know the intristics(focal,coeff,camera) and the extrinsics(rot_matrix, t_vec), we can calculate the 3D w   
