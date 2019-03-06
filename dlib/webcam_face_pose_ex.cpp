@@ -90,10 +90,14 @@ int main()
             std::vector<rectangle> faces = detector(cimg);
             // Find the pose of each face.
             std::vector<full_object_detection> shapes2d;
+
+            //to for-loop afto ekteleitai mono an uparxoun faces stin eikona
             for (unsigned long i = 0; i < faces.size(); ++i) {
+            	cout << "********** new frame ****************" << endl;
                 full_object_detection shape = pose_model(cimg,faces[i]);//to pose model den einai function!
                 std::vector<cv::Point2d> image_points;
 
+                //we know the (x,y) image landmark positions
                 image_points.push_back(cv::Point2d(shape.part(36).x(),shape.part(36).y()));    // Nose tip
                 image_points.push_back(cv::Point2d(shape.part(39).x(),shape.part(39).y()));    // Chin
                 image_points.push_back(cv::Point2d(shape.part(42).x(),shape.part(42).y()));    // Left eye left corner
@@ -107,13 +111,16 @@ int main()
                 //n.45: aristeri akri aristerou matiou
                 //n.48: deksia akri stoma
                 //n.54: aristeri akri stoma                                
+
+                //h metavlith "shapes2d" einai gia to windowDraw() katw katw
                 cout << "pixel position of 1st part: " << shape.part(0) << endl;
                 shapes2d.push_back(pose_model(cimg, faces[i]));//size=68, shape.part(0)         
 
 
-				//Camera internals. rows=460, cols=640
+
+				//Estimation of intristic characteristics(We can also use calibrateCamera() from opencv) 
     			double focal_length = temp.cols;// Approximate focal length.
-   				cv::Point2d center = cv::Point2d(temp.cols/2,temp.rows/2);
+   				cv::Point2d center = cv::Point2d(temp.cols/2,temp.rows/2);//rows=460, cols=640
     			cv::Mat camera_matrix = (cv::Mat_<double>(3,3) << focal_length, 0, center.x, 0 , focal_length, center.y, 0, 0, 1);
     			cv::Mat dist_coeffs = cv::Mat::zeros(4,1,cv::DataType<double>::type);// Assuming no lens distortion
 				cout << "Camera Matrix " << endl << camera_matrix << endl ;
@@ -121,8 +128,32 @@ int main()
     			// Output rotation and translation
     			cv::Mat rotation_vector; // Rotation in axis-angle form
     			cv::Mat translation_vector;	
-				// Solve for pose
-    			cv::solvePnP(model3Dpoints, image_points, camera_matrix, dist_coeffs, rotation_vector, translation_vector); 
+				
+				//Calculate from "solvePnP" the rvec and tvec(extrinsics params). These values are in the Camera-Coordinate System
+    			cv::solvePnP(model3Dpoints, image_points, camera_matrix, dist_coeffs, rotation_vector, translation_vector);
+    			cout << "Rotation_vector " << endl << rotation_vector << endl;
+    			cout << "translation_vector " << endl << translation_vector << endl;		 
+
+    			//Calculate Rotation_matrix from rotation_vector using Rodriguez(), find 3d points from 2d
+    			cv::Mat rotation_matrix;
+    			cv::Rodrigues(rotation_vector, rotation_matrix);
+    			cout << "Rotation_matrix " << endl << rotation_matrix << endl;
+
+
+    			// TODO: calculate Roll, Pitch and Yaw from solvePnP output from decomposeProjectionMatrix()
+    			//Check here:
+    			//https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#decomposeprojectionmatrix
+    			//https://github.com/mpatacchiola/deepgaze/issues/3
+    			//http://answers.opencv.org/question/16796/computing-attituderoll-pitch-yaw-from-solvepnp/
+    			//https://stackoverflow.com/questions/50584809/camera-rotation-solvepnp
+    			//check file Mat2hdf
+
+
+
+
+				//now that we know the intristics(focal,coeff,camera) and the extrinsics(rot_matrix, t_vec), we can calculate the 3D w   
+
+    		
         	}
             
 
