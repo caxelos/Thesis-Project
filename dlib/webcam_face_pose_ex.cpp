@@ -75,7 +75,8 @@ bool isRotationMatrix(cv::Mat &R)
 // of the euler angles ( x and z are swapped ).
 cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R)
 {
- 
+    return cv::Vec3f(-asin(R.at<double>(1,2)),-atan2(R.at<double>(0,2),R.at<double>(2,2)),1.0);
+ /*
     assert(isRotationMatrix(R));
      
     float sy = sqrt(R.at<double>(0,0) * R.at<double>(0,0) +  R.at<double>(1,0) * R.at<double>(1,0) );
@@ -95,7 +96,8 @@ cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R)
         y = atan2(-R.at<double>(2,0), sy);
         z = 0;
     }
-    return cv::Vec3f(x, y, z);    
+    return cv::Vec3f(x, y, z);   
+*/ 
 }
 int main()
 {
@@ -203,14 +205,32 @@ int main()
     			eulerAngles = eulerAngles * 180.0/M_PI;
     			cout << "("<<eulerAngles[1]<<","<<eulerAngles[0]<<")"<<endl;
 
-    			//TODO: check why eulerAngles[0](x axis) performs bad
-    			//check file Mat2hdf.How are the (theta,phi) obtained?
-
-
+    			//TODO: check eye image normalization. Also check
+    			// zhang's paper and Student's paper,page 33
 				//now that we know the intristics(focal,coeff,camera) and the extrinsics(rot_matrix, t_vec), we can calculate the 3D w   
 
-    		
-        	}
+    			//TODO: vale tin fatsa tis pythias,mazi me ton titlo "Pythia Artificial Intelligence Team"
+
+                // 1.Calculate the midpoint for each eye e_h in HEAD COORDS(Face Model)
+                model3Dpoints.push_back(cv::Point3d(-45.097f, -0.48377f, 2.397f));// Right eye: Right Corner
+                model3Dpoints.push_back(cv::Point3d(-21.313f, 0.48377f, -2.397f));// Right eye: Left Corner
+                // 2.Calculate the midpoint in CAMERA COORDS from: e_r = t_r + e_h
+                // 3.Calculate the conversion matrix: M = S * R, where
+                //   S = diag(1,1,dn/||e_r||) and R = (RotationMatrix)^-1
+                // dn is the distance between e_r and the (0,0,0) of the scaled CAMERA COORDS and is 600mm
+        	    // M matrix describes the conversion from non-normalised to normalised CAMERA COORDS
+                // 4.Calculate the normalised projection matrix C_n
+                // 5.Calculate the warp perspective image transformation matrix
+                // W = C_n * M * (C_r)^-1, where
+                // C_n = [f_x,0,c_x; 0,f_y,c_y; 0,0,1]. f_x,f_y can be 960mm. c_x=30 and c_y=18
+                // 6.Calculate new Rotation matrix: R_n = M * R_r
+                // 7.Calculate new gaze: g_n = M * g_r( 3d vector)
+                // 8.Calculate rotation vector h_n from rotation matrix R_n(3d vector)
+                // 9.Gain 2d h,g because the z-axis orientation is always zero for gaze_n and rotation_n
+                // 10.Convert eye images I to gray scale and make histogram equalization, in order to be compatible with other datasets
+
+
+            }
             
 
             //Now let's view our face poses on the screen.
