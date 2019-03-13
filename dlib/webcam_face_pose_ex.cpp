@@ -126,7 +126,11 @@ int main()
     	model3Dpoints.push_back(cv::Point3d(-26.3f, 68.595f, -9.8608e-32f));// Mouth: Right Corner
     	model3Dpoints.push_back(cv::Point3d(26.3f, 68.595f, -9.8608e-32f));//Mouth: Left Corner	 
 
-    	
+    	// 1.Calculate the midpoint for right eye e_h in HEAD COORDS(Face Model)
+        cv::Mat midpoints(cv::Point3d((-45.097f-21.313f)/2,(-0.48377f+0.48377f)/2, (2.397f-2.397f)/2));
+        cout << "midpoits are" << midpoints << endl;
+
+
         // Grab and process frames until the main window is closed by the user.
         while(!win.is_closed())
         {
@@ -205,24 +209,42 @@ int main()
     			eulerAngles = eulerAngles * 180.0/M_PI;
     			cout << "("<<eulerAngles[1]<<","<<eulerAngles[0]<<")"<<endl;
 
-    			//TODO: check eye image normalization. Also check
-    			// zhang's paper and Student's paper,page 33
-				//now that we know the intristics(focal,coeff,camera) and the extrinsics(rot_matrix, t_vec), we can calculate the 3D w   
-
-    			//TODO: vale tin fatsa tis pythias,mazi me ton titlo "Pythia Artificial Intelligence Team"
-
-                // 1.Calculate the midpoint for each eye e_h in HEAD COORDS(Face Model)
-                model3Dpoints.push_back(cv::Point3d(-45.097f, -0.48377f, 2.397f));// Right eye: Right Corner
-                model3Dpoints.push_back(cv::Point3d(-21.313f, 0.48377f, -2.397f));// Right eye: Left Corner
+ 
+               
                 // 2.Calculate the midpoint in CAMERA COORDS from: e_r = t_r + e_h
+    			cv::Mat cameramidpoints = translation_vector + midpoints;
+
+
                 // 3.Calculate the conversion matrix: M = S * R, where
                 //   S = diag(1,1,dn/||e_r||) and R = (RotationMatrix)^-1
                 // dn is the distance between e_r and the (0,0,0) of the scaled CAMERA COORDS and is 600mm
         	    // M matrix describes the conversion from non-normalised to normalised CAMERA COORDS
-                // 4.Calculate the normalised projection matrix C_n
+				//cv::Mat S = cv::Mat::Mat(Size size, int type, void* data, size_t step=AUTO_STEP);                
+    			// Take also into account that the inverse and transpose of rotation matrices are the same!
+    			cv::Mat S = (cv::Mat_<float>(3, 3) << 1.0,0,0,0,1,0,0,0, 0.6/cv::norm(cameramidpoints, cv::NORM_L2, cv::noArray() ));//cv::magnitude(cameramidpoints));
+				S.convertTo(S, CV_32FC1);
+				rotation_matrix.convertTo(rotation_matrix, CV_32FC1);
+				cv::Mat M = S * rotation_matrix.inv();//.t(); 
+
+
+
+                // 4.Calculate the normalised projection matrix C_n=[f_x,0,c_x; 0,f_y,c_y; 0,0,1]
+                int fx = 960;//in milimeters
+                int fy = 960;
+                int cx = 30;//pixels
+                int cy = 18;
+                cv::Mat Cn = (cv::Mat_<float>(3, 3) << fx,0,cx,0,fy,cy,0,0,1);
+
+
                 // 5.Calculate the warp perspective image transformation matrix
-                // W = C_n * M * (C_r)^-1, where
-                // C_n = [f_x,0,c_x; 0,f_y,c_y; 0,0,1]. f_x,f_y can be 960mm. c_x=30 and c_y=18
+                camera_matrix.convertTo(camera_matrix, CV_32FC1);
+                Cn.convertTo(Cn, CV_32FC1);
+                M.convertTo(M, CV_32FC1);
+                cv::Mat W = Cn * M * camera_matrix.inv();
+                cout << "Warp is " << W << endl;
+
+
+                // TODO:
                 // 6.Calculate new Rotation matrix: R_n = M * R_r
                 // 7.Calculate new gaze: g_n = M * g_r( 3d vector)
                 // 8.Calculate rotation vector h_n from rotation matrix R_n(3d vector)
