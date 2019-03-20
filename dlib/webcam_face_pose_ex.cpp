@@ -75,8 +75,10 @@ bool isRotationMatrix(cv::Mat &R)
 // of the euler angles ( x and z are swapped ).
 cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R)
 {
-    return cv::Vec3f(-asin(R.at<double>(1,2)),-atan2(R.at<double>(0,2),R.at<double>(2,2)),1.0);
- /*
+	return cv::Vec3f(-asin(R.at<double>(1,2)),-atan2(R.at<double>(0,2),R.at<double>(2,2)),1.0);
+
+
+/*
     assert(isRotationMatrix(R));
      
     float sy = sqrt(R.at<double>(0,0) * R.at<double>(0,0) +  R.at<double>(1,0) * R.at<double>(1,0) );
@@ -97,7 +99,7 @@ cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R)
         z = 0;
     }
     return cv::Vec3f(x, y, z);   
-*/ 
+*/
 }
 int main()
 {
@@ -126,9 +128,19 @@ int main()
     	model3Dpoints.push_back(cv::Point3d(-26.3f, 68.595f, -9.8608e-32f));// Mouth: Right Corner
     	model3Dpoints.push_back(cv::Point3d(26.3f, 68.595f, -9.8608e-32f));//Mouth: Left Corner	 
 
-    	// 1.Calculate the midpoint for right eye e_h in HEAD COORDS(Face Model)
-        cv::Mat midpoints(cv::Point3d((-45.097f-21.313f)/2,(-0.48377f+0.48377f)/2, (2.397f-2.397f)/2));
-        cout << "midpoits are" << midpoints << endl;
+    	// 1a.Calculate the midpoint for right eye e_h in HEAD COORDS(Face Model)
+        cv::Point3d rightmidpoints(cv::Point3d((-45.097f-21.313f)/2,(-0.48377f+0.48377f)/2, (2.397f-2.397f)/2));
+		//cv::Point3d rightmidpoints(cv::Point3d((-45.097f-21.313f)/2,(-0.48377f+0.48377f)/2, (2.397f-2.397f)/2));
+        
+        cout << "midpoits are" << rightmidpoints << endl;
+
+        // 1b.Calculate the midpoint for left eye e_h in HEAD COORDS(Face Model)
+        cv::Point3d leftmidpoints(cv::Point3d((21.313f +45.097f)/2,(0.48377f-0.48377f)/2, (-2.397f+2.397f)/2));
+        //cv::Point3d leftmidpoints(cv::Point3d((21.313f +45.097f)/2,(0.48377f+-0.48377f)/2, (-2.397f+2.397f)/2));
+
+        // 1c.Calculate xr(x axis) of the head coordinate system
+        //cv::Mat xr =(leftmidpoints-rightmidpoints);///cv::norm(leftmidpoints-rightmidpoints);
+        cv::Point3d xr =(leftmidpoints-rightmidpoints);///cv::norm(leftmidpoints-rightmidpoints);
 
 
         // Grab and process frames until the main window is closed by the user.
@@ -137,6 +149,7 @@ int main()
 		
             // Grab a frame
             cv::Mat temp;
+            //cv::flip(temp, temp, 1);
             if (!cap.read(temp))
             {
                 break;
@@ -149,6 +162,7 @@ int main()
             // contain dangling pointers.  This basically means you shouldn't modify temp
             // while using cimg.
             cv_image<bgr_pixel> cimg(temp);
+            cv_image<bgr_pixel> cimg2;
 
             // Detect faces 
             std::vector<rectangle> faces = detector(cimg);
@@ -157,9 +171,10 @@ int main()
 
             //to for-loop afto ekteleitai mono an uparxoun faces stin eikona
             for (unsigned long i = 0; i < faces.size(); ++i) {
-            	cout << "********** new frame ****************" << endl;
+            	//cout << "********** new frame ****************" << endl;
                 full_object_detection shape = pose_model(cimg,faces[i]);//to pose model den einai function!
                 std::vector<cv::Point2d> image_points;
+
 
                 //we know the (x,y) image landmark positions
                 image_points.push_back(cv::Point2d(shape.part(36).x(),shape.part(36).y()));    // Nose tip
@@ -177,7 +192,7 @@ int main()
                 //n.54: aristeri akri stoma                                
 
                 //h metavlith "shapes2d" einai gia to windowDraw() katw katw
-                cout << "pixel position of 1st part: " << shape.part(0) << endl;
+                //cout << "pixel position of 1st part: " << shape.part(0) << endl;
                 shapes2d.push_back(pose_model(cimg, faces[i]));//size=68, shape.part(0)         
 
 
@@ -191,11 +206,14 @@ int main()
     			// Output rotation and translation
     			cv::Mat rotation_vector; // Rotation in axis-angle form
     			cv::Mat translation_vector;	
-				
+				//cv::Point3d translation_vector;
+
 				//Calculate from "solvePnP" the rvec and tvec(extrinsics params). These values are in the Camera-Coordinate System
     			cv::solvePnP(model3Dpoints, image_points, camera_matrix, dist_coeffs, rotation_vector, translation_vector);
     			//cout << "Rotation_vector " << endl << rotation_vector << endl;
-    			//cout << "translation_vector " << endl << translation_vector << endl;		 
+    		    //cout << "translation_vector(matrix) "  << translation_vector << endl;		 
+                //cout << "1)translation_vector(Point3d) in mm: "  << (cv::Point3d)translation_vector << endl;        
+
 
     			//Calculate Rotation_matrix from rotation_vector using Rodriguez(), find 3d points from 2d
     			cv::Mat rotation_matrix;
@@ -206,13 +224,29 @@ int main()
     			//obtain yaw, pitch and roll(x,y,z) from Rotation Matrix.Rotation is calculated as: R=Rx*Ry*Rz,where Rx,Ry,Rz are the rotation matrices around the axes
     			cv::Vec3f eulerAngles;
     			eulerAngles = rotationMatrixToEulerAngles(rotation_matrix);
-    			eulerAngles = eulerAngles * 180.0/M_PI;
-    			cout << "("<<eulerAngles[1]<<","<<eulerAngles[0]<<")"<<endl;
-
- 
+    			cout << "eulerAngles:("<<eulerAngles[1]* 180.0/M_PI<<","<<eulerAngles[0]* 180.0/M_PI<<")"<<endl;
+                //cout << "eulerAngles:" << eulerAngles << endl;
                
-                // 2.Calculate the midpoint in CAMERA COORDS from: e_r = t_r + e_h
-    			cv::Mat cameramidpoints = translation_vector + midpoints;
+                // 2a.Calculate the midpoint in CAMERA COORDS from: e_r = t_r + e_h
+    			//cv::Mat cameramidpoints = translation_vector + (cv::Mat)rightmidpoints;
+                //cv::Point3d cameramidpoints = (cv::Point3d)translation_vector + (cv::Point3d)rightmidpoints;
+
+    			// 2b.Calculate rotated y-axis: yc = zc x xr
+    			cv::Point3d yc = xr.cross((cv::Point3d)translation_vector);
+                //translation_vector.cross((cv::Point3d)xr);// cameramidpoints.cross((cv::Point3d)xr);
+    			//cout << "2)xr(in mm):" << xr << endl;
+                //cout << "3)yc(in mm):" << yc << endl;
+                //cout << "+normalised:" << (cv::Mat)yc/cv::norm((cv::Mat)yc, cv::NORM_L2, cv::noArray()) << endl;
+    			//cout << "x axis is       :" << (cv::Point3d)xr << endl;
+            	//cout << "camera midpoits:" << cameramidpoints << endl;
+            	//cout << "translation_vec:" << translation_vector << endl;
+            	//cout << "rightmidpoints :" << rightmidpoints << endl;
+
+
+    			// 2c.Calculate x-axis of the rotated camera
+    			cv::Point3d xc = yc.cross((cv::Point3d)translation_vector);//yc.cross(cameramidpoints);   			
+                //cout << "4)xc(in mm):" << xc  << endl;
+                //cout << "+normalised:" << (cv::Mat)xc/cv::norm((cv::Mat)xc, cv::NORM_L2, cv::noArray()) << endl << endl;
 
 
                 // 3.Calculate the conversion matrix: M = S * R, where
@@ -221,34 +255,78 @@ int main()
         	    // M matrix describes the conversion from non-normalised to normalised CAMERA COORDS
 				//cv::Mat S = cv::Mat::Mat(Size size, int type, void* data, size_t step=AUTO_STEP);                
     			// Take also into account that the inverse and transpose of rotation matrices are the same!
-    			cv::Mat S = (cv::Mat_<float>(3, 3) << 1.0,0,0,0,1,0,0,0, 0.6/cv::norm(cameramidpoints, cv::NORM_L2, cv::noArray() ));//cv::magnitude(cameramidpoints));
+                cv::Mat xc_norm = (cv::Mat)xc/cv::norm((cv::Mat)xc, cv::NORM_L2, cv::noArray());
+                cv::Mat yc_norm = (cv::Mat)yc/cv::norm((cv::Mat)yc, cv::NORM_L2, cv::noArray());
+    			cv::Mat zc_norm = (cv::Mat)translation_vector/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray());
+
+                cv::Mat Rn = (cv::Mat_<float>(3,3) << xc_norm.at<double>(0),yc_norm.at<double>(0),zc_norm.at<double>(0),xc_norm.at<double>(1),yc_norm.at<double>(1),zc_norm.at<double>(1),xc_norm.at<double>(2),yc_norm.at<double>(2),zc_norm.at<double>(2));
+                //Rn = Rn.t();
+
+                //cout  << "new rotation matrix:" << Rn << endl;
+                cv::Mat S = (cv::Mat_<float>(3, 3) << 1,0,0,0,1,0,0,0, 600/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray() ));//cv::magnitude(cameramidpoints));
 				S.convertTo(S, CV_32FC1);
 				rotation_matrix.convertTo(rotation_matrix, CV_32FC1);
-				cv::Mat M = S * rotation_matrix.inv();//.t(); 
+				
+
+                cv::Mat M = S * Rn;// rotation_matrix.inv();//.t();
+                //cout << "M matrix is:" << M << endl;
+
+                //cv::Mat Rn = M*rotation_matrix;
+                //cout << "Normalised matrix is " << Rn << endl;
+                cv::Mat eulerAngles_norm = M* (cv::Mat)eulerAngles;// rotationMatrixToEulerAngles(Rn);
+                eulerAngles_norm = eulerAngles_norm * 180.0/M_PI;
+                cout << "eulerAngles_norm are:(" << eulerAngles_norm.at<float>(1)<<","<<eulerAngles_norm.at<float>(0)<<")" << endl;
+                //cout << "eulerAngles_norm are:" << eulerAngles_norm << endl;
+                
 
 
-
+                // TODO: 
+                // 1)Googlare afto
+                // https://www.google.com/search?client=ubuntu&hs=1ka&channel=fs&ei=c2eOXNv0LoKWmwWJ0L7oCA&q=sugano+mpiigaze+%22normalization%22&oq=sugano+mpiigaze+%22normalization%22&gs_l=psy-ab.3...7975.13629..13855...0.0..0.222.2609.0j14j2......0....1..gws-wiz.......0i71j33i160j33i21.qLJdP5vMhHk
+                // https://perceptual.mpi-inf.mpg.de/files/2018/04/zhang18_etra.pdf
+                
                 // 4.Calculate the normalised projection matrix C_n=[f_x,0,c_x; 0,f_y,c_y; 0,0,1]
                 int fx = 960;//in milimeters
                 int fy = 960;
                 int cx = 30;//pixels
                 int cy = 18;
                 cv::Mat Cn = (cv::Mat_<float>(3, 3) << fx,0,cx,0,fy,cy,0,0,1);
-
+                //cout << "Cn matrix is:" << Cn << endl;
 
                 // 5.Calculate the warp perspective image transformation matrix
                 camera_matrix.convertTo(camera_matrix, CV_32FC1);
                 Cn.convertTo(Cn, CV_32FC1);
                 M.convertTo(M, CV_32FC1);
                 cv::Mat W = Cn * M * camera_matrix.inv();
-                cout << "Warp is " << W << endl;
 
+                cout << "W matrix is:" << W << endl;
+                //cv_image<bgr_pixel> cimg;
+                cv::Mat temp2;
+                //temp2.convertTo(temp2,CV_32FC1);
 
-                // TODO:
+                cv::perspectiveTransform(temp2,temp, W);
+                // TODO: 
                 // 6.Calculate new Rotation matrix: R_n = M * R_r
+                //cout << "rotation_matrix is" << rotation_matrix << endl;
+                //cv::Mat Rn = M*rotation_matrix;
+                //cout << "normalised Rotation_matrix is " << Rn << endl;
+                //cout << "Rot_n is " << Rn << endl;
+
+
                 // 7.Calculate new gaze: g_n = M * g_r( 3d vector)
+                // *** not yet ***
+                
                 // 8.Calculate rotation vector h_n from rotation matrix R_n(3d vector)
+                //cout << "eulerAngles are: " << eulerAngles << endl;
+                eulerAngles = rotationMatrixToEulerAngles(Rn);
+                //eulerAngles = eulerAngles * 180.0/M_PI;
+                //cout << "Normalised angles are:" << eulerAngles << endl; 
+                //("<<eulerAngles[1]<<","<<eulerAngles[0]<<")"<<endl;          
+
+
                 // 9.Gain 2d h,g because the z-axis orientation is always zero for gaze_n and rotation_n
+
+
                 // 10.Convert eye images I to gray scale and make histogram equalization, in order to be compatible with other datasets
 
 
@@ -256,12 +334,11 @@ int main()
             
 
             //Now let's view our face poses on the screen.
-            /*
+            
             win.clear_overlay();
             win.set_image(cimg);
             win.add_overlay(render_face_detections(shapes2d)); 
-	    	*/
-	    
+	    		    
         }
     }
     catch(serialization_error& e)
