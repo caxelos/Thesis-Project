@@ -35,6 +35,7 @@
 #include <dlib/image_processing/render_face_detections.h>
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
+#include <opencv2/opencv.hpp>
 
 using namespace dlib;
 using namespace std;
@@ -129,9 +130,10 @@ int main()
     	model3Dpoints.push_back(cv::Point3d(26.3f, 68.595f, -9.8608e-32f));//Mouth: Left Corner	 
 
     	// 1a.Calculate the midpoint for right eye e_h in HEAD COORDS(Face Model)
-        cv::Point3d rightmidpoints(cv::Point3d((-45.097f-21.313f)/2,(-0.48377f+0.48377f)/2, (2.397f-2.397f)/2));
-		//cv::Point3d rightmidpoints(cv::Point3d((-45.097f-21.313f)/2,(-0.48377f+0.48377f)/2, (2.397f-2.397f)/2));
-        
+        //cv::Mat rightmidpoints(cv::Point3d((-45.097f-21.313f)/2,(-0.48377f+0.48377f)/2, (2.397f-2.397f)/2));
+		cv::Point3d rightmidpoints(cv::Point3d((-45.097f-21.313f)/2,(-0.48377f+0.48377f)/2, (2.397f-2.397f)/2));
+
+
         cout << "midpoits are" << rightmidpoints << endl;
 
         // 1b.Calculate the midpoint for left eye e_h in HEAD COORDS(Face Model)
@@ -140,7 +142,7 @@ int main()
 
         // 1c.Calculate xr(x axis) of the head coordinate system
         //cv::Mat xr =(leftmidpoints-rightmidpoints);///cv::norm(leftmidpoints-rightmidpoints);
-        cv::Point3d xr =(leftmidpoints-rightmidpoints);///cv::norm(leftmidpoints-rightmidpoints);
+        cv::Point3d xr =(leftmidpoints-rightmidpoints)/cv::norm(leftmidpoints-rightmidpoints);
 
 
         // Grab and process frames until the main window is closed by the user.
@@ -162,7 +164,7 @@ int main()
             // contain dangling pointers.  This basically means you shouldn't modify temp
             // while using cimg.
             cv_image<bgr_pixel> cimg(temp);
-            cv_image<bgr_pixel> cimg2;
+        
 
             // Detect faces 
             std::vector<rectangle> faces = detector(cimg);
@@ -227,12 +229,15 @@ int main()
     			cout << "eulerAngles:("<<eulerAngles[1]* 180.0/M_PI<<","<<eulerAngles[0]* 180.0/M_PI<<")"<<endl;
                 //cout << "eulerAngles:" << eulerAngles << endl;
                
+                
+                cv::Mat zc_mat=rotation_matrix* (cv::Mat)rightmidpoints+translation_vector;
+                cv::Point3d zc = (cv::Point3d)zc_mat;
                 // 2a.Calculate the midpoint in CAMERA COORDS from: e_r = t_r + e_h
     			//cv::Mat cameramidpoints = translation_vector + (cv::Mat)rightmidpoints;
                 //cv::Point3d cameramidpoints = (cv::Point3d)translation_vector + (cv::Point3d)rightmidpoints;
 
     			// 2b.Calculate rotated y-axis: yc = zc x xr
-    			cv::Point3d yc = xr.cross((cv::Point3d)translation_vector);
+    			cv::Point3d yc = zc.cross(xr);//xr.cross((cv::Point3d)translation_vector);
                 //translation_vector.cross((cv::Point3d)xr);// cameramidpoints.cross((cv::Point3d)xr);
     			//cout << "2)xr(in mm):" << xr << endl;
                 //cout << "3)yc(in mm):" << yc << endl;
@@ -244,7 +249,7 @@ int main()
 
 
     			// 2c.Calculate x-axis of the rotated camera
-    			cv::Point3d xc = yc.cross((cv::Point3d)translation_vector);//yc.cross(cameramidpoints);   			
+    			cv::Point3d xc = yc.cross(zc);//(cv::Point3d)translation_vector);//yc.cross(cameramidpoints);   			
                 //cout << "4)xc(in mm):" << xc  << endl;
                 //cout << "+normalised:" << (cv::Mat)xc/cv::norm((cv::Mat)xc, cv::NORM_L2, cv::noArray()) << endl << endl;
 
@@ -257,7 +262,9 @@ int main()
     			// Take also into account that the inverse and transpose of rotation matrices are the same!
                 cv::Mat xc_norm = (cv::Mat)xc/cv::norm((cv::Mat)xc, cv::NORM_L2, cv::noArray());
                 cv::Mat yc_norm = (cv::Mat)yc/cv::norm((cv::Mat)yc, cv::NORM_L2, cv::noArray());
-    			cv::Mat zc_norm = (cv::Mat)translation_vector/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray());
+    			cv::Mat zc_norm = (cv::Mat)zc/cv::norm((cv::Mat)zc, cv::NORM_L2, cv::noArray());
+
+                //cv::Mat zc_norm = (cv::Mat)translation_vector/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray());
 
                 cv::Mat Rn = (cv::Mat_<float>(3,3) << xc_norm.at<double>(0),yc_norm.at<double>(0),zc_norm.at<double>(0),xc_norm.at<double>(1),yc_norm.at<double>(1),zc_norm.at<double>(1),xc_norm.at<double>(2),yc_norm.at<double>(2),zc_norm.at<double>(2));
                 //Rn = Rn.t();
@@ -295,21 +302,17 @@ int main()
 
                 // 5.Calculate the warp perspective image transformation matrix
                 camera_matrix.convertTo(camera_matrix, CV_32FC1);
-                Cn.convertTo(Cn, CV_32FC1);
-                M.convertTo(M, CV_32FC1);
                 cv::Mat W = Cn * M * camera_matrix.inv();
-
                 cout << "W matrix is:" << W << endl;
-                //cv_image<bgr_pixel> cimg;
-                cv::Mat temp2;
-                //temp2.convertTo(temp2,CV_32FC1);
+                cv::Mat output;
+                cv::warpPerspective(temp,output, W, output.size());
 
-                cv::perspectiveTransform(temp2,temp, W);
                 // TODO: 
                 // 6.Calculate new Rotation matrix: R_n = M * R_r
                 //cout << "rotation_matrix is" << rotation_matrix << endl;
                 //cv::Mat Rn = M*rotation_matrix;
-                //cout << "normalised Rotation_matrix is " << Rn << endl;
+                //cout << "normaRotation_matrix is " << Rn << endl;
+               
                 //cout << "Rot_n is " << Rn << endl;
 
 
@@ -318,7 +321,6 @@ int main()
                 
                 // 8.Calculate rotation vector h_n from rotation matrix R_n(3d vector)
                 //cout << "eulerAngles are: " << eulerAngles << endl;
-                eulerAngles = rotationMatrixToEulerAngles(Rn);
                 //eulerAngles = eulerAngles * 180.0/M_PI;
                 //cout << "Normalised angles are:" << eulerAngles << endl; 
                 //("<<eulerAngles[1]<<","<<eulerAngles[0]<<")"<<endl;          
@@ -330,14 +332,18 @@ int main()
                 // 10.Convert eye images I to gray scale and make histogram equalization, in order to be compatible with other datasets
 
 
+                cv_image<bgr_pixel> cimg2(output);
+                win.clear_overlay();
+                win.set_image(cimg2);
+                win.add_overlay(render_face_detections(shapes2d)); 
             }
             
 
             //Now let's view our face poses on the screen.
             
-            win.clear_overlay();
-            win.set_image(cimg);
-            win.add_overlay(render_face_detections(shapes2d)); 
+            //win.clear_overlay();
+            //win.set_image(cimg);
+            //win.add_overlay(render_face_detections(shapes2d)); 
 	    		    
         }
     }
