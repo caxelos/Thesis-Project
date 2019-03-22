@@ -239,7 +239,7 @@ int main()
     			// 2b.Calculate rotated y-axis: yc = zc x xr
     			cv::Point3d yc = zc.cross(xr);//xr.cross((cv::Point3d)translation_vector);
                 //translation_vector.cross((cv::Point3d)xr);// cameramidpoints.cross((cv::Point3d)xr);
-    			//cout << "2)xr(in mm):" << xr << endl;
+    			cout << "2)xr(in mm):" << xr << endl;
                 //cout << "3)yc(in mm):" << yc << endl;
                 //cout << "+normalised:" << (cv::Mat)yc/cv::norm((cv::Mat)yc, cv::NORM_L2, cv::noArray()) << endl;
     			//cout << "x axis is       :" << (cv::Point3d)xr << endl;
@@ -267,7 +267,7 @@ int main()
                 //cv::Mat zc_norm = (cv::Mat)translation_vector/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray());
 
                 cv::Mat Rn = (cv::Mat_<float>(3,3) << xc_norm.at<double>(0),yc_norm.at<double>(0),zc_norm.at<double>(0),xc_norm.at<double>(1),yc_norm.at<double>(1),zc_norm.at<double>(1),xc_norm.at<double>(2),yc_norm.at<double>(2),zc_norm.at<double>(2));
-                //Rn = Rn.t();
+                Rn = Rn.t();
 
                 //cout  << "new rotation matrix:" << Rn << endl;
                 cv::Mat S = (cv::Mat_<float>(3, 3) << 1,0,0,0,1,0,0,0, 600/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray() ));//cv::magnitude(cameramidpoints));
