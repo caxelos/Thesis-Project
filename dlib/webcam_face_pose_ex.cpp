@@ -201,7 +201,7 @@ int main()
 				//Estimation of intristic characteristics(We can also use calibrateCamera() from opencv) 
     			double focal_length = temp.cols;// Approximate focal length.
    				cv::Point2d center = cv::Point2d(temp.cols/2,temp.rows/2);//rows=460, cols=640
-    			cv::Mat camera_matrix = (cv::Mat_<double>(3,3) << focal_length, 0, center.x, 0 , focal_length, center.y, 0, 0, 1);
+    			cv::Mat Cr = (cv::Mat_<double>(3,3) << focal_length, 0, center.x, 0 , focal_length, center.y, 0, 0, 1);
     			cv::Mat dist_coeffs = cv::Mat::zeros(4,1,cv::DataType<double>::type);// Assuming no lens distortion
 				//cout << "Camera Matrix " << endl << camera_matrix << endl ;
     	
@@ -211,26 +211,26 @@ int main()
 				//cv::Point3d translation_vector;
 
 				//Calculate from "solvePnP" the rvec and tvec(extrinsics params). These values are in the Camera-Coordinate System
-    			cv::solvePnP(model3Dpoints, image_points, camera_matrix, dist_coeffs, rotation_vector, translation_vector);
+    			cv::solvePnP(model3Dpoints, image_points,Cr, dist_coeffs, rotation_vector, translation_vector);
     			//cout << "Rotation_vector " << endl << rotation_vector << endl;
     		    //cout << "translation_vector(matrix) "  << translation_vector << endl;		 
                 //cout << "1)translation_vector(Point3d) in mm: "  << (cv::Point3d)translation_vector << endl;        
 
 
     			//Calculate Rotation_matrix from rotation_vector using Rodriguez(), find 3d points from 2d
-    			cv::Mat rotation_matrix;
-    			cv::Rodrigues(rotation_vector, rotation_matrix);
+    			cv::Mat Rr;
+    			cv::Rodrigues(rotation_vector, Rr);
     			//cout << "Rotation_matrix " << endl << rotation_matrix << endl;
 
 
     			//obtain yaw, pitch and roll(x,y,z) from Rotation Matrix.Rotation is calculated as: R=Rx*Ry*Rz,where Rx,Ry,Rz are the rotation matrices around the axes
     			cv::Vec3f eulerAngles;
-    			eulerAngles = rotationMatrixToEulerAngles(rotation_matrix);
+    			eulerAngles = rotationMatrixToEulerAngles(Rr);
     			cout << "eulerAngles:("<<eulerAngles[1]* 180.0/M_PI<<","<<eulerAngles[0]* 180.0/M_PI<<")"<<endl;
                 //cout << "eulerAngles:" << eulerAngles << endl;
                
                 
-                cv::Mat zc_mat=rotation_matrix* (cv::Mat)rightmidpoints+translation_vector;
+                cv::Mat zc_mat=Rr* (cv::Mat)rightmidpoints+translation_vector;
                 cv::Point3d zc = (cv::Point3d)zc_mat;
                 // 2a.Calculate the midpoint in CAMERA COORDS from: e_r = t_r + e_h
     			//cv::Mat cameramidpoints = translation_vector + (cv::Mat)rightmidpoints;
@@ -239,7 +239,7 @@ int main()
     			// 2b.Calculate rotated y-axis: yc = zc x xr
     			cv::Point3d yc = zc.cross(xr);//xr.cross((cv::Point3d)translation_vector);
                 //translation_vector.cross((cv::Point3d)xr);// cameramidpoints.cross((cv::Point3d)xr);
-    			cout << "2)xr(in mm):" << xr << endl;
+    			//cout << "2)xr(in mm):" << xr << endl;
                 //cout << "3)yc(in mm):" << yc << endl;
                 //cout << "+normalised:" << (cv::Mat)yc/cv::norm((cv::Mat)yc, cv::NORM_L2, cv::noArray()) << endl;
     			//cout << "x axis is       :" << (cv::Point3d)xr << endl;
@@ -266,16 +266,16 @@ int main()
 
                 //cv::Mat zc_norm = (cv::Mat)translation_vector/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray());
 
-                cv::Mat Rn = (cv::Mat_<float>(3,3) << xc_norm.at<double>(0),yc_norm.at<double>(0),zc_norm.at<double>(0),xc_norm.at<double>(1),yc_norm.at<double>(1),zc_norm.at<double>(1),xc_norm.at<double>(2),yc_norm.at<double>(2),zc_norm.at<double>(2));
-                Rn = Rn.t();
+                cv::Mat R = (cv::Mat_<float>(3,3) << xc_norm.at<double>(0),yc_norm.at<double>(0),zc_norm.at<double>(0),xc_norm.at<double>(1),yc_norm.at<double>(1),zc_norm.at<double>(1),xc_norm.at<double>(2),yc_norm.at<double>(2),zc_norm.at<double>(2));
+                R = R.t();
 
                 //cout  << "new rotation matrix:" << Rn << endl;
                 cv::Mat S = (cv::Mat_<float>(3, 3) << 1,0,0,0,1,0,0,0, 600/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray() ));//cv::magnitude(cameramidpoints));
 				S.convertTo(S, CV_32FC1);
-				rotation_matrix.convertTo(rotation_matrix, CV_32FC1);
+				Rr.convertTo(Rr, CV_32FC1);
 				
 
-                cv::Mat M = S * Rn;// rotation_matrix.inv();//.t();
+                cv::Mat M = S * R;// rotation_matrix.inv();//.t();
                 //cout << "M matrix is:" << M << endl;
 
                 //cv::Mat Rn = M*rotation_matrix;
@@ -297,14 +297,18 @@ int main()
                 int fy = 960;
                 int cx = 30;//pixels
                 int cy = 18;
+                int NWIDTH = 60;
+                int NHEIGHT = 36;
                 cv::Mat Cn = (cv::Mat_<float>(3, 3) << fx,0,cx,0,fy,cy,0,0,1);
                 //cout << "Cn matrix is:" << Cn << endl;
 
                 // 5.Calculate the warp perspective image transformation matrix
-                camera_matrix.convertTo(camera_matrix, CV_32FC1);
-                cv::Mat W = Cn * M * camera_matrix.inv();
-                cout << "W matrix is:" << W << endl;
-                cv::Mat output;
+                Cr.convertTo(Cr, CV_32FC1);
+                cv::Mat W = Cn * M * Cr.inv();
+                //cout << "W matrix is:" << W << endl;
+
+                //normalized image has size:60x36
+                cv::Mat output = cv::Mat::zeros(cv::Size(NWIDTH, NHEIGHT), CV_32FC1); 
                 cv::warpPerspective(temp,output, W, output.size());
 
                 // TODO: 
