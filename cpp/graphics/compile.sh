@@ -1,1 +1,1 @@
-g++ prog.c -o prog $(pkg-config --cflags --libs sdl2) -lSDL2_ttf 
+g++ graphics.cpp -o graphics $(pkg-config --cflags --libs sdl2) -lSDL2_ttf 

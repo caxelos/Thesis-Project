@@ -279,15 +279,23 @@ void loadTree(treeT *t,std::stringstream &lineStream) {
       t->mean[0] = atof(temp.c_str());
       lineStream >> t->mean[1];
       lineStream >> t->stdev[0];
+      lineStream >> t->stdev[1];
       lineStream >> t->mse;
       lineStream >> t->thres;
       lineStream >> t->minPx1_hor;
       lineStream >> t->minPx2_hor;
       lineStream >> t->minPx1_vert;
       lineStream >> t->minPx2_vert;
+      cout << "************ adding node: *******" << endl;
+      cout << "mean:("<< t->mean[0] << "," <<t->mean[1]<<")" << endl; 
+      cout << "stdev:("<< t->stdev[0] << "," <<t->stdev[1]<<")" << endl; 
+      cout << "mse:" << t->mse;
+      cout << "thres:"<<t->thres<<endl;
+      
       loadTree(t->left, lineStream);
       loadTree(t->right, lineStream);
     }
+    
   }
   //std::cout << "New Line Detected\n";
 
@@ -308,7 +316,7 @@ void loadTree(treeT *t,std::stringstream &lineStream) {
 }
 
 
-treeT **importForestToTxt(ifstream &infile) {
+treeT **importForestFromTxt(ifstream &infile) {
   
   treeT **trees = NULL;
   trees = (treeT **)malloc( NUM_OF_TREES * sizeof(treeT *) );
@@ -318,11 +326,12 @@ treeT **importForestToTxt(ifstream &infile) {
      trees[i]->left = NULL;
   } 
   for (int i = 0; i < NUM_OF_TREES; i++)  {
-    std::string line;
-    std::getline(infile, line);
-    std::stringstream lineStream(line);
-    loadTree(trees[i],lineStream);
-
+    //if (i == 0) {
+      std::string line;
+      std::getline(infile, line);
+      std::stringstream lineStream(line);
+      loadTree(trees[i],lineStream);
+    //}
   }
 
 
@@ -743,13 +752,13 @@ int main(int argc, char *argv[])  {
       * - Here we start the building of the tree nodes. This function takes a lot of time
       * - After that function, we continue with the algorithm evaluation
       */ 
-      //trees = buildRegressionForest(samplesInTree, treeImgs, treeGazes, treePoses);
+      trees = buildRegressionForest(samplesInTree, treeImgs, treeGazes, treePoses);
       //saving to file
-      ifstream myfile;//ofstream myfile;
-      myfile.open ("example.txt");
-      trees = importForestToTxt(myfile);
+     // ifstream myfile;//ofstream myfile;
+     // myfile.open ("example.txt");
+      //trees = importForestFromTxt(myfile);
       //exportForestToTxt(trees,NUM_OF_TREES,myfile);
-      myfile.close();
+     // myfile.close();
 
       
 
