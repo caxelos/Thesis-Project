@@ -108,7 +108,11 @@ using std::ofstream;
 #include <unistd.h>
 #include "H5Cpp.h"
 #include <omp.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 using namespace H5;
+using namespace std;
 
 const H5std_string FILE_NAME( "myfile.h5" );
 
@@ -127,6 +131,7 @@ const H5std_string FILE_NAME( "myfile.h5" );
  *     k) minPx1_vert: height of pixel 1 in each tree node ( calculated in buildRegressionForest function )
  *     l) minPx2_vert: height of pixel 2 in each tree node ( calculated in buildRegressionForest function )
  */
+
 struct tree {
    double mean[2];
    double stdev[2];
@@ -147,9 +152,10 @@ ofstream outputFile;
 
 
 
+
+
+
 /**************** FUNCTIONS *************************************/
-
-
 treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,double **treeGazes,double**treePoses);
 /*
  * - function buildRegressionForest
@@ -219,10 +225,6 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
    and data printing. I explain them in the define session above
 
  */
-
-
-
-
 treeT *testSampleInTree(treeT *currNode, unsigned char *test_img, double *test_pose, int numOfSample); 
 /*
  * - function testSampleInTree
@@ -238,6 +240,117 @@ treeT *testSampleInTree(treeT *currNode, unsigned char *test_img, double *test_p
       d) int numOfSample: number of test sample(it is needed as index for the dynamically allocated test_pose, test_img vectors)
 
 */
+
+
+void saveTree(tree *t, ofstream &out) {
+  //if (!p) {
+  if (!t)
+    out << "# ";
+  else {
+    //out << p->data << " ";
+    out << t->mean[0] << " " << t->mean[1] << " "
+        << t->stdev[0] << " " << t->stdev[1] << " "
+        << t->mse << " "
+        << t->thres << " "
+        << t->minPx1_hor << " " << t->minPx2_hor << " "
+        << t->minPx1_vert << " " << t->minPx2_vert << " ";
+
+    saveTree(t->left, out);
+    saveTree(t->right, out);
+  }
+  return;
+}
+
+void loadTree(treeT *t,std::stringstream &lineStream) {
+  //int token;
+  //bool isNumber;
+  //std::string token;
+  
+  //while(lineStream >> token)
+  //{
+  //   std::cout << "Token(" << token << ")\n";
+  //}
+  //std::cout << "New Line Detected\n";
+  std::string temp;
+
+  if (lineStream >> temp) {
+    if ( std::isdigit(temp[0]) )  {
+      t = (treeT *)malloc( sizeof(treeT) );
+      t->mean[0] = atof(temp.c_str());
+      lineStream >> t->mean[1];
+      lineStream >> t->stdev[0];
+      lineStream >> t->mse;
+      lineStream >> t->thres;
+      lineStream >> t->minPx1_hor;
+      lineStream >> t->minPx2_hor;
+      lineStream >> t->minPx1_vert;
+      lineStream >> t->minPx2_vert;
+      loadTree(t->left, lineStream);
+      loadTree(t->right, lineStream);
+    }
+  }
+  //std::cout << "New Line Detected\n";
+
+  //new line detected
+
+
+  //if (!readNextToken(token, fin, isNumber)) 
+  //  return;
+  //if (isNumber) {
+  //  t = new BinaryTree(token);  
+  //  loadTree(t->left, fin);
+  //  loadTree(t->right, fin);
+  //}
+  
+
+
+
+}
+
+
+treeT **importForestToTxt(ifstream &infile) {
+  
+  treeT **trees = NULL;
+  trees = (treeT **)malloc( NUM_OF_TREES * sizeof(treeT *) );
+  for (unsigned i = 0; i < NUM_OF_TREES; i++)  {
+     trees[i] = (treeT *)malloc( sizeof(treeT) );
+     trees[i]->right = NULL;
+     trees[i]->left = NULL;
+  } 
+  for (int i = 0; i < NUM_OF_TREES; i++)  {
+    std::string line;
+    std::getline(infile, line);
+    std::stringstream lineStream(line);
+    loadTree(trees[i],lineStream);
+
+  }
+
+
+  return trees;
+} 
+
+
+void exportForestToTxt(tree **trees,int ntrees,ofstream &out) {
+  //double mean[2];
+  //double stdev[2];
+  //double mse;
+  //struct tree *left;
+  //struct tree *right;
+  //unsigned int *ptrs;
+  //unsigned int numOfPtrs;
+  //unsigned short thres;
+  //unsigned short minPx1_hor;
+  //unsigned short minPx2_hor;
+  //unsigned short minPx1_vert;
+  //unsigned short minPx2_vert;
+for (int i = 0; i < ntrees; i++)  {
+  saveTree(trees[i],out);
+  out << endl;
+}
+
+return;
+}
+
 
 
 /*************** MAIN ********************************************/
@@ -368,7 +481,7 @@ int main(int argc, char *argv[])  {
       for (i = 0; i < NUM_OF_TREES; i++ )  {
  	// read data of group i
         
-	sprintf(grpName, "g%d", i+1); 
+	      sprintf(grpName, "g%d", i+1); 
         group = new Group(file->openGroup( grpName ) );       
         /*
          * 12_nearestIDS
@@ -630,7 +743,16 @@ int main(int argc, char *argv[])  {
       * - Here we start the building of the tree nodes. This function takes a lot of time
       * - After that function, we continue with the algorithm evaluation
       */ 
-      trees = buildRegressionForest(samplesInTree, treeImgs, treeGazes, treePoses);
+      //trees = buildRegressionForest(samplesInTree, treeImgs, treeGazes, treePoses);
+      //saving to file
+      ifstream myfile;//ofstream myfile;
+      myfile.open ("example.txt");
+      trees = importForestToTxt(myfile);
+      //exportForestToTxt(trees,NUM_OF_TREES,myfile);
+      myfile.close();
+
+      
+
 
 
 
@@ -662,7 +784,6 @@ int main(int argc, char *argv[])  {
        }
        dataset.read(test_nearest, PredType::NATIVE_INT, memspace, dataspace );	
  
-
        //headpose         
        dataset = file->openDataSet("headpose");     
        dataspace = dataset.getSpace();//dataspace???
@@ -797,24 +918,22 @@ int main(int argc, char *argv[])  {
           stdev_error[0] = stdev_error[0] + pow(errors[2*j]-mean_error[0],2);
 	  stdev_error[1] = stdev_error[1] + pow(errors[2*j+1]-mean_error[1],2);
        }
+
        stdev_error[0] = stdev_error[0]/(dims[0]);
        stdev_error[1] = stdev_error[1]/(dims[0]);
        stdev_error[0] = sqrt( stdev_error[0] );
        stdev_error[1] = sqrt( stdev_error[1] );  
 
-       cout << "mean_error(deg) is: (" << mean_error[0]*(180.0/M_PI) << ","<< mean_error[1]*(180.0/M_PI) << ") or better: " << sqrt(pow(mean_error[0],2)+pow(mean_error[1],2))*(180.0/M_PI) << " degrees" << endl;
-       cout << "stdev_error(deg) is: (" << stdev_error[0]*(180.0/M_PI) << "," << stdev_error[1]*(180.0/M_PI) <<  ") or better: " << sqrt( pow(stdev_error[0],2)+pow(stdev_error[1],2))*(180.0/M_PI) << "degrees" <<  endl;        
+       cout << "mean_error(deg) is: (" << mean_error[0]*(180.0/M_PI) << ","<< mean_error[1]*(180.0/M_PI) << ") or better: " << (mean_error[0]+mean_error[1])*(180.0/M_PI) << " degrees" << endl;
+       cout << "stdev_error(deg) is: (" << stdev_error[0]*(180.0/M_PI) << "," << stdev_error[1]*(180.0/M_PI) <<  ") or better: " << (stdev_error[0]+stdev_error[1])*(180.0/M_PI) << " degrees" <<  endl;        
 
-   
        free( errors );
-
     }//try 
     catch(  FileIException error)  {
        error.printErrorStack();    
        return -1;
      }
     
-
   
    for (i = 0; i < NUM_OF_TREES; i++)  {
       free( treeGazes[i] );
@@ -822,6 +941,7 @@ int main(int argc, char *argv[])  {
       free( treePoses[i] );
       free( trees[i]     );
    }
+
 
    free( treeGazes );
    free( treeImgs  );
@@ -833,9 +953,6 @@ int main(int argc, char *argv[])  {
    free( test_poses );
    free( test_gazes );
    free( test_imgs );
-
-        	
-
 
    return 0;
 }
@@ -1160,7 +1277,7 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
 	    minSquareError = 10000;
 	    #endif
 
-   	    minPx1_vert =    10000;//again the same
+   	  minPx1_vert =    10000;//again the same
 	    minPx1_hor =     10000;//also here
 	    minPx2_vert=     10000;//and here..
 	    minPx2_hor =     10000;//and here 
@@ -1348,7 +1465,7 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
 	 }
          else {
             ltreeSize = 0;
-	    rtreeSize = 0;
+	         rtreeSize = 0;
          }
 	 #endif
         
@@ -1514,8 +1631,9 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
          cout << "current tree:  " << i << endl; 
       #endif 
 
-
+      #ifdef PARALLEL
       if (tid==0)  {
+      #endif
          try{
             sprintf(buffer, "../trees/%d_mytree.dot", i);  	
             outputFile.open( buffer );//"mytree.dot");
@@ -1525,7 +1643,9 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
 	    std::cerr << "problem. Terminating\n";
 	    exit(1);
          }
+      #ifdef PARALLEL
       }
+      #endif
 
    
    }// for i
