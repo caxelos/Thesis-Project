@@ -317,11 +317,11 @@ treeT *loadTree(treeT *t,std::stringstream& lineStream,int i) {
       t->left = NULL;
       t->mean[0] = atof(temp.c_str());
 
-      for (int j=0;j<9;j++) {
-        lineStream >> temp;
-        cout << "temp:" << temp << endl; 
-      }
-      /*lineStream >> t->mean[1];
+      //for (int j=0;j<9;j++) {
+      //  lineStream >> temp;
+      //  cout << "temp:" << temp << endl; 
+      //}
+      lineStream >> t->mean[1];
       lineStream >> t->stdev[0];
       lineStream >> t->stdev[1];
       lineStream >> t->mse;
@@ -329,7 +329,7 @@ treeT *loadTree(treeT *t,std::stringstream& lineStream,int i) {
       lineStream >> t->minPx1_hor;
       lineStream >> t->minPx2_hor;
       lineStream >> t->minPx1_vert;
-      lineStream >> t->minPx2_vert;*/
+      lineStream >> t->minPx2_vert;
      
       //cout << "************ adding node: *******" << endl;
       //cout << "mean:("<< t->mean[0] << "," <<t->mean[1]<<")" << endl; 
@@ -820,7 +820,7 @@ int main(int argc, char *argv[])  {
      myfile.open("example.txt");
      trees = importForestFromTxt(myfile);
      myfile.close(); 
-     outputFile.open( "trees/0_mytree.dot");//"mytree.dot");
+     outputFile.open( "trees/correct.dot");//"mytree.dot");
      drawTree(trees[0]);//xdot <filename.dot>
      outputFile.close();
      cout << "ola kala:" << trees[0]->thres << endl;
