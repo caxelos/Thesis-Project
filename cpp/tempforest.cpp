@@ -241,9 +241,38 @@ treeT *testSampleInTree(treeT *currNode, unsigned char *test_img, double *test_p
 
 */
 
+void toDotString(treeT *curr, int myID){
+  
+
+  if(curr->left != NULL){
+
+                outputFile << "\t" << myID << " [label=\"Samples:" << curr->numOfPtrs <<  "\npx1:(" << curr->minPx1_vert << "," << curr->minPx1_hor << ")" << "\npx2:(" << curr->minPx2_vert << "," << curr->minPx2_hor << ")" << "\nthres:" << curr->thres << "\nmse:" << curr->mse << "\", shape=rectangle, color=black]\n";
+    outputFile << "\t" << myID << " -> " << (myID<<1) + 1 << "\n";
+    toDotString(curr->left, (myID<<1) + 1);
+    
+    outputFile << "\t" << myID << " -> " << (myID<<1) + 2 << "\n";
+    toDotString(curr->right, (myID<<1) + 2);
+  }else{ //leaf
+            outputFile << "\t" << myID << " [label=\"Samples:"  << curr->numOfPtrs << "\nmeanGaze = \n=(" << curr->mean[0] <<","<<curr->mean[1] << ")"  << "\", shape=circle, color=green]\n";
+        }
+}
+
+
+
+
+void drawTree(treeT *root){
+  outputFile << "digraph Tree{\n";
+  outputFile << "\tlabel=\"Tree\"\n";
+  toDotString(root, 0);
+  outputFile << "}\n";
+
+  
+  return;
+}
+
 
 void saveTree(tree *t, ofstream &out) {
-  //if (!p) {
+
   if (!t)
     out << "# ";
   else {
@@ -261,7 +290,7 @@ void saveTree(tree *t, ofstream &out) {
   return;
 }
 
-void loadTree(treeT *t,std::stringstream &lineStream) {
+treeT *loadTree(treeT *t,std::stringstream& lineStream,int i) {
   //int token;
   //bool isNumber;
   //std::string token;
@@ -272,12 +301,27 @@ void loadTree(treeT *t,std::stringstream &lineStream) {
   //}
   //std::cout << "New Line Detected\n";
   std::string temp;
+  //if (i==0) {
+  //  while (lineStream >> temp)
+  //    cout << "LINE:" << temp << endl;
+  //}
 
+
+
+
+  if (i == 0) {
   if (lineStream >> temp) {
-    if ( std::isdigit(temp[0]) )  {
+    if (std::isdigit(temp[0]) || temp[0] == '-' )  {
       t = (treeT *)malloc( sizeof(treeT) );
+      t->right = NULL;
+      t->left = NULL;
       t->mean[0] = atof(temp.c_str());
-      lineStream >> t->mean[1];
+
+      for (int j=0;j<9;j++) {
+        lineStream >> temp;
+        cout << "temp:" << temp << endl; 
+      }
+      /*lineStream >> t->mean[1];
       lineStream >> t->stdev[0];
       lineStream >> t->stdev[1];
       lineStream >> t->mse;
@@ -285,23 +329,30 @@ void loadTree(treeT *t,std::stringstream &lineStream) {
       lineStream >> t->minPx1_hor;
       lineStream >> t->minPx2_hor;
       lineStream >> t->minPx1_vert;
-      lineStream >> t->minPx2_vert;
-      cout << "************ adding node: *******" << endl;
-      cout << "mean:("<< t->mean[0] << "," <<t->mean[1]<<")" << endl; 
-      cout << "stdev:("<< t->stdev[0] << "," <<t->stdev[1]<<")" << endl; 
-      cout << "mse:" << t->mse;
-      cout << "thres:"<<t->thres<<endl;
-      
-      loadTree(t->left, lineStream);
-      loadTree(t->right, lineStream);
+      lineStream >> t->minPx2_vert;*/
+     
+      //cout << "************ adding node: *******" << endl;
+      //cout << "mean:("<< t->mean[0] << "," <<t->mean[1]<<")" << endl; 
+      //cout << "stdev:("<< t->stdev[0] << "," <<t->stdev[1]<<")" << endl; 
+      //cout << "mse:" << t->mse;
+      //cout << "thres:"<<t->thres<<endl;
+      //cout << "right child" << endl;
+      t->left  = loadTree(t->left, lineStream,i);
+      //cout << "left child" << endl;
+      t->right = loadTree(t->right, lineStream,i);
+
     }
-    
+    else {
+      cout << "leaf reached because temp=" << temp  << endl;
+      return NULL;
+    }
   }
-  //std::cout << "New Line Detected\n";
-
-  //new line detected
-
-
+  else {
+    //cout << "new line detected" << endl;
+    return NULL;
+  }
+  }
+  return t;
   //if (!readNextToken(token, fin, isNumber)) 
   //  return;
   //if (isNumber) {
@@ -309,31 +360,29 @@ void loadTree(treeT *t,std::stringstream &lineStream) {
   //  loadTree(t->left, fin);
   //  loadTree(t->right, fin);
   //}
-  
-
-
-
 }
 
 
-treeT **importForestFromTxt(ifstream &infile) {
+treeT **importForestFromTxt(ifstream& infile) {
   
   treeT **trees = NULL;
   trees = (treeT **)malloc( NUM_OF_TREES * sizeof(treeT *) );
-  for (unsigned i = 0; i < NUM_OF_TREES; i++)  {
-     trees[i] = (treeT *)malloc( sizeof(treeT) );
-     trees[i]->right = NULL;
-     trees[i]->left = NULL;
-  } 
+  //for (unsigned i = 0; i < NUM_OF_TREES; i++)  {
+  //   trees[i] = (treeT *)malloc( sizeof(treeT) );
+  //   trees[i]->right = NULL;
+  //   trees[i]->left = NULL;
+  //} 
   for (int i = 0; i < NUM_OF_TREES; i++)  {
+
     //if (i == 0) {
+      //cout << "******************** entering tree: " << i << "**********" << endl;
       std::string line;
       std::getline(infile, line);
       std::stringstream lineStream(line);
-      loadTree(trees[i],lineStream);
+      std::string temp;
+      trees[i] = loadTree(trees[i],lineStream,i);
     //}
-  }
-
+  } 
 
   return trees;
 } 
@@ -353,6 +402,15 @@ void exportForestToTxt(tree **trees,int ntrees,ofstream &out) {
   //unsigned short minPx1_vert;
   //unsigned short minPx2_vert;
 for (int i = 0; i < ntrees; i++)  {
+
+/*  if (i == 1) {
+      cout << "************ adding node: *******" << endl;
+      cout << "mean:("<< trees[i]->mean[0] << "," <<trees[i]->mean[1]<<")" << endl; 
+      cout << "stdev:("<< trees[i]->stdev[0] << "," <<trees[i]->stdev[1]<<")" << endl; 
+      cout << "mse:" << trees[i]->mse;
+      cout << "thres:"<< trees[i]->thres<<endl;
+
+  }*/
   saveTree(trees[i],out);
   out << endl;
 }
@@ -752,17 +810,20 @@ int main(int argc, char *argv[])  {
       * - Here we start the building of the tree nodes. This function takes a lot of time
       * - After that function, we continue with the algorithm evaluation
       */ 
-      trees = buildRegressionForest(samplesInTree, treeImgs, treeGazes, treePoses);
-      //saving to file
-     // ifstream myfile;//ofstream myfile;
-     // myfile.open ("example.txt");
-      //trees = importForestFromTxt(myfile);
-      //exportForestToTxt(trees,NUM_OF_TREES,myfile);
-     // myfile.close();
+     //trees = buildRegressionForest(samplesInTree, treeImgs, treeGazes, treePoses);
+     //ofstream myfile;
+     //myfile.open ("example.txt");
+     //exportForestToTxt(trees,NUM_OF_TREES,myfile);
+     //myfile.close();
 
-      
-
-
+     ifstream myfile;
+     myfile.open("example.txt");
+     trees = importForestFromTxt(myfile);
+     myfile.close(); 
+     outputFile.open( "trees/0_mytree.dot");//"mytree.dot");
+     drawTree(trees[0]);//xdot <filename.dot>
+     outputFile.close();
+     cout << "ola kala:" << trees[0]->thres << endl;
 
 
       /*
@@ -1051,34 +1112,6 @@ int treeDepth(treeT *root, int depth)  {
 }
 
 
-void toDotString(treeT *curr, int myID){
-	
-
-	if(curr->left != NULL){
-
-                outputFile << "\t" << myID << " [label=\"Samples:" << curr->numOfPtrs <<  "\npx1:(" << curr->minPx1_vert << "," << curr->minPx1_hor << ")" << "\npx2:(" << curr->minPx2_vert << "," << curr->minPx2_hor << ")" << "\nthres:" << curr->thres << "\nmse:" << curr->mse << "\", shape=rectangle, color=black]\n";
-		outputFile << "\t" << myID << " -> " << (myID<<1) + 1 << "\n";
-		toDotString(curr->left, (myID<<1) + 1);
-		
-		outputFile << "\t" << myID << " -> " << (myID<<1) + 2 << "\n";
-		toDotString(curr->right, (myID<<1) + 2);
-	}else{ //leaf
-            outputFile << "\t" << myID << " [label=\"Samples:"  << curr->numOfPtrs << "\nmeanGaze = \n=(" << curr->mean[0] <<","<<curr->mean[1] << ")"  << "\", shape=circle, color=green]\n";
-        }
-}
-
-
-
-
-void drawTree(treeT *root){
-	outputFile << "digraph Tree{\n";
-	outputFile << "\tlabel=\"Tree\"\n";
-	toDotString(root, 0);
-	outputFile << "}\n";
-
-	
-	return;
-}
 
 
 
@@ -1644,10 +1677,12 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
       if (tid==0)  {
       #endif
          try{
-            sprintf(buffer, "../trees/%d_mytree.dot", i);  	
+            sprintf(buffer, "trees/%d_mytree.dot", i);  	
             outputFile.open( buffer );//"mytree.dot");
-	    drawTree(trees[i]);
-	    outputFile.close();		
+
+	            drawTree(trees[i]);
+	           outputFile.close();
+		
          }catch(...){
 	    std::cerr << "problem. Terminating\n";
 	    exit(1);
