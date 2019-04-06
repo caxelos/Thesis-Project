@@ -30,8 +30,8 @@ class Regressor {
 		void load_model(char *filename) {
 			ifstream myfile;
      		myfile.open(filename);
-     		this.trees = importForestFromTxt(myfile);
-     		this.nearest = importNearestTrees(myfile);
+     		importForestFromTxt(myfile);
+     		importNearestTrees(myfile);
      		myfile.close(); 
 		}
 
@@ -39,8 +39,10 @@ class Regressor {
 		void predict(double *headpose, unsigned char *eyeImg, double *predict) {
 			predict[0] =  0;
 			predict[1] =  0;
+
+			//calculate center(=c) or N closest centers
 			for (int k = 0; k < RADIUS+1; k++)  {     
-				temp_predict = testSampleInTree(this.trees[this.nearest[j*max_neighbours + k]-1 ], eyeImg);
+				temp_predict = testSampleInTree(this.trees[this.nearests[c][k]-1 ], eyeImg);
 				predict[0] = predict[0] + temp_predict->mean[0];
 				predict[1] = predict[1] + temp_predict->mean[1];
 			}
@@ -51,14 +53,18 @@ class Regressor {
 		void close() {
 			for (i = 0; i < NUM_OF_TREES; i++)  {
       			free(this.trees[i]);
-      			free(this.nearest[i])
+      			free(this.nearests[i])
+      			free(this.centers[i])
    			}
-   			free(this.trees);    
+   			free(this.trees);
+   			free(this.nearests);
+   			free(this.centers);    
 		}
 
     protected:
     	treeT **trees=NULL;
-    	int **nearest=NULL;
+    	int **nearests=NULL;
+    	double **centers=NULL;
 
         //functions:
 		treeT *loadTree(treeT *t,std::stringstream& lineStream) {
@@ -102,6 +108,31 @@ class Regressor {
               this.trees[i] = loadTree(this.trees[i],lineStream);
             } 
         }
+        void importNearestTrees(void) {
+		    file = new H5File("TRAIN_samples_10000_dist0.05.h5", H5F_ACC_RDWR);
+
+        	this.nearests = (int **)malloc(NUM_OF_TREES * sizeof(int *));
+        	this.centers = (double **)malloc(NUM_OF_TREES *sizeof(double *));
+        	for (i = 0; i < NUM_OF_TREES; i++ )  {
+
+        		this.nearests[i] = (int *)malloc(60*sizeof(int));
+        		this.centers[i] = (double *)malloc(2*sizeof(double));
+        		sprintf(grpName, "g%d", i+1); 
+        		group = new Group(file->openGroup( grpName ) );
+        		DataSet dataset = group->openDataSet("nearestIDs");     
+		        DataSpace dataspace = dataset.getSpace();//dataspace???
+		        rank = dataspace.getSimpleExtentDims( dims );// get rank =    numOfDims
+		        DataSpace memspace( rank, dims );     
+		        dataset.read(this.nearests[i], PredType::NATIVE_INT, memspace, dataspace );  
+
+		        dataset = group->openDataSet("center");     
+		        dataspace = dataset.getSpace();//dataspace???
+		        rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
+		        memspace.setExtentSimple( rank, dims );
+		        dataset.read(this.centers, PredType::NATIVE_DOUBLE, memspace, dataspace ); 
+        	}
+        }
+
         treeT *testSampleInTree(treeT *curr,unsigned char *eyeImg)  {
 			if (curr->right == NULL)  {//leaf reached
 				return curr;
