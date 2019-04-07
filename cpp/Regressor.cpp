@@ -1,6 +1,10 @@
 #include <fstream>
 #include <sstream>
 #include <stdlib.h>
+#include <iostream>
+#include "H5Cpp.h"
+using namespace H5;
+using namespace std;
 
 #define NUM_OF_TREES 238
 #define RADIUS 30
@@ -27,11 +31,11 @@ typedef struct tree treeT;
 class Regressor {
 	public:
         //functions
-		void load_model(char *filename) {
+		void load_model(void) {
 			ifstream myfile;
-     		myfile.open(filename);
+     		myfile.open("example.txt");
      		importForestFromTxt(myfile);
-     		importNearestTrees(myfile);
+     		importNearestTrees();
      		myfile.close(); 
 		}
 
@@ -39,10 +43,12 @@ class Regressor {
 		void predict(double *headpose, unsigned char *eyeImg, double *predict) {
 			predict[0] =  0;
 			predict[1] =  0;
+			treeT *temp_predict;
 
 			//calculate center(=c) or N closest centers
+			int c=0;
 			for (int k = 0; k < RADIUS+1; k++)  {     
-				temp_predict = testSampleInTree(this.trees[this.nearests[c][k]-1 ], eyeImg);
+				temp_predict = testSampleInTree(this->trees[this->nearests[c][k]-1 ], eyeImg);
 				predict[0] = predict[0] + temp_predict->mean[0];
 				predict[1] = predict[1] + temp_predict->mean[1];
 			}
@@ -51,14 +57,14 @@ class Regressor {
 		}       
 
 		void close() {
-			for (i = 0; i < NUM_OF_TREES; i++)  {
-      			free(this.trees[i]);
-      			free(this.nearests[i])
-      			free(this.centers[i])
+			for (int i = 0; i < NUM_OF_TREES; i++)  {
+      			free(this->trees[i]);
+      			free(this->nearests[i]);
+      			free(this->centers[i]);
    			}
-   			free(this.trees);
-   			free(this.nearests);
-   			free(this.centers);    
+   			free(this->trees);
+   			free(this->nearests);
+   			free(this->centers);    
 		}
 
     protected:
@@ -99,37 +105,42 @@ class Regressor {
 		}
 
         void importForestFromTxt(ifstream& infile) {
-            this.trees = (treeT **)malloc( NUM_OF_TREES * sizeof(treeT *) );
+            this->trees = (treeT **)malloc( NUM_OF_TREES * sizeof(treeT *) );
             for (int i = 0; i < NUM_OF_TREES; i++)  {
               std::string line;
               std::getline(infile, line);
               std::stringstream lineStream(line);
               std::string temp;
-              this.trees[i] = loadTree(this.trees[i],lineStream);
+              this->trees[i] = loadTree(this->trees[i],lineStream);
             } 
         }
         void importNearestTrees(void) {
-		    file = new H5File("TRAIN_samples_10000_dist0.05.h5", H5F_ACC_RDWR);
+		    H5File *file = new H5File("TRAIN_samples_10000_dist0.05.h5", H5F_ACC_RDWR);
+		    int rank; 
+		    char grpName[10];
+		    Group *group = NULL;
+		    hsize_t dims[4]; /* memory space dimensions */
+   		
+        	this->nearests = (int **)malloc(NUM_OF_TREES * sizeof(int *));
+        	this->centers = (double **)malloc(NUM_OF_TREES *sizeof(double *));
+        	for (int i = 0; i < NUM_OF_TREES; i++ )  {
 
-        	this.nearests = (int **)malloc(NUM_OF_TREES * sizeof(int *));
-        	this.centers = (double **)malloc(NUM_OF_TREES *sizeof(double *));
-        	for (i = 0; i < NUM_OF_TREES; i++ )  {
-
-        		this.nearests[i] = (int *)malloc(60*sizeof(int));
-        		this.centers[i] = (double *)malloc(2*sizeof(double));
+        		this->nearests[i] = (int *)malloc(60*sizeof(int));
+        		this->centers[i] = (double *)malloc(2*sizeof(double));
         		sprintf(grpName, "g%d", i+1); 
         		group = new Group(file->openGroup( grpName ) );
         		DataSet dataset = group->openDataSet("nearestIDs");     
 		        DataSpace dataspace = dataset.getSpace();//dataspace???
+		        
 		        rank = dataspace.getSimpleExtentDims( dims );// get rank =    numOfDims
 		        DataSpace memspace( rank, dims );     
-		        dataset.read(this.nearests[i], PredType::NATIVE_INT, memspace, dataspace );  
+		        dataset.read(this->nearests[i], PredType::NATIVE_INT, memspace, dataspace );  
 
 		        dataset = group->openDataSet("center");     
 		        dataspace = dataset.getSpace();//dataspace???
 		        rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
 		        memspace.setExtentSimple( rank, dims );
-		        dataset.read(this.centers, PredType::NATIVE_DOUBLE, memspace, dataspace ); 
+		        dataset.read(this->centers, PredType::NATIVE_DOUBLE, memspace, dataspace ); 
         	}
         }
 
@@ -153,11 +164,10 @@ int main() {
 	double headpose[2];
 	headpose[0]=0;headpose[1]=0;
 	unsigned char *eyeImg;
-	eyeImg=calloc(WIDTH*HEIGHT);
-
-	forest.load_model("example.txt");
+	eyeImg=(unsigned char *)malloc(WIDTH*HEIGHT);
+	forest.load_model();
 	forest.predict(headpose,eyeImg,prediction);
-	forest.close()
+	forest.close();
 
 	return 0;
 }
