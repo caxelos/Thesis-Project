@@ -60,12 +60,11 @@ class Test {
         }        
     
     protected:
+        //variables:
         SDL_Window *window;
         SDL_Renderer *renderer;
         SDL_Rect r[2];
         SDL_Rect r_tmp;
-
-
 };
 
 int main() {
