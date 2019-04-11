@@ -1,0 +1,1 @@
+g++ Graphics.cpp -o Graphics $(pkg-config --cflags --libs sdl2) -lSDL2_ttf
