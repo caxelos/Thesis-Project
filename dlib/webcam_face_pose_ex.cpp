@@ -36,28 +36,37 @@
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
 #include <opencv2/opencv.hpp>
-
+#include <thread>
+#include "Regressor.h"
+#include "Graphics.h"
 using namespace dlib;
 using namespace std;
 
 
-/*
-void getEulerAngles(cv::Mat &rotCamerMatrix,cv::Vec3d &eulerAngles){
-	cv::Mat cameraMatrix,rotMatrix,transVect,rotMatrixX,rotMatrixY,rotMatrixZ;
-	double* _r = rotCamerMatrix.ptr();
-	double projMatrix[12] = {_r[0],_r[1],_r[2],0,
-	_r[3],_r[4],_r[5],0,
-	_r[6],_r[7],_r[8],0};
-
-	decomposeProjectionMatrix( cv::Mat(3,4,CV_64FC1,projMatrix),
-											cameraMatrix,
-											rotMatrix,
-											transVect,
-											rotMatrixX,
-											rotMatrixY,
-											rotMatrixZ,
-											eulerAngles);
-}*/
+volatile int pixW = 200, pixH=200;
+void GraphicsTread() { 
+	
+	bool quit = false;
+    SDL_Event event;
+    Graphics graphics;
+    
+    graphics.init();
+    graphics.setPos(pixW,pixH,false);//graphics.setPos(400,400,false);
+    //SDL_Delay(3000);
+    //graphics.setPos(700,700,false);
+    //SDL_Delay(3000);
+   // graphics.setPos(400,400,false);
+    while (!quit) {
+        SDL_WaitEvent(&event);
+        switch (event.type) {
+            case SDL_QUIT:
+                quit = true;
+                break;
+        }
+        graphics.setPos(pixW,pixH,false);
+    }
+    graphics.close(); 
+}
 
 // Checks if a matrix is a valid rotation matrix.
 bool isRotationMatrix(cv::Mat &R)
@@ -74,10 +83,12 @@ bool isRotationMatrix(cv::Mat &R)
 // Calculates rotation matrix to euler angles
 // The result is the same as MATLAB except the order
 // of the euler angles ( x and z are swapped ).
-cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R)
+//cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R)
+void rotationMatrixToEulerAngles(cv::Mat &R, float *headpose)
 {
-	return cv::Vec3f(-asin(R.at<double>(1,2)),-atan2(R.at<double>(0,2),R.at<double>(2,2)),1.0);
-
+    headpose[0] = -atan2(R.at<double>(0,2),R.at<double>(2,2));
+    headpose[1] =-asin(R.at<double>(1,2));
+	//return cv::Vec3f(-asin(R.at<double>(1,2)),-atan2(R.at<double>(0,2),R.at<double>(2,2)),1.0);
 
 /*
     assert(isRotationMatrix(R));
@@ -140,9 +151,16 @@ int main()
         cv::Point3d leftmidpoints(cv::Point3d((21.313f +45.097f)/2,(0.48377f-0.48377f)/2, (-2.397f+2.397f)/2));
         //cv::Point3d leftmidpoints(cv::Point3d((21.313f +45.097f)/2,(0.48377f+-0.48377f)/2, (-2.397f+2.397f)/2));
 
+
         // 1c.Calculate xr(x axis) of the head coordinate system
         //cv::Mat xr =(leftmidpoints-rightmidpoints);///cv::norm(leftmidpoints-rightmidpoints);
         cv::Point3d xr =(leftmidpoints-rightmidpoints)/cv::norm(leftmidpoints-rightmidpoints);
+
+        Regressor regressor;
+        regressor.load_model();
+     
+        //Create thread for graphics
+        std::thread t1(GraphicsTread);
 
 
         // Grab and process frames until the main window is closed by the user.
@@ -173,7 +191,6 @@ int main()
 
             //to for-loop afto ekteleitai mono an uparxoun faces stin eikona
             for (unsigned long i = 0; i < faces.size(); ++i) {
-            	//cout << "********** new frame ****************" << endl;
                 full_object_detection shape = pose_model(cimg,faces[i]);//to pose model den einai function!
                 std::vector<cv::Point2d> image_points;
 
@@ -192,6 +209,8 @@ int main()
                 //n.45: aristeri akri aristerou matiou
                 //n.48: deksia akri stoma
                 //n.54: aristeri akri stoma                                
+
+
 
                 //h metavlith "shapes2d" einai gia to windowDraw() katw katw
                 //cout << "pixel position of 1st part: " << shape.part(0) << endl;
@@ -224,23 +243,22 @@ int main()
 
 
     			//obtain yaw, pitch and roll(x,y,z) from Rotation Matrix.Rotation is calculated as: R=Rx*Ry*Rz,where Rx,Ry,Rz are the rotation matrices around the axes
-    			cv::Vec3f eulerAngles;
-    			eulerAngles = rotationMatrixToEulerAngles(Rr);
-    			cout << "eulerAngles:("<<eulerAngles[1]* 180.0/M_PI<<","<<eulerAngles[0]* 180.0/M_PI<<")"<<endl;
+    			//cv::Vec3f eulerAngles;
+    			float eulerAngles[2];
+                //eulerAngles = rotationMatrixToEulerAngles(Rr);
+                rotationMatrixToEulerAngles(Rr,eulerAngles);
+
+    			//cout << "eulerAngles:("<<eulerAngles[0]* 180.0/M_PI<<","<<eulerAngles[1]* 180.0/M_PI<<")"<<endl;
                 //cout << "eulerAngles:" << eulerAngles << endl;    
                 cv::Mat zc_mat=Rr* (cv::Mat)leftmidpoints+translation_vector;
                 cv::Point3d zc = (cv::Point3d)zc_mat;
             
     			// 2b.Calculate rotated y-axis: yc = zc x xr
     			cv::Point3d yc = zc.cross(xr);//xr.cross((cv::Point3d)translation_vector);
-                //translation_vector.cross((cv::Point3d)xr);// cameramidpoints.cross((cv::Point3d)xr);
     		
     			// 2c.Calculate x-axis of the rotated camera
     			cv::Point3d xc = yc.cross(zc);//(cv::Point3d)translation_vector);//yc.cross(cameramidpoints);   			
-                //cout << "4)xc(in mm):" << xc  << endl;
-                //cout << "+normalised:" << (cv::Mat)xc/cv::norm((cv::Mat)xc, cv::NORM_L2, cv::noArray()) << endl << endl;
-
-
+              
                 // 3.Calculate the conversion matrix: M = S * R, where
                 //   S = diag(1,1,dn/||e_r||) and R = (RotationMatrix)^-1
                 // dn is the distance between e_r and the (0,0,0) of the scaled CAMERA COORDS and is 600mm
@@ -251,12 +269,10 @@ int main()
                 cv::Mat yc_norm = (cv::Mat)yc/cv::norm((cv::Mat)yc, cv::NORM_L2, cv::noArray());
     			cv::Mat zc_norm = (cv::Mat)zc/cv::norm((cv::Mat)zc, cv::NORM_L2, cv::noArray());
 
-                //cv::Mat zc_norm = (cv::Mat)translation_vector/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray());
 
                 cv::Mat R = (cv::Mat_<float>(3,3) << xc_norm.at<double>(0),yc_norm.at<double>(0),zc_norm.at<double>(0),xc_norm.at<double>(1),yc_norm.at<double>(1),zc_norm.at<double>(1),xc_norm.at<double>(2),yc_norm.at<double>(2),zc_norm.at<double>(2));
                 R = R.t();
 
-                //cout  << "new rotation matrix:" << Rn << endl;
                 cv::Mat S = (cv::Mat_<float>(3, 3) << 1,0,0,0,1,0,0,0, 600/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray() ));//cv::magnitude(cameramidpoints));
 				S.convertTo(S, CV_32FC1);
 				Rr.convertTo(Rr, CV_32FC1);
@@ -282,7 +298,6 @@ int main()
                 cv::Mat output = cv::Mat::zeros(cv::Size(NWIDTH, NHEIGHT), CV_32FC1); 
                 cv::warpPerspective(temp,output, W, output.size());
 
-                // TODO: 
                 // 6.Calculate new Rotation matrix: R_n = R * R_r 
                 cv::Mat Rn = R*Rr;
                 //cout << "Rn is " << Rn << endl;
@@ -290,19 +305,39 @@ int main()
                 eulerAngles_norm = eulerAngles_norm * 180.0/M_PI;
                 cout << "eulerAngles_norm are:(" << eulerAngles_norm[2]<<","<< eulerAngles_norm[1]<<","<<eulerAngles_norm[0]<<")" << endl;
                 
+
+
                 // 9.Gain 2d h,g because the z-axis orientation is always zero for gaze_n and rotation_n
-
-
                 // 10.Convert eye images I to gray scale and make histogram equalization, in order to be compatible with other datasets
                 cv::Mat output_orig=output;
   				cvtColor( output, output, CV_BGR2GRAY );/// Convert to grayscale
   				equalizeHist( output, output);/// Apply Histogram Equalization
-  				
+                float gaze[2];
+                regressor.predict(eulerAngles,output.data,gaze); 
+                //cout << "prediction:(" << gaze[0]* 180.0/M_PI << "," << gaze[1]* 180.0/M_PI << ")" << endl;
+
+  				//ws apostasi mporw na thewrisw to translation_vector me antitheto z-aksona
+           		int x,y;
+           		x = -tan(gaze[0])*translation_vector.at<double>(2,0) -translation_vector.at<double>(0,0);//in mm's
+           		//y = -tan(gaze[1])*translation_vector.at<double>(2,0) - translation_vector.at<double>(1,0);//in mm's
+      			
+
+      			y = -translation_vector.at<double>(2,0)/tan(gaze[1]) -translation_vector.at<double>(1,0);
 
 
+      			cout  << " x is " << x<<", y is " << y<< endl;
+      			cout << "theta:"<< gaze[0]* 180.0/M_PI<<",phi:" << gaze[1]* 180.0/M_PI<< endl;
 
+           		y = 4 * y;
+           		x = 340/2; //+ 4 * x;
+           		pixH = abs(x);//set
+           		pixW = abs(y);
 
+           		//pixH is 482573994 and pixW is -1020350720
+           		//cout  << " pixW is " << pixW <<", pixH is " << pixH<< endl;
+     
                 cv_image<bgr_pixel> cimg2(output_orig);
+
                 win.clear_overlay();
                 win.set_image(cimg2);
                 win.add_overlay(render_face_detections(shapes2d)); 
@@ -316,6 +351,7 @@ int main()
             //win.add_overlay(render_face_detections(shapes2d)); 
 	    		    
         }
+        regressor.close();
     }
     catch(serialization_error& e)
     {
