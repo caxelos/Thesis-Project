@@ -39,19 +39,22 @@
 #include <thread>
 #include "Regressor.h"
 #include "Graphics.h"
+
 using namespace dlib;
 using namespace std;
-
+#define RIGHT 4
+#define LEFT 5
 
 volatile int pixW = 200, pixH=200;
-void GraphicsTread() { 
+volatile bool quit=false;
+void GraphicsThread() { 
 	
-	bool quit = false;
+	//bool quit = false;
     SDL_Event event;
-    Graphics graphics;
+    //Graphics graphics;
     
-    graphics.init();
-    graphics.setPos(pixW,pixH,false);//graphics.setPos(400,400,false);
+    //graphics.init();
+   // graphics.setPos(pixW,pixH,false);
     //SDL_Delay(3000);
     //graphics.setPos(700,700,false);
     //SDL_Delay(3000);
@@ -63,9 +66,9 @@ void GraphicsTread() {
                 quit = true;
                 break;
         }
-        graphics.setPos(pixW,pixH,false);
+    //    graphics.setPos(pixW,pixH,false);
     }
-    graphics.close(); 
+ //   graphics.close(); 
 }
 
 // Checks if a matrix is a valid rotation matrix.
@@ -76,7 +79,7 @@ bool isRotationMatrix(cv::Mat &R)
     cv::Mat shouldBeIdentity = Rt * R;
     cv::Mat I = cv::Mat::eye(3,3, shouldBeIdentity.type());
      
-    return  norm(I, shouldBeIdentity) < 1e-6;
+    return  cv::norm(I, shouldBeIdentity) < 1e-6;
      
 }
  
@@ -84,10 +87,56 @@ bool isRotationMatrix(cv::Mat &R)
 // The result is the same as MATLAB except the order
 // of the euler angles ( x and z are swapped ).
 //cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R)
-void rotationMatrixToEulerAngles(cv::Mat &R, float *headpose)
+void rotationMatrixToEulerAngles(cv::Mat &R, float *headpose, int type)
 {
-    headpose[0] = -atan2(R.at<double>(0,2),R.at<double>(2,2));
-    headpose[1] =-asin(R.at<double>(1,2));
+//	cout << "Rotation is:" << cv::Vec3f(180.0/M_PI*atan2(R.at<double>(2,1),R.at<double>(2,2)),
+//					  180.0/M_PI*atan2(-R.at<double>(2,0),sqrt(R.at<double>(2,1)*R.at<double>(2,1)+R.at<double>(2,2)*R.at<double>(2,2)) ),
+//					  180.0/M_PI*atan2(R.at<double>(1,0),R.at<double>(0,0))					  	
+//					 ) << endl;
+
+	assert(isRotationMatrix(R));
+    float sy = sqrt(R.at<double>(0,0) * R.at<double>(0,0) +  R.at<double>(1,0) * R.at<double>(1,0) );
+    bool singular = sy < 1e-6; // If
+    float x, y, z;
+    if (!singular){
+        x = atan2(R.at<double>(2,1) , R.at<double>(2,2));
+        y = atan2(-R.at<double>(2,0), sy);
+        z = atan2(R.at<double>(1,0), R.at<double>(0,0));
+    }
+    else{
+        x = atan2(-R.at<double>(1,2), R.at<double>(1,1));
+        y = atan2(-R.at<double>(2,0), sy);
+        z = 0;
+    }
+    float theta = atan(x/z);
+    float phi = asin(-y);
+    static int l=0;
+    if (l == 1) {
+    cout << "Theta:" << 180.0/M_PI*theta << " and Phi:" << 180.0/M_PI*phi << endl;
+    l=0;
+	}
+	else
+		l=1;
+    //cout << "Rotation is: " << cv::Vec3f(x, y, z) << endl;
+    headpose[0]=theta;
+    headpose[1]=phi;
+    return;
+
+    if (type == LEFT) {
+    	//afto doulevei ok
+    	//headpose[0] = -atan2(R.at<double>(0,2),R.at<double>(2,2));//theta
+    	//headpose[1] =-asin(R.at<double>(1,2));//phi
+
+    	//afto tha prepe na doulevei
+    	headpose[0] = asin(R.at<double>(1,2));
+   		headpose[1] = atan2(R.at<double>(0,2), R.at<double>(2,2));  
+    }
+    else {
+    	//edw kanoyme flip kanonika 
+    	headpose[0] = -atan2(R.at<double>(0,2),R.at<double>(2,2));
+    	headpose[1] =-asin(R.at<double>(1,2));
+    }
+
 	//return cv::Vec3f(-asin(R.at<double>(1,2)),-atan2(R.at<double>(0,2),R.at<double>(2,2)),1.0);
 
 /*
@@ -145,7 +194,7 @@ int main()
 		cv::Point3d rightmidpoints(cv::Point3d((-45.097f-21.313f)/2,(-0.48377f+0.48377f)/2, (2.397f-2.397f)/2));
 
 
-        cout << "midpoits are" << rightmidpoints << endl;
+        //cout << "midpoits are" << rightmidpoints << endl;
 
         // 1b.Calculate the midpoint for left eye e_h in HEAD COORDS(Face Model)
         cv::Point3d leftmidpoints(cv::Point3d((21.313f +45.097f)/2,(0.48377f-0.48377f)/2, (-2.397f+2.397f)/2));
@@ -160,11 +209,14 @@ int main()
         regressor.load_model();
      
         //Create thread for graphics
-        std::thread t1(GraphicsTread);
-
+        std::thread t1(GraphicsThread);
+        SDL_Event event;
+	    Graphics graphics;
+	    graphics.init();
+	    graphics.setPos(pixW,pixH,false);
 
         // Grab and process frames until the main window is closed by the user.
-        while(!win.is_closed())
+        while(!win.is_closed() && !quit)
         {
 		
             // Grab a frame
@@ -246,11 +298,10 @@ int main()
     			//cv::Vec3f eulerAngles;
     			float eulerAngles[2];
                 //eulerAngles = rotationMatrixToEulerAngles(Rr);
-                rotationMatrixToEulerAngles(Rr,eulerAngles);
-
+                rotationMatrixToEulerAngles(Rr,eulerAngles,RIGHT);
     			//cout << "eulerAngles:("<<eulerAngles[0]* 180.0/M_PI<<","<<eulerAngles[1]* 180.0/M_PI<<")"<<endl;
                 //cout << "eulerAngles:" << eulerAngles << endl;    
-                cv::Mat zc_mat=Rr* (cv::Mat)leftmidpoints+translation_vector;
+                cv::Mat zc_mat=Rr* (cv::Mat)rightmidpoints+translation_vector;
                 cv::Point3d zc = (cv::Point3d)zc_mat;
             
     			// 2b.Calculate rotated y-axis: yc = zc x xr
@@ -301,9 +352,9 @@ int main()
                 // 6.Calculate new Rotation matrix: R_n = R * R_r 
                 cv::Mat Rn = R*Rr;
                 //cout << "Rn is " << Rn << endl;
-                cv::Vec3f eulerAngles_norm =  rotationMatrixToEulerAngles(Rn);
-                eulerAngles_norm = eulerAngles_norm * 180.0/M_PI;
-                cout << "eulerAngles_norm are:(" << eulerAngles_norm[2]<<","<< eulerAngles_norm[1]<<","<<eulerAngles_norm[0]<<")" << endl;
+                float eulerAngles_norm[2];
+                rotationMatrixToEulerAngles(Rn,eulerAngles_norm,RIGHT);
+                //cout << "eulerAngles_norm are:(" << eulerAngles_norm[0]<<","<< eulerAngles_norm[1]<<")" << endl;
                 
 
 
@@ -315,29 +366,33 @@ int main()
                 float gaze[2];
                 regressor.predict(eulerAngles,output.data,gaze); 
                 //cout << "prediction:(" << gaze[0]* 180.0/M_PI << "," << gaze[1]* 180.0/M_PI << ")" << endl;
-
+            	//cv::Mat gazeout = R.inv()*(cv::Mat_<float>(3, 1) << gaze[0], gaze[1], 0);     
+            	//cout << "final pred:" << gazeout* 180.0/M_PI << endl;
   				//ws apostasi mporw na thewrisw to translation_vector me antitheto z-aksona
-           		int x,y;
-           		x = -tan(gaze[0])*translation_vector.at<double>(2,0) -translation_vector.at<double>(0,0);//in mm's
-           		//y = -tan(gaze[1])*translation_vector.at<double>(2,0) - translation_vector.at<double>(1,0);//in mm's
+           		int dx,dy;
+				           	
       			
+           		//tan(gaze[0]) = (dx+x)/(-tvec(2))
+           		//tan(gaze[1])= (tvec(1)+dy)/(-tvec(2)) 
+           	
+      			//y = -translation_vector.at<double>(2,0)/tan(gaze[1]) -translation_vector.at<double>(1,0);
+           		dx = -tan(gaze[0])*translation_vector.at<double>(2,0) -translation_vector.at<double>(0,0);//in mm's
+      			dy = -tan(gaze[1])*translation_vector.at<double>(2,0) - translation_vector.at<double>(1,0);//in mm's
 
-      			y = -translation_vector.at<double>(2,0)/tan(gaze[1]) -translation_vector.at<double>(1,0);
+      			//cout  << " x is " << x<<", y is " << y<< endl;
+      			//cout << "theta:"<< gaze[0]* 180.0/M_PI<<",phi:" << gaze[1]* 180.0/M_PI<< endl;
 
+           		dy = 4 * dy;
+           		dx =  4 * dx + 340/2;
+           		pixH = abs(dy);//set
+           		pixW = abs(dx);
 
-      			cout  << " x is " << x<<", y is " << y<< endl;
-      			cout << "theta:"<< gaze[0]* 180.0/M_PI<<",phi:" << gaze[1]* 180.0/M_PI<< endl;
-
-           		y = 4 * y;
-           		x = 340/2; //+ 4 * x;
-           		pixH = abs(x);//set
-           		pixW = abs(y);
-
-           		//pixH is 482573994 and pixW is -1020350720
+           		//othoni diastaseis:W=1240px kai 340cm kai H = 780px kai 190cm
            		//cout  << " pixW is " << pixW <<", pixH is " << pixH<< endl;
-     
-                cv_image<bgr_pixel> cimg2(output_orig);
+				graphics.setPos(pixW,pixH,false);
 
+
+                cv_image<bgr_pixel> cimg2(output_orig);
                 win.clear_overlay();
                 win.set_image(cimg2);
                 win.add_overlay(render_face_detections(shapes2d)); 
