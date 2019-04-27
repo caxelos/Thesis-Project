@@ -266,28 +266,28 @@ int main()
                 Cr.convertTo(Cr, CV_32FC1);
     			cv::Mat dist_coeffs = cv::Mat::zeros(4,1,cv::DataType<double>::type);// Assuming no lens distortion
 				cv::Mat rotation_vector; // Rotation in axis-angle form
-    			cv::Mat translation_vector;	
-    			cv::solvePnP(model3Dpoints, image_points,Cr, dist_coeffs, rotation_vector, translation_vector);
+    			cv::Mat tvec;	
+    			cv::solvePnP(model3Dpoints, image_points,Cr, dist_coeffs, rotation_vector, tvec);
                 //cout << rotation_vector << endl;
                 
                 cv::Mat Rr;
                 cv::Rodrigues(rotation_vector, Rr);Rr.convertTo(Rr, CV_32FC1);
                 //cout << "Rr:"<<Rr << endl;
-                translation_vector.convertTo(translation_vector, CV_32FC1);
+                tvec.convertTo(tvec, CV_32FC1);
                 cv::Mat rotface3d;rotface3d.convertTo(rotface3d, CV_32FC1);
 
                 rotface3d = Rr*face3d;//(3x3)x(3x4)
                 for (int o=0;o<4;o++) {
-                    rotface3d.col(o) = rotface3d.col(o) + translation_vector.col(0);   
+                    rotface3d.col(o) = rotface3d.col(o) + tvec.col(0);   
                 }
-                cv::Mat right_eye_center=0.5*(rotface3d.col(0)
+                cv::Mat reye=0.5*(rotface3d.col(0)
                                              +rotface3d.col(1));
                 cv::Mat left_eye_center = 0.5*(rotface3d.col(2)
                                              +rotface3d.col(3));
 
                 //cout << "right eye center:" << right_eye_center << endl;
 
-                float z_scale = 600/cv::norm(right_eye_center);
+                float z_scale = 600/cv::norm(reye);
                 int fx = 960;int fy = 960;int cx = 30;int cy = 18;
                 int NWIDTH = 60;
                 int NHEIGHT = 36;
@@ -297,7 +297,7 @@ int main()
                 S.convertTo(S, CV_32FC1);
 
                 cv::Point3d hRx = (cv::Point3d)Rr.col(0);
-                cv::Point3d forward = ((cv::Point3d)right_eye_center/cv::norm(right_eye_center));
+                cv::Point3d forward = ((cv::Point3d)reye/cv::norm(reye));
                 cv::Point3d down = forward.cross(hRx);
                 down = down/cv::norm((cv::Mat)down, cv::NORM_L2, cv::noArray());
 
@@ -314,7 +314,7 @@ int main()
                 //cout << "MatrixM:" << M << endl;
                 cv::Mat W = Cn * M * Cr.inv();
                 //cout << "matrix W:" << W << endl;
-                cv::Mat output = cv::Mat::zeros(cv::Size(NWIDTH, NHEIGHT), CV_32FC1); 
+                cv::Mat output = cv::Mat::zeros(cv::Size(NWIDTH, NHEIGHT),CV_8U/*CV_32FC1*/); 
                 cv::warpPerspective(temp,output, W, output.size());
                 
                 rotation_vector.convertTo(rotation_vector, CV_32FC1);
@@ -355,117 +355,108 @@ int main()
                 //    phi = -(1.508 +phi);
                 //else
                 //    phi = 1.508-phi;
-                cout << "pose:(" << phi/**(180.0/M_PI)*/<<","<<theta/**(180.0/M_PI)*/<<")"<<endl;
+                //phi=0.352451;
+                //theta=-0.197364;
+
+                //cout << "pose:(" << phi/**(180.0/M_PI)*/<<","<<theta/**(180.0/M_PI)*/<<")"<<endl;
                 //cout << "pose1:(" <<theta1* 180.0/M_PI <<","<<phi1* (180.0/M_PI)<<")"<<endl;
 
                 //gaze
-
-
+                cv::flip(output, output, 0);
                 cv::Mat output_orig=output;
+
+
                 cvtColor( output, output, CV_BGR2GRAY );/// Convert to grayscale
                 equalizeHist( output, output);/// Apply Histogram Equalization
-                
-/*
-    			//obtain yaw, pitch and roll(x,y,z) from Rotation Matrix.Rotation is calculated as: R=Rx*Ry*Rz,where Rx,Ry,Rz are the rotation matrices around the axes
-    			//cv::Vec3f eulerAngles;
-    			float eulerAngles[2];
-                //eulerAngles = rotationMatrixToEulerAngles(Rr);
-                rotationMatrixToEulerAngles(Rr,eulerAngles,RIGHT);
-    			//cout << "eulerAngles:("<<eulerAngles[0]* 180.0/M_PI<<","<<eulerAngles[1]* 180.0/M_PI<<")"<<endl;
-                //cout << "eulerAngles:" << eulerAngles << endl;    
-                cv::Mat zc_mat=Rr* (cv::Mat)rightmidpoints+translation_vector;
-                cv::Point3d zc = (cv::Point3d)zc_mat;
-            
-    			// 2b.Calculate rotated y-axis: yc = zc x xr
-    			cv::Point3d yc = zc.cross(xr);//xr.cross((cv::Point3d)translation_vector);
-    		
-    			// 2c.Calculate x-axis of the rotated camera
-    			cv::Point3d xc = yc.cross(zc);//(cv::Point3d)translation_vector);//yc.cross(cameramidpoints);   			
-              
-                // 3.Calculate the conversion matrix: M = S * R, where
-                //   S = diag(1,1,dn/||e_r||) and R = (RotationMatrix)^-1
-                // dn is the distance between e_r and the (0,0,0) of the scaled CAMERA COORDS and is 600mm
-        	    // M matrix describes the conversion from non-normalised to normalised CAMERA COORDS
-				//cv::Mat S = cv::Mat::Mat(Size size, int type, void* data, size_t step=AUTO_STEP);                
-    			// Take also into account that the inverse and transpose of rotation matrices are the same!
-                cv::Mat xc_norm = (cv::Mat)xc/cv::norm((cv::Mat)xc, cv::NORM_L2, cv::noArray());
-                cv::Mat yc_norm = (cv::Mat)yc/cv::norm((cv::Mat)yc, cv::NORM_L2, cv::noArray());
-    			cv::Mat zc_norm = (cv::Mat)zc/cv::norm((cv::Mat)zc, cv::NORM_L2, cv::noArray());
+                float pose[2]; pose[0] = phi;pose[1]=theta;
+                float gaze_n[2];
 
+                regressor.predict(pose,output.data,gaze_n);
+                //cout << "***** start array *****" << endl;
+                //for (int q=0;q<36;q++) {
+                //    for (int r=0;r<60;r++) {
+                //        cout << (int)output.at<unsigned char>(q,r) << ",";                    
+                //    }
+                //    cout << endl;
+                //}
+                //cout << endl;
+                //TODO:Allakse ton Face-Detector wste na mporei na 
+                //pianei kai meros tou proswpou
 
-                cv::Mat R = (cv::Mat_<float>(3,3) << xc_norm.at<double>(0),yc_norm.at<double>(0),zc_norm.at<double>(0),xc_norm.at<double>(1),yc_norm.at<double>(1),zc_norm.at<double>(1),xc_norm.at<double>(2),yc_norm.at<double>(2),zc_norm.at<double>(2));
-                R = R.t();
+                //cout << "prediction:(" << gaze_n[1]* 180.0/M_PI << "," << gaze_n[0]* 180.0/M_PI << ")" << endl;
+                //cout << "tvec:" << tvec << endl;
+                //cout << "right_eye_center:" << reye << endl;
 
-                cv::Mat S = (cv::Mat_<float>(3, 3) << 1,0,0,0,1,0,0,0, 600/cv::norm((cv::Mat)translation_vector, cv::NORM_L2, cv::noArray() ));//cv::magnitude(cameramidpoints));
-				S.convertTo(S, CV_32FC1);
-				Rr.convertTo(Rr, CV_32FC1);
-                cv::Mat M = S * R;// rotation_matrix.inv();//.t();
-               
-
-                // 4.Calculate the normalised projection matrix C_n=[f_x,0,c_x; 0,f_y,c_y; 0,0,1]
-                int fx = 960;//in milimeters
-                int fy = 960;
-                int cx = 30;//pixels
-                int cy = 18;
-                int NWIDTH = 60;
-                int NHEIGHT = 36;
-                cv::Mat Cn = (cv::Mat_<float>(3, 3) << fx,0,cx,0,fy,cy,0,0,1);
-                //cout << "Cn matrix is:" << Cn << endl;
-
-                // 5.Calculate the warp perspective image transformation matrix
-                Cr.convertTo(Cr, CV_32FC1);
-                cv::Mat W = Cn * M * Cr.inv();
-                //cout << "W matrix is:" << W << endl;
-
-                //normalized image has size:60x36
-                
-
-
-                // 6.Calculate new Rotation matrix: R_n = R * R_r 
-                cv::Mat Rn = R*Rr;
-                //cout << "Rn is " << Rn << endl;
-                float eulerAngles_norm[2];
-                rotationMatrixToEulerAngles(Rn,eulerAngles_norm,RIGHT);
-                //cout << "eulerAngles_norm are:(" << eulerAngles_norm[0]<<","<< eulerAngles_norm[1]<<")" << endl;
-                
-
-
-                // 9.Gain 2d h,g because the z-axis orientation is always zero for gaze_n and rotation_n
-                // 10.Convert eye images I to gray scale and make histogram equalization, in order to be compatible with other datasets
-                cv::Mat output_orig=output;
-  				cvtColor( output, output, CV_BGR2GRAY );/// Convert to grayscale
-  				equalizeHist( output, output);/// Apply Histogram Equalization
- */ 
-/*
-                float gaze[2];
-                regressor.predict(eulerAngles,output.data,gaze); 
-                cout << "prediction:(" << gaze[0]* 180.0/M_PI << "," << gaze[1]* 180.0/M_PI << ")" << endl;
-            	
                 //cv::Mat gazeout = R.inv()*(cv::Mat_<float>(3, 1) << gaze[0], gaze[1], 0);
                 //cv::Mat gazeout = R.inv()*(cv::Mat_<float>(3, 1) << gaze[0], gaze[1], 0);   
             	//cout << "final pred:" <<  gazeout* 180.0/M_PI << endl;
   				//ws apostasi mporw na thewrisw to translation_vector me antitheto z-aksona
-           		int dx,dy;
-				           	
-      			
+           		float dx,dy;
+				           	      			
            		//tan(gaze[0]) = (dx+x)/(-tvec(2))
            		//tan(gaze[1])= (dy+tvec(1))/(-tvec(2)) 
-           	
-      			//dy = -translation_vector.at<double>(2,0)/tan(gaze[1]) -translation_vector.at<double>(1,0);
-           		dx = -tan(gaze[0])*translation_vector.at<double>(2,0) -translation_vector.at<double>(0,0);//in mm's
-      			dy = -tan(gaze[1])*translation_vector.at<double>(2,0) - translation_vector.at<double>(1,0);//in mm's
-      			//cout  << " dx is " << dx<<", dy is " << dy<< endl;
-      			//cout << "theta:"<< gaze[0]* 180.0/M_PI<<",phi:" << gaze[1]* 180.0/M_PI<< endl;
+           	    cv::Mat gaze_r = R.inv()*(cv::Mat_<float>(3, 1) << gaze_n[1], gaze_n[0], 0);
+                //cout << "gaze is: " << gaze_r << endl;
+                cout << "prediction:(" << gaze_r.at<float>(1,0)* 180.0/M_PI << "," << 
+                gaze_r.at<float>(0,0)* 180.0/M_PI << ")" << endl;
+
+                //to dx einai i metatopisi apo to (0,0), diladi aptin kamera
+                if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) > 0) { 
+                    dx = -reye.at<float>(0,0)+ reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
+                    pixW=620-dx/0.3647;//*4;//mm se pixels
+                    cout <<"case1:" <<pixW<<"dx:"<<dx << endl;
+                }
+                else if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) < 0) {
+                    dx = reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
+                    pixW = 620+(reye.at<float>(0,0)+dx)/0.3647;///0.3647;//1mm=0.3647px
+                    cout <<"case2:"<<pixW<<"dx:"<<dx  << endl;
+                } 
+                else if (reye.at<float>(0,0)>0 && gaze_r.at<float>(0,0) >0) {
+                    dx = (-reye.at<float>(2,0))*tan(gaze_r.at<float>(0,0));
+                    pixW=620+(reye.at<float>(0,0)+dx)/0.3647;
+                    cout <<"case3:"<<pixW<<"dx:"<<dx  << endl;
+                }
+                else if (reye.at<float>(0,0)>0 && gaze_r.at<float>(0,0) <0) {
+                    dx = reye.at<float>(0,0) - reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
+                    pixW=620+dx/0.3647;
+                    cout <<"case4:"<<pixW<<"dx:"<<dx  << endl;
+                }
+                //pixW=620;
+           		
+                //dx = -tan(gaze_r.at<float>(1,0))*reye.at<float>(2,0) -reye.at<float>(0,0);//in mm's
+
+      			//dy = -tan(gaze_r.at<float>(0,0))*reye.at<float>(2,0) - reye.at<float>(1,0);//in mm's
+      			dy=50;
+                //cout << "translation_vector:" << translation_vector << endl;
+                //cout << "a1:" << gaze_r.at<float>(0,0) << endl;
+                //cout << "a3:" << translation_vector.at<float>(1 ,0) << endl;//in mm's
+                //cout << "a2:" << translation_vector.at<float>(2,0) << endl;
+                //cout << "a3:" << translation_vector.at<float>(0,0) << endl;//in mm's
+                //cout  << " dx is " << dx<<", dy is " << dy<< endl;
+      			//cout << "theta:("<< gaze_r.at<float>(1,0)* 180.0/M_PI<<",phi:" << gaze_r.at<float>(0,0)* 180.0/M_PI<<")"<< endl;
+                //cout  << "dist:(" << dx <<"," << dy<<")"<< endl;
+                //-1.21378 gaze_r.at<float>(0,0)
+                //-584.579 translation_vector.at<float>(2,0)
+                //-61.781 translation_vector.at<float>(0,0)
+                //-44.2272 translation_vector.at<float>(1,0)
+
+                //dist:(-1505.44,1078.35)
+                //dx = -tan(-1.21378)*(-584.579) - (-61.781)
+
 
            		dy = 4 * dy;
-           		dx =  4 * dx + 340/2;
+           		//dx =  4 * dx + 340/2;
            		pixH = dy;//set
-           		pixW = dx;
+           		//pixW = dx;
 
            		//othoni diastaseis:W=1240px kai 340cm kai H = 780px kai 190cm
-           		//cout  << " pixW is " << pixW <<", pixH is " << pixH<< endl;
-				graphics.setPos(pixW,pixH,false);
-*/
+                //1240 = 3400mm
+                //???  = 1mm=0.3647px
+                //???=0.3647
+
+           		//cout  << "pixel:(" << pixW <<"," << pixH<<")"<< endl;
+                graphics.setPos(pixW,pixH,false);
+
 
                 cv_image<bgr_pixel> cimg2(output_orig);
                 win.clear_overlay();
