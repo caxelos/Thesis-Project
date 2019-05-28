@@ -125,20 +125,20 @@ from keras.layers import Flatten
 from keras.layers import Dense,Concatenate,Input
 
 
-img_input = Input(shape=(36, 60, 1))
+img_input = Input(shape=(36, 60, 1),name='img_input')
 
-pose_input = Input(shape=(2,), name='aux_input')
+pose_input = Input(shape=(2,), name='pose_input')
 
 x=Conv2D(20, (5, 5),activation = 'relu')(img_input)
 x=MaxPooling2D(pool_size = (2, 2))(x)
 x=Conv2D(20, (5, 5),activation = 'relu')(x)
 x=MaxPooling2D(pool_size = (2, 2))(x)
 x=Flatten()(x)
-conv_output=Dense(units = 500, activation = 'relu')(x)
-mixed = keras.layers.concatenate([conv_output, pose_input])
-cnn_output = Dense(units = 2, activation = 'sigmoid')(mixed)
+x=Dense(units = 500, activation = 'relu')(x)
+mixed = keras.layers.concatenate([x, pose_input])
+cnn_output = Dense(units = 2, activation = 'sigmoid',name='gaze_output')(mixed)
 
-model = Model(inputs=[img_input,pose_input], outputs=[conv_output, cnn_output])
+model = Model(inputs=[img_input,pose_input], outputs=cnn_output)
 model.compile(optimizer = 'adam', loss = euclidean_distance_loss, metrics = ['accuracy'])
 print(model.summary())
 plot_model(model, to_file='multilayer_perceptron_graph.png')
@@ -162,13 +162,13 @@ test_img = test_img.reshape(len(test_img[:,1,1]),36,60,1)
 valid_img = valid_img.reshape(len(valid_img[:,1,1]),36,60,1)
 
 
-train_pose=np.array(train_pose)
-train_gaze=np.array(train_gaze)
-test_gaze=np.array(test_gaze)
-
-print(train_gaze[0:3,:])
+#train_pose=np.array(train_pose)
+#train_gaze=np.array(train_gaze)
+#test_gaze=np.array(test_gaze)
 
 import popa
+
+print(train_pose)
 popa.train_model(model=model,
             x_train=train_img,
             x_train_feat=train_pose,

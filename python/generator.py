@@ -1,4 +1,5 @@
 from keras.preprocessing.image import ImageDataGenerator
+import numpy as np
 def train_model(model, x_train, x_train_feat, y_train, x_test, x_test_feat, y_test, x_val_feat, train_batch_size, test_batch_size, epochs):
 #def train_model(model, x_train, x_train_feat, y_train, x_test, x_test_feat, y_test, train_batch_size, test_batch_size, epochs, model_dir, model_name,patience=5, monitor='val_acc'):
 
@@ -47,6 +48,7 @@ def train_model(model, x_train, x_train_feat, y_train, x_test, x_test_feat, y_te
                 else:
                     yield x_train_feat[batch*train_batch_size:(1+batch)*train_batch_size]
 
+
     def val_feat_gen(x_val_feat, test_batch_size):
         while True:
             for batch in range(len(x_val_feat) // test_batch_size + 1):
@@ -56,10 +58,19 @@ def train_model(model, x_train, x_train_feat, y_train, x_test, x_test_feat, y_te
                     yield x_val_feat[batch*test_batch_size:(1+batch)*test_batch_size]
 
     def merge_generator(gen1, gen2):
+        #gen1:train_generator h' validation_generator
+        #gen2:train_feat_gen h' val_feat_gen
+        i=0
         while True:
+            i=i+1
+            #print("i is:",i)
             X1 = gen1.__next__()
             X2 = gen2.__next__()
-            yield [X1[0], X2], X1[1]
+            yield ({'img_input': X1[0], 'pose_input': X2}, {'gaze_output': X1[1]})
+            #yield [X1[0], X2], X1[1]
+            #print(X1,X2)
+
+#yield ({'img_input': x1, 'pose_input=': x2}, {'gaze_output': y})
 
     validation_generator = test_datagen.flow(
         x_test,
