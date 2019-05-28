@@ -15,6 +15,7 @@ import pickle as pickle
 import numpy as np
 import math
 import cv2
+import keras.backend as K
 #
 # train_gaze = []
 # train_img = []
@@ -32,6 +33,21 @@ import cv2
 #1) Dokimase ta regression forests me allo DB
 #2) Dokimase tin ulopoihsh toy Caffe kai ftiakse ta data
 #3) Dokimase to se Keras kai kanto import meta
+
+
+
+
+
+def euclidean_distance_loss(y_true, y_pred):
+    """
+    Euclidean distance loss
+    https://en.wikipedia.org/wiki/Euclidean_distance
+    :param y_true: TensorFlow/Theano tensor
+    :param y_pred: TensorFlow/Theano tensor of the same shape as y_true
+    :return: float
+    """
+    return K.sqrt(K.sum(K.square(y_pred - y_true), axis=-1))
+
 
 with open('dataset.pickle','rb') as f:
     save = pickle.load(f,encoding='latin1')
@@ -53,22 +69,22 @@ for i in range(len(gaze)):
     tmp2[i,0]=math.asin(rotation_matrix[1][2])
     tmp2[i,1]=math.atan2(rotation_matrix[0][2],rotation_matrix[2][2])
 
-   
-gaze = tmp
+
+gaze=tmp
 pose=tmp2
-train_gaze=gaze[0:200000,:]
-train_img= img[0:200000,:,:]
-train_pose=pose[0:200000,:]
+train_gaze=gaze[0:7000,:]
+train_img= img[0:7000,:,:]
+train_pose=pose[0:7000,:]
+valid_gaze=gaze[7000:8000,:]
+valid_img=img[7000:8000,:,:]
+valid_pose=pose[7000:8000,:]
 
-#valid_gaze=gaze[200001:210000,:]
-#valid_img=img[200001:210000,:,:]
-#valid_pose=pose[200001:210000,:]
+test_gaze=gaze[8000:len(gaze[:,0]),:]
+test_img=img[8000:len(gaze[:,0]),:,:]
+test_pose=pose[8000:len(gaze[:,0]),:]
+n_sample=len(train_img)
 
-test_gaze=gaze[210001:213658,:]
-test_img=img[210001:213658,:,:]
-test_pose=pose[210001:213658,:]
-n_sample = len(train_img)
-
+del gaze,img,pose,tmp,tmp2
 #train_img=np.reshape(train_img,(len(train_img),2160))
 #valid_img=np.reshape(valid_img,(len(valid_img),2160))
 #test_img=np.reshape(test_img,(len(test_img),2160))
@@ -100,41 +116,89 @@ n_sample = len(train_img)
 
 
 
-
-from keras.models import Sequential
+import keras
+from keras.utils import plot_model
+from keras.models import Sequential,Model
 from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
 from keras.layers import Flatten
-from keras.layers import Dense
+from keras.layers import Dense,Concatenate,Input
+
+
+img_input = Input(shape=(36, 60, 1))
+
+pose_input = Input(shape=(2,), name='aux_input')
+
+x=Conv2D(20, (5, 5),activation = 'relu')(img_input)
+x=MaxPooling2D(pool_size = (2, 2))(x)
+x=Conv2D(20, (5, 5),activation = 'relu')(x)
+x=MaxPooling2D(pool_size = (2, 2))(x)
+x=Flatten()(x)
+conv_output=Dense(units = 500, activation = 'relu')(x)
+mixed = keras.layers.concatenate([conv_output, pose_input])
+cnn_output = Dense(units = 2, activation = 'sigmoid')(mixed)
+
+model = Model(inputs=[img_input,pose_input], outputs=[conv_output, cnn_output])
+model.compile(optimizer = 'adam', loss = euclidean_distance_loss, metrics = ['accuracy'])
+print(model.summary())
+plot_model(model, to_file='multilayer_perceptron_graph.png')
+
 
 # # Initialising the CNN
-classifier = Sequential()
-classifier.add(Conv2D(20, (5, 5), input_shape = (36, 60, 1), activation = 'relu'))
-classifier.add(MaxPooling2D(pool_size = (2, 2)))
-classifier.add(Conv2D(50, (5, 5), input_shape = (36, 60, 1), activation = 'relu'))
-classifier.add(MaxPooling2D(pool_size = (2, 2)))
-classifier.add(Flatten())
-classifier.add(Dense(units = 500, activation = 'relu'))
-classifier.add(Dense(units = 2, activation = 'sigmoid'))
+# classifier = Sequential()
+# classifier.add(Conv2D(20, (5, 5), input_shape = (36, 60, 1), activation = 'relu'))
+# classifier.add(MaxPooling2D(pool_size = (2, 2)))
+# classifier.add(Conv2D(50, (5, 5), input_shape = (36, 60, 1), activation = 'relu'))
+# classifier.add(MaxPooling2D(pool_size = (2, 2)))
+# classifier.add(Flatten())
+# classifier.add(Dense(units = 500, activation = 'relu'))
+# classifier.add(Dense(units = 2, activation = 'sigmoid'))
 
-# Compiling the CNN
-classifier.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics = ['accuracy'])
-
-
-
-from keras.preprocessing.image import ImageDataGenerator
-train_datagen = ImageDataGenerator(rescale = 1./255,
-                                   shear_range = 0.2,
-                                   zoom_range = 0.2,
-                                   horizontal_flip = True)
+# # Compiling the CNN
+# classifier.compile(optimizer = 'adam', loss = euclidean_distance_loss, metrics = ['accuracy'])
 
 train_img = train_img.reshape(len(train_img[:,1,1]),36,60,1)
 test_img = test_img.reshape(len(test_img[:,1,1]),36,60,1)
+valid_img = valid_img.reshape(len(valid_img[:,1,1]),36,60,1)
 
-train_datagen.fit(train_img)
-test_datagen = ImageDataGenerator(rescale = 1./255)
-classifier.fit_generator(train_datagen.flow(train_img,train_gaze, batch_size=32),
-                    steps_per_epoch=len(train_img[:,1,1]) / 32, epochs=1,
-                    validation_data = test_img,
-                    validation_steps = 2000)
+
+train_pose=np.array(train_pose)
+train_gaze=np.array(train_gaze)
+test_gaze=np.array(test_gaze)
+
+print(train_gaze[0:3,:])
+
+import popa
+popa.train_model(model=model,
+            x_train=train_img,
+            x_train_feat=train_pose,
+            y_train=train_gaze,
+            x_test=test_img,
+            x_test_feat=test_pose,
+            y_test=test_gaze,
+            x_val_feat=valid_pose,
+            train_batch_size=32,
+            test_batch_size=32,
+            epochs=4)
+
+
+
+
+
+# from keras.preprocessing.image import ImageDataGenerator
+# train_datagen = ImageDataGenerator(rescale = 1./255,
+#                                    shear_range = 0.2,
+#                                    zoom_range = 0.2,#,
+#                                   horizontal_flip = True)
+
+# test_datagen = ImageDataGenerator(rescale = 1./255)
+
+# train_datagen.fit(train_img)
+
+# model.fit([train_img,train_pose],[conv_output,cnn_output])
+
+# model.fit_generator(train_datagen.flow({'img_input':train_img, 'pose_input':train_pose},train_gaze, batch_size=64),
+#                     steps_per_epoch=len(train_img[:,1,1]) / 32, epochs=4,
+#                     validation_data = (test_img,test_gaze),
+#                     validation_steps = 2000)
 
