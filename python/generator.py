@@ -44,38 +44,78 @@ def train_model(model, x_train, x_train_feat, y_train, x_test, x_test_feat, y_te
         while True:
             for batch in range(len(x_train_feat) // train_batch_size + 1):
                 if batch > max(range(len(x_train_feat) // train_batch_size)):
+                    #print("\n****************** 1)len is:",
+                    #    x_train_feat[batch*train_batch_size:].shape,
+                    #         "*****************\n")
                     yield x_train_feat[batch*train_batch_size:]
                 else:
+                    #print("\n****************** 2)len is:",
+                    #    x_train_feat[batch*train_batch_size:(1+batch)*train_batch_size].shape,
+                    #         "*****************\n")
                     yield x_train_feat[batch*train_batch_size:(1+batch)*train_batch_size]
+                    #shape:(64, 2)
 
 
     def val_feat_gen(x_val_feat, test_batch_size):
         while True:
+
+            #x_val_feat=1000
             for batch in range(len(x_val_feat) // test_batch_size + 1):
+                #batch=15
+                #max(range(len(x_val_feat)=999
+                #test_batch_size=64
+                #diairesi=15.6
+                #len=(40,2)
                 if batch > max(range(len(x_val_feat) // test_batch_size)):
+                    #print("\n********* batch is:",batch,",but other is:",
+                    #    max(range(len(x_val_feat) // test_batch_size)))
+                    #batch=15,but other is 14
+
+                    
+                    # print("**** batch is:",batch,"and max(range(len(x_val_feat) is:",
+                    #     max(range(len(x_val_feat))))
+                    # print("\n****************** 1)len is:",
+                    #     x_val_feat[batch*test_batch_size:].shape,
+                    #          "*****************\n")
+                    
                     yield x_val_feat[batch*test_batch_size:]
                 else:
+                    #********* batch is: 8 ,but other is: 14
+                    #batch=8,but other is 14
+                    #print("\n********* batch is:",batch,",but other is:",
+                    #    max(range(len(x_val_feat) // test_batch_size)))
+
+                    #print(x_val_feat.shape)
                     yield x_val_feat[batch*test_batch_size:(1+batch)*test_batch_size]
 
     def merge_generator(gen1, gen2):
         #gen1:train_generator h' validation_generator
         #gen2:train_feat_gen h' val_feat_gen
-        i=0
         while True:
-            i=i+1
             #print("i is:",i)
             X1 = gen1.__next__()
             X2 = gen2.__next__()
+
+            #print("img:",X1[0].shape,",pose:",X2.shape,"gaze:",X1[1].shape)
+            
+            #img: (64, 36, 60, 1) ,pose: (40, 2) gaze: (64, 2)
+            if (X1[0].shape)[0] != (X1[1].shape)[0] or (X1[0].shape)[0] != (X2.shape)[0]:
+                MIN= min((X1[0].shape)[0],(X1[1].shape)[0],(X2.shape)[0])
+                print("\n******* ",MIN, " *******\n")
+                yield ({'img_input': X1[0][:MIN], 'pose_input': X2[:MIN]}, {'gaze_output': X1[1][:MIN]})
+                print("\n******* problem *******\n")
+                continue
+
+            
             yield ({'img_input': X1[0], 'pose_input': X2}, {'gaze_output': X1[1]})
             #yield [X1[0], X2], X1[1]
-            #print(X1,X2)
 
-#yield ({'img_input': x1, 'pose_input=': x2}, {'gaze_output': y})
 
     validation_generator = test_datagen.flow(
         x_test,
         y_test,
-        batch_size=test_batch_size)
+        batch_size=test_batch_size
+        )
 
     final_train_gen = merge_generator(train_generator, train_feat_gen(x_train_feat, train_batch_size))
     final_val_gen = merge_generator(validation_generator, val_feat_gen(x_val_feat, test_batch_size))

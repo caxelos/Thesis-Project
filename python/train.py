@@ -75,7 +75,7 @@ pose=tmp2
 train_gaze=gaze[0:7000,:]
 train_img= img[0:7000,:,:]
 train_pose=pose[0:7000,:]
-valid_gaze=gaze[7000:8000,:]
+valid_gaze=gaze[7000:8000,:]#gaze[7000:8000,:]
 valid_img=img[7000:8000,:,:]
 valid_pose=pose[7000:8000,:]
 
@@ -83,7 +83,9 @@ test_gaze=gaze[8000:len(gaze[:,0]),:]
 test_img=img[8000:len(gaze[:,0]),:,:]
 test_pose=pose[8000:len(gaze[:,0]),:]
 n_sample=len(train_img)
-
+print(len(train_img[:,1,1]))
+print(len(train_pose[:,1]))
+print(len(train_gaze[:,1]))
 del gaze,img,pose,tmp,tmp2
 #train_img=np.reshape(train_img,(len(train_img),2160))
 #valid_img=np.reshape(valid_img,(len(valid_img),2160))
@@ -126,9 +128,7 @@ from keras.layers import Dense,Concatenate,Input
 
 
 img_input = Input(shape=(36, 60, 1),name='img_input')
-
 pose_input = Input(shape=(2,), name='pose_input')
-
 x=Conv2D(20, (5, 5),activation = 'relu')(img_input)
 x=MaxPooling2D(pool_size = (2, 2))(x)
 x=Conv2D(20, (5, 5),activation = 'relu')(x)
@@ -162,13 +162,15 @@ test_img = test_img.reshape(len(test_img[:,1,1]),36,60,1)
 valid_img = valid_img.reshape(len(valid_img[:,1,1]),36,60,1)
 
 
-#train_pose=np.array(train_pose)
-#train_gaze=np.array(train_gaze)
-#test_gaze=np.array(test_gaze)
+# train_pose=np.array(train_pose,np.float)
+# train_gaze=np.array(train_gaze,np.float)
+# test_gaze=np.array(test_gaze,np.float)
+valid_pose=np.array(valid_pose)
+# print("*** valid_img=",valid_img.shape)
+# print("*** valid_pose=",valid_pose.shape)
+# print("*** valid_gaze=",valid_gaze.shape)
 
 import popa
-
-print(train_pose)
 popa.train_model(model=model,
             x_train=train_img,
             x_train_feat=train_pose,
@@ -179,7 +181,7 @@ popa.train_model(model=model,
             x_val_feat=valid_pose,
             train_batch_size=32,
             test_batch_size=32,
-            epochs=4)
+            epochs=10)
 
 
 
