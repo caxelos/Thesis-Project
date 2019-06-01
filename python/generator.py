@@ -61,31 +61,9 @@ def train_model(model, x_train, x_train_feat, y_train, x_test, x_test_feat, y_te
 
             #x_val_feat=1000
             for batch in range(len(x_val_feat) // test_batch_size + 1):
-                #batch=15
-                #max(range(len(x_val_feat)=999
-                #test_batch_size=64
-                #diairesi=15.6
-                #len=(40,2)
                 if batch > max(range(len(x_val_feat) // test_batch_size)):
-                    #print("\n********* batch is:",batch,",but other is:",
-                    #    max(range(len(x_val_feat) // test_batch_size)))
-                    #batch=15,but other is 14
-
-                    
-                    # print("**** batch is:",batch,"and max(range(len(x_val_feat) is:",
-                    #     max(range(len(x_val_feat))))
-                    # print("\n****************** 1)len is:",
-                    #     x_val_feat[batch*test_batch_size:].shape,
-                    #          "*****************\n")
-                    
                     yield x_val_feat[batch*test_batch_size:]
                 else:
-                    #********* batch is: 8 ,but other is: 14
-                    #batch=8,but other is 14
-                    #print("\n********* batch is:",batch,",but other is:",
-                    #    max(range(len(x_val_feat) // test_batch_size)))
-
-                    #print(x_val_feat.shape)
                     yield x_val_feat[batch*test_batch_size:(1+batch)*test_batch_size]
 
     def merge_generator(gen1, gen2):
@@ -120,17 +98,33 @@ def train_model(model, x_train, x_train_feat, y_train, x_test, x_test_feat, y_te
     final_train_gen = merge_generator(train_generator, train_feat_gen(x_train_feat, train_batch_size))
     final_val_gen = merge_generator(validation_generator, val_feat_gen(x_val_feat, test_batch_size))
 
-    #callbacks = [ModelCheckpoint(MODEL_DIR+model_name+'.h5',
-    #                             monitor=monitor,
-    #                            save_best_only=True),
-    #            EarlyStopping(monitor=monitor, patience=patience),
-    #            TensorBoard(LOG_DIR+model_name+'_'+str(time())),
-    #            ReduceLROnPlateau(monitor='val_loss', factor=0.75, patience=2)]
+    import time
+    from keras.callbacks import ModelCheckpoint,EarlyStopping,TensorBoard,ReduceLROnPlateau
+    
+    ### TODO:
+    # 1)Ftiakse ena customized callback gia metriseis(gt panta miden to gaze output?)
+    # link edw:
+    # https://www.ir.com/blog/visualizing-outputs-cnn-model-training-phase
+    # https://keras.io/callbacks/
+    # https://stackoverflow.com/questions/41711190/keras-how-to-get-the-output-of-each-layer
+    # https://blog.slavv.com/37-reasons-why-your-neural-network-is-not-working-4020854bd607
+    # fainetai kalo
+    callbacks = [ModelCheckpoint('mymodel.h5',
+                                monitor='val_loss',
+                               save_best_only=True),
+               EarlyStopping(monitor='val_loss', patience=2),
+               TensorBoard('../logs/{}'),
+               ReduceLROnPlateau(monitor='val_loss', factor=0.75, patience=2)]
 
     model.fit_generator(
         final_train_gen,
         steps_per_epoch=len(x_train) // train_batch_size,
         epochs=epochs,
         validation_data=final_val_gen,
-        validation_steps=len(y_test) // test_batch_size)#,
-        #callbacks=callbacks,)
+        validation_steps=len(y_test) // test_batch_size,#,
+        callbacks=callbacks
+        )
+    model.save('multimodal_cnn_1_epoch.h5') 
+
+
+
