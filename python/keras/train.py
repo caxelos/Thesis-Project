@@ -49,7 +49,7 @@ def euclidean_distance_loss(y_true, y_pred):
     return K.sqrt(K.sum(K.square(y_pred - y_true), axis=-1))
 
 
-with open('dataset.pickle','rb') as f:
+with open('/home/olympia/Downloads/dataset/Data/Normalized/dataset.pickle','rb') as f:
     save = pickle.load(f,encoding='latin1')
     gaze = save['gaze']
     img = save['img']
