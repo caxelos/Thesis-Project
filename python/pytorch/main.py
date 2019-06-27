@@ -66,17 +66,15 @@ def parse_args():
     parser.add_argument('--lr_decay', type=float, default=0.1)
 
     # TensorBoard
-    parser.add_argument(
-        '--tensorboard', dest='tensorboard', action='store_true', default=True)
-    parser.add_argument(
-        '--no-tensorboard', dest='tensorboard', action='store_false')
+    parser.add_argument('--tensorboard', dest='tensorboard', action='store_true', default=True)
+    parser.add_argument('--no-tensorboard', dest='tensorboard', action='store_false')
     parser.add_argument('--tensorboard_images', action='store_true')
     parser.add_argument('--tensorboard_parameters', action='store_true')
 
     args = parser.parse_args()
     if not is_tensorboard_available:
-        args.tensorboard = False
-        args.tensorboard_images = False
+        args.tensorboard = True
+        args.tensorboard_images = True
         args.tensorboard_parameters = False
 
     assert os.path.exists(args.dataset)
@@ -138,9 +136,9 @@ def train(epoch, model, optimizer, criterion, train_loader, config, writer):
                 images, normalize=True, scale_each=True)
             writer.add_image('Train/Image', image, epoch)
 
-        images = images.cuda()
-        poses = poses.cuda()
-        gazes = gazes.cuda()
+        #images = images.cuda()
+        #poses = poses.cuda()
+        #gazes = gazes.cuda()
 
         optimizer.zero_grad()
 
@@ -195,9 +193,9 @@ def test(epoch, model, criterion, test_loader, config, writer):
                 images, normalize=True, scale_each=True)
             writer.add_image('Test/Image', image, epoch)
 
-        images = images.cuda()
-        poses = poses.cuda()
-        gazes = gazes.cuda()
+        #images = images.cuda()
+        #poses = poses.cuda()
+        #gazes = gazes.cuda()
 
         with torch.no_grad():
             outputs = model(images, poses)
@@ -257,7 +255,7 @@ def main():
     # model
     module = importlib.import_module('models.{}'.format(args.arch))
     model = module.Model()
-    model.cuda()
+    #model.cuda()
 
     criterion = nn.MSELoss(size_average=True)
 
