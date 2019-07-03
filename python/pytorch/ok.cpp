@@ -22,16 +22,19 @@ int main(int argc, const char* argv[]) {
 	// Create a vector of inputs.
 	std::vector<torch::jit::IValue> inputs;
 	//std::vector<unsigned char> img = {1,2,3};
-	//std::vector<float> pose = {3.0, 2.0};
+	//std::vector<float> pose = {{0.2, 0.3}};
+	torch::Tensor pose= torch::rand({1,2});
+	pose[0][0]= 0.2; pose[0][1]=0.3;
 
 	inputs.push_back(torch::ones({1,1,60, 36}));//(1,chanel,width,height)
-	inputs.push_back(torch::ones({1,2}));
+	//inputs.push_back(torch::zeros({1,2}));
 	//inputs.push_back(torch::tensor(img));
-	//inputs.push_back(torch::tensor(pose));
+	inputs.push_back(pose);
 	
 	//prosoxi stin arxitektoniki tou diktuou.Isws einai diaforetiki!
 	torch::Tensor output = module.forward(inputs).toTensor();
 
+	//Get value of a tensor:int a = tensor[0][0].item<int>();
 
 	// Execute the model and turn its output into a tensor.
 	//auto output = module.forward(inputs).toTensor();

@@ -17,8 +17,8 @@ module = importlib.import_module('models.resnet_preact')#models.{}'.format(args.
 model = module.Model()
 model.load_state_dict(torch.load('model_state.pt'))
 model.eval()
-img = torch.rand(1,1,61,36)
-pose = torch.rand(1,2)
+img = torch.ones(1,1,60,36)
+pose = torch.tensor([[0.2,0.3]])#torch.ones(1,2)
 print('out:',model(img,pose))
 traced_script_module = torch.jit.trace(model, (img,pose))#gia multiple input:https://towardsdatascience.com/model-summary-in-pytorch-b5a1e4b64d25
 traced_script_module.save('model.pt')
