@@ -32,7 +32,9 @@
 #
 
 
-cmake_minimum_required(VERSION 2.8.12)
+#cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+
 # Every project needs a name.  We call this the "examples" project.
 project(examples)
 
@@ -51,13 +53,13 @@ add_subdirectory(../dlib-19.13/dlib/ dlib_build)
 
 #add_executable(fhog_object_detector_ex fhog_object_detector_ex.cpp)
 #add_executable(face_detection_ex face_detection_ex.cpp)
-add_executable(Regressor Regressor.cpp)
+add_executable(webcam_face_pose_ex Regressor.cpp webcam_face_pose_ex.cpp Graphics.cpp)
 
 # Finally, you need to tell CMake that this program, assignment_learning_ex,
 # depends on dlib.  You do that with this statement: 
 #target_link_libraries(fhog_object_detector_ex dlib::dlib)
 #target_link_libraries(face_detection_ex dlib::dlib)
-target_link_libraries(Regressor dlib::dlib)
+target_link_libraries(webcam_face_pose_ex dlib::dlib)
 
 
 
@@ -147,93 +149,105 @@ target_link_libraries(Regressor dlib::dlib)
 #   add_example(dnn_metric_learning_on_images_ex)
 #endif()
 
+#SET(GCC_COVERAGE_COMPILE_FLAGS "pkg-config --cflags --libs sdl2")
+#SET(GCC_COVERAGE_LINK_FLAGS    "-lSDL2_ttf")
+#set( CMAKE_CXX_FLAGS "$(pkg-config --cflags --libs sdl2) -lSDL2_ttf" )
 
+#set(CMAKE_C_FLAGS "$(pkg-config --cflags --libs sdl2) -lSDL2_ttf")
 if (DLIB_NO_GUI_SUPPORT)
    message("No GUI support, so we won't build the webcam_face_pose_ex example.")
 else()
    find_package(OpenCV QUIET)
    find_package(HDF5 REQUIRED COMPONENTS C CXX)
+   find_package(SDL2 REQUIRED)
+   set(CMAKE_PREFIX_PATH "build/libtorch/share/cmake/Torch")
+   find_package(Torch REQUIRED)
+
    if (OpenCV_FOUND)
       include_directories(${OpenCV_INCLUDE_DIRS})
       include_directories(${HDF5_INCLUDE_DIRS})
+      include_directories(${SDL2_INCLUDE_DIRS})
       #add_executable(webcam_face_pose_ex webcam_face_pose_ex.cpp)
-      target_link_libraries(Regressor dlib::dlib ${OpenCV_LIBS} )
-      target_link_libraries(Regressor dlib::dlib ${HDF5_CXX_LIBRARIES} ${HDF5_LIBRARIES} )
-      	
+      target_link_libraries(webcam_face_pose_ex dlib::dlib ${OpenCV_LIBS} )
+      target_link_libraries(webcam_face_pose_ex dlib::dlib ${HDF5_CXX_LIBRARIES} ${HDF5_LIBRARIES} )
+      target_link_libraries(webcam_face_pose_ex ${SDL2_LIBRARIES})
+      #target_link_libraries(webcam_face_pose_ex dlib::dlib $(pkg-config --cflags --libs sdl2) -lSDL2_ttf)
+      target_link_libraries(webcam_face_pose_ex "${TORCH_LIBRARIES}")  
+      set_property(TARGET webcam_face_pose_ex PROPERTY CXX_STANDARD 11)	
    else()
       message("OpenCV not found, so we won't build the webcam_face_pose_ex example.")
    endif()
 endif()
 
 
-    if (DLIB_JPEG_SUPPORT)
+#    if (DLIB_JPEG_SUPPORT)
          # try to find libjpeg 
-         find_package(JPEG QUIET)
+#         find_package(JPEG QUIET)
          # Make sure there isn't something wrong with the version of libjpeg 
          # installed on this system.  Also don't use the installed libjpeg
          # if this is an APPLE system because apparently it's broken (as of 2015/01/01).
-         if (JPEG_FOUND AND NOT ("${JPEG_INCLUDE_DIR}" MATCHES "(.*)(Ana|ana|mini)conda(.*)"))
-            set(CMAKE_REQUIRED_LIBRARIES ${JPEG_LIBRARY})
-            CHECK_FUNCTION_EXISTS(jpeg_read_header LIBJPEG_IS_GOOD)
-         endif()
-         if (JPEG_FOUND AND LIBJPEG_IS_GOOD AND NOT APPLE)
-            include_directories(${JPEG_INCLUDE_DIR})
-            set (dlib_needed_libraries ${dlib_needed_libraries} ${JPEG_LIBRARY})
-         else()
+#         if (JPEG_FOUND AND NOT ("${JPEG_INCLUDE_DIR}" MATCHES "(.*)(Ana|ana|mini)conda(.*)"))
+#            set(CMAKE_REQUIRED_LIBRARIES ${JPEG_LIBRARY})
+#            CHECK_FUNCTION_EXISTS(jpeg_read_header LIBJPEG_IS_GOOD)
+#         endif()
+#         if (JPEG_FOUND AND LIBJPEG_IS_GOOD AND NOT APPLE)
+#            include_directories(${JPEG_INCLUDE_DIR})
+#            set (dlib_needed_libraries ${dlib_needed_libraries} ${JPEG_LIBRARY})
+#         else()
             # If we can't find libjpeg then statically compile it in.
-            add_definitions(-DDLIB_JPEG_STATIC)
-            set(source_files ${source_files}
-               external/libjpeg/jcomapi.cpp
-               external/libjpeg/jdapimin.cpp
-               external/libjpeg/jdapistd.cpp
-               external/libjpeg/jdatasrc.cpp
-               external/libjpeg/jdcoefct.cpp
-               external/libjpeg/jdcolor.cpp
-               external/libjpeg/jddctmgr.cpp
-               external/libjpeg/jdhuff.cpp
-               external/libjpeg/jdinput.cpp
-               external/libjpeg/jdmainct.cpp
-               external/libjpeg/jdmarker.cpp
-               external/libjpeg/jdmaster.cpp
-               external/libjpeg/jdmerge.cpp
-               external/libjpeg/jdphuff.cpp
-               external/libjpeg/jdpostct.cpp
-               external/libjpeg/jdsample.cpp
-               external/libjpeg/jerror.cpp
-               external/libjpeg/jidctflt.cpp
-               external/libjpeg/jidctfst.cpp
-               external/libjpeg/jidctint.cpp
-               external/libjpeg/jidctred.cpp
-               external/libjpeg/jmemmgr.cpp
-               external/libjpeg/jmemnobs.cpp
-               external/libjpeg/jquant1.cpp
-               external/libjpeg/jquant2.cpp
-               external/libjpeg/jutils.cpp  
-               external/libjpeg/jcapimin.cpp
-               external/libjpeg/jdatadst.cpp
-               external/libjpeg/jcparam.cpp
-               external/libjpeg/jcapistd.cpp
-               external/libjpeg/jcmarker.cpp
-               external/libjpeg/jcinit.cpp
-               external/libjpeg/jcmaster.cpp
-               external/libjpeg/jcdctmgr.cpp
-               external/libjpeg/jccoefct.cpp  
-               external/libjpeg/jccolor.cpp  
-               external/libjpeg/jchuff.cpp  
-               external/libjpeg/jcmainct.cpp  
-               external/libjpeg/jcphuff.cpp  
-               external/libjpeg/jcprepct.cpp  
-               external/libjpeg/jcsample.cpp
-               external/libjpeg/jfdctint.cpp
-               external/libjpeg/jfdctflt.cpp
-               external/libjpeg/jfdctfst.cpp
-               )
-         endif()
-         set(source_files ${source_files}
-            image_loader/jpeg_loader.cpp
-            image_saver/save_jpeg.cpp
-            )
-endif()
+#            add_definitions(-DDLIB_JPEG_STATIC)
+#            set(source_files ${source_files}
+#               external/libjpeg/jcomapi.cpp
+#               external/libjpeg/jdapimin.cpp
+#               external/libjpeg/jdapistd.cpp
+#               external/libjpeg/jdatasrc.cpp
+#               external/libjpeg/jdcoefct.cpp
+#               external/libjpeg/jdcolor.cpp
+#               external/libjpeg/jddctmgr.cpp
+#               external/libjpeg/jdhuff.cpp
+#               external/libjpeg/jdinput.cpp
+#               external/libjpeg/jdmainct.cpp
+#               external/libjpeg/jdmarker.cpp
+#               external/libjpeg/jdmaster.cpp
+#               external/libjpeg/jdmerge.cpp
+#               external/libjpeg/jdphuff.cpp
+#               external/libjpeg/jdpostct.cpp
+#               external/libjpeg/jdsample.cpp
+#               external/libjpeg/jerror.cpp
+#               external/libjpeg/jidctflt.cpp
+#               external/libjpeg/jidctfst.cpp
+#               external/libjpeg/jidctint.cpp
+#               external/libjpeg/jidctred.cpp
+#               external/libjpeg/jmemmgr.cpp
+#               external/libjpeg/jmemnobs.cpp
+#               external/libjpeg/jquant1.cpp
+#               external/libjpeg/jquant2.cpp
+#               external/libjpeg/jutils.cpp  
+#               external/libjpeg/jcapimin.cpp
+#               external/libjpeg/jdatadst.cpp
+#               external/libjpeg/jcparam.cpp
+#               external/libjpeg/jcapistd.cpp
+#               external/libjpeg/jcmarker.cpp
+#               external/libjpeg/jcinit.cpp
+#               external/libjpeg/jcmaster.cpp
+#               external/libjpeg/jcdctmgr.cpp
+#               external/libjpeg/jccoefct.cpp  
+#               external/libjpeg/jccolor.cpp  
+#               external/libjpeg/jchuff.cpp  
+#               external/libjpeg/jcmainct.cpp  
+#               external/libjpeg/jcphuff.cpp  
+#               external/libjpeg/jcprepct.cpp  
+#               external/libjpeg/jcsample.cpp
+#               external/libjpeg/jfdctint.cpp
+#               external/libjpeg/jfdctflt.cpp
+#               external/libjpeg/jfdctfst.cpp
+#               )
+#         endif()
+#         set(source_files ${source_files}
+#            image_loader/jpeg_loader.cpp
+#            image_saver/save_jpeg.cpp
+#            )
+#endif()
 
 
 
