@@ -3,7 +3,7 @@
 //isws thelei "sudo su"
 #include <iostream>
 #include <memory>
-#include "libtorch/include/torch/script.h" // One-stop header.
+#include <torch/script.h> // One-stop header.
 
 
 //https://github.com/iamhankai/cpp-pytorch/blob/master/example-app.cpp
@@ -19,6 +19,7 @@ int main(int argc, const char* argv[]) {
 	torch::jit::script::Module module = torch::jit::load("../model.pt");
 	//assert(module != nullptr);
 
+
 	// Create a vector of inputs.
 	std::vector<torch::jit::IValue> inputs;
 	//std::vector<unsigned char> img = {1,2,3};
@@ -26,7 +27,7 @@ int main(int argc, const char* argv[]) {
 	torch::Tensor pose= torch::rand({1,2});
 	pose[0][0]= 0.2; pose[0][1]=0.3;
 
-	inputs.push_back(torch::ones({1,1,60, 36}));//(1,chanel,width,height)
+	inputs.push_back(torch::zeros({1,1,60, 36}));//(1,chanel,width,height)
 	//inputs.push_back(torch::zeros({1,2}));
 	//inputs.push_back(torch::tensor(img));
 	inputs.push_back(pose);
