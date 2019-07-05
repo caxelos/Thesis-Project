@@ -31,9 +31,13 @@
 # you are reading builds dlib's example programs. 
 #
 
+####Other CmakeLists.txt examples
+#1)https://github.com/BIGBALLON/PyTorch-CPP/blob/master/CMakeLists.txt
 
-#cmake_minimum_required(VERSION 2.8.12)
-cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+
+
+cmake_minimum_required(VERSION 2.8.12)
+#cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 
 # Every project needs a name.  We call this the "examples" project.
 project(examples)
@@ -152,27 +156,43 @@ target_link_libraries(webcam_face_pose_ex dlib::dlib)
 #SET(GCC_COVERAGE_COMPILE_FLAGS "pkg-config --cflags --libs sdl2")
 #SET(GCC_COVERAGE_LINK_FLAGS    "-lSDL2_ttf")
 #set( CMAKE_CXX_FLAGS "$(pkg-config --cflags --libs sdl2) -lSDL2_ttf" )
-
 #set(CMAKE_C_FLAGS "$(pkg-config --cflags --libs sdl2) -lSDL2_ttf")
+
+
+
+#warning!!!.If I have a "libc10.so" warning in "usr/lib":
+#Cannot generate a safe runtime search path for target ok because files in
+#  some directories may conflict with libraries in implicit directories,run the command:
+#cp ../libtorch/lib/libc10.so /usr/lib
 if (DLIB_NO_GUI_SUPPORT)
    message("No GUI support, so we won't build the webcam_face_pose_ex example.")
 else()
    find_package(OpenCV QUIET)
    find_package(HDF5 REQUIRED COMPONENTS C CXX)
    find_package(SDL2 REQUIRED)
-   set(CMAKE_PREFIX_PATH "build/libtorch/share/cmake/Torch")
+   #find_package(CUDA QUIET)
+
+   #set(CMAKE_PREFIX_PATH "/home/olympia/OpenFace/libtorch/share/cmake/Torch")
    find_package(Torch REQUIRED)
 
    if (OpenCV_FOUND)
       include_directories(${OpenCV_INCLUDE_DIRS})
       include_directories(${HDF5_INCLUDE_DIRS})
       include_directories(${SDL2_INCLUDE_DIRS})
+      #include_directories(${Torch_INCLUDE_DIRS})
+      #include_directories(${CUDA_INCLUDE_DIRS})
+
+      #link_directories
       #add_executable(webcam_face_pose_ex webcam_face_pose_ex.cpp)
-      target_link_libraries(webcam_face_pose_ex dlib::dlib ${OpenCV_LIBS} )
+
+      target_link_libraries(webcam_face_pose_ex dlib::dlib ${OpenCV_LIBS})
       target_link_libraries(webcam_face_pose_ex dlib::dlib ${HDF5_CXX_LIBRARIES} ${HDF5_LIBRARIES} )
       target_link_libraries(webcam_face_pose_ex ${SDL2_LIBRARIES})
+      target_link_libraries(webcam_face_pose_ex "${TORCH_LIBRARIES}")
+      target_link_libraries(webcam_face_pose_ex ${SDL2_LIBRARIES})
       #target_link_libraries(webcam_face_pose_ex dlib::dlib $(pkg-config --cflags --libs sdl2) -lSDL2_ttf)
-      target_link_libraries(webcam_face_pose_ex "${TORCH_LIBRARIES}")  
+      
+      #target_link_libraries(webcam_face_pose_ex ${CUDA_LIBRARIES})      
       set_property(TARGET webcam_face_pose_ex PROPERTY CXX_STANDARD 11)	
    else()
       message("OpenCV not found, so we won't build the webcam_face_pose_ex example.")

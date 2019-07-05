@@ -40,6 +40,13 @@
 #include "Regressor.h"
 #include "Graphics.h"
 
+// sudo cmake -DCMAKE_PREFIX_PATH=../libtorch .. && make
+//isws thelei "sudo su"
+#include <iostream>
+#include <memory>
+#include <torch/script.h> // One-stop header.
+//#include "torch/script.h" // One-stop header.
+
 using namespace dlib;
 using namespace std;
 #define RIGHT 4
@@ -166,6 +173,7 @@ void rotationMatrixToEulerAngles(cv::Mat &R, float *headpose, int type)
 }
 int main()
 {
+    torch::jit::script::Module module = torch::jit::load("../model.pt");
     try
     {
         cv::VideoCapture cap(0);
@@ -383,7 +391,7 @@ int main()
                 //TODO:Allakse ton Face-Detector wste na mporei na 
                 //pianei kai meros tou proswpou
 
-                //cout << "prediction:(" << gaze_n[1]* 180.0/M_PI << "," << gaze_n[0]* 180.0/M_PI << ")" << endl;
+                cout << "prediction:(" << gaze_n[1]* 180.0/M_PI << "," << gaze_n[0]* 180.0/M_PI << ")" << endl;
                 //cout << "tvec:" << tvec << endl;
                 //cout << "right_eye_center:" << reye << endl;
 
@@ -398,6 +406,7 @@ int main()
            	    cv::Mat gaze_r = R.inv()*(cv::Mat_<float>(3, 1) << gaze_n[1], gaze_n[0], 0);
                 //cout << "gaze is: " << gaze_r << endl;
                 cout << "prediction:(" << gaze_r.at<float>(1,0)* 180.0/M_PI << "," << 
+                
                 gaze_r.at<float>(0,0)* 180.0/M_PI << ")" << endl;
 
                 //to dx einai i metatopisi apo to (0,0), diladi aptin kamera
