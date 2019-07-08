@@ -1,0 +1,47 @@
+==17538== Memcheck, a memory error detector
+==17538== Copyright (C) 2002-2015, and GNU GPL'd, by Julian Seward et al.
+==17538== Using Valgrind-3.11.0 and LibVEX; rerun with -h for copyright info
+==17538== Command: ./webcam_face_pose_ex
+==17538== Parent PID: 16222
+==17538== 
+==17538== Syscall param writev(vector[...]) points to uninitialised byte(s)
+==17538==    at 0x9696FFD: ??? (syscall-template.S:84)
+==17538==    by 0x9D80F28: ??? (in /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0)
+==17538==    by 0x9D8131C: ??? (in /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0)
+==17538==    by 0x9D813A4: xcb_writev (in /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0)
+==17538==    by 0x622954D: _XSend (in /usr/lib/x86_64-linux-gnu/libX11.so.6.3.0)
+==17538==    by 0x6229894: _XFlush (in /usr/lib/x86_64-linux-gnu/libX11.so.6.3.0)
+==17538==    by 0x620AE19: XFlush (in /usr/lib/x86_64-linux-gnu/libX11.so.6.3.0)
+==17538==    by 0x67EDA6: dlib::gui_core_kernel_2_globals::event_handler_thread::~event_handler_thread() (gui_core_kernel_2.cpp:154)
+==17538==    by 0x67EED5: dlib::gui_core_kernel_2_globals::event_handler_thread::~event_handler_thread() (gui_core_kernel_2.cpp:175)
+==17538==    by 0x683EC1: std::_Sp_counted_ptr<dlib::gui_core_kernel_2_globals::event_handler_thread*, (__gnu_cxx::_Lock_policy)2>::_M_dispose() (in /home/olympia/OpenFace/build/webcam_face_pose_ex)
+==17538==    by 0x628D29: std::_Sp_counted_base<(__gnu_cxx::_Lock_policy)2>::_M_release() (shared_ptr_base.h:150)
+==17538==    by 0x614266: std::__shared_count<(__gnu_cxx::_Lock_policy)2>::~__shared_count() (shared_ptr_base.h:659)
+==17538==  Address 0x1620c340 is 16 bytes inside a block of size 16,384 alloc'd
+==17538==    at 0x4C2FB55: calloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==17538==    by 0x6219722: XOpenDisplay (in /usr/lib/x86_64-linux-gnu/libX11.so.6.3.0)
+==17538==    by 0x67F018: dlib::gui_core_kernel_2_globals::event_handler_thread::thread() (gui_core_kernel_2.cpp:203)
+==17538==    by 0x6A1AC4: dlib::threaded_object::thread_helper() (threaded_object_extension.cpp:265)
+==17538==    by 0x6A1C24: void dlib::dlib_create_new_thread_helper<dlib::threaded_object, &dlib::threaded_object::thread_helper>(void*) (create_new_thread_extension.h:24)
+==17538==    by 0x6A2406: dlib::threads_kernel_shared::thread_starter(void*) (threads_kernel_shared.cpp:261)
+==17538==    by 0x6BA3E3: dlib::threads_kernel_shared_helpers::thread_starter(void*) (threads_kernel_2.cpp:39)
+==17538==    by 0x55426B9: start_thread (pthread_create.c:333)
+==17538==    by 0x96A141C: clone (clone.S:109)
+==17538==  Uninitialised value was created by a stack allocation
+==17538==    at 0x67ECA4: dlib::gui_core_kernel_2_globals::event_handler_thread::~event_handler_thread() (gui_core_kernel_2.cpp:133)
+==17538== 
+==17538== 
+==17538== HEAP SUMMARY:
+==17538==     in use at exit: 186,976 bytes in 708 blocks
+==17538==   total heap usage: 6,501 allocs, 5,793 frees, 9,545,757 bytes allocated
+==17538== 
+==17538== LEAK SUMMARY:
+==17538==    definitely lost: 384 bytes in 1 blocks
+==17538==    indirectly lost: 0 bytes in 0 blocks
+==17538==      possibly lost: 0 bytes in 0 blocks
+==17538==    still reachable: 186,592 bytes in 707 blocks
+==17538==         suppressed: 0 bytes in 0 blocks
+==17538== Rerun with --leak-check=full to see details of leaked memory
+==17538== 
+==17538== For counts of detected and suppressed errors, rerun with: -v
+==17538== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
