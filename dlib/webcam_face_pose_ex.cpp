@@ -27,7 +27,7 @@
     2011.  SSE4 is the next fastest and is supported by most current machines.  
 */
 
-
+#include <sys/resource.h>
 #include <dlib/opencv.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
@@ -44,7 +44,12 @@
 //isws thelei "sudo su"
 #include <iostream>
 #include <memory>
+
+#define TORCH_MODE
+
+#ifdef TORCH_MODE
 #include <torch/script.h> // One-stop header.
+#endif
 //#include "torch/script.h" // One-stop header.
 
 using namespace dlib;
@@ -55,8 +60,8 @@ using namespace std;
 volatile int pixW = 200, pixH=200;
 volatile bool quit=false;
 void GraphicsThread() { 
-	
-	//bool quit = false;
+    
+    //bool quit = false;
     SDL_Event event;
     //Graphics graphics;
     
@@ -96,12 +101,12 @@ bool isRotationMatrix(cv::Mat &R)
 //cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R)
 void rotationMatrixToEulerAngles(cv::Mat &R, float *headpose, int type)
 {
-//	cout << "Rotation is:" << cv::Vec3f(180.0/M_PI*atan2(R.at<double>(2,1),R.at<double>(2,2)),
-//					  180.0/M_PI*atan2(-R.at<double>(2,0),sqrt(R.at<double>(2,1)*R.at<double>(2,1)+R.at<double>(2,2)*R.at<double>(2,2)) ),
-//					  180.0/M_PI*atan2(R.at<double>(1,0),R.at<double>(0,0))					  	
-//					 ) << endl;
+//  cout << "Rotation is:" << cv::Vec3f(180.0/M_PI*atan2(R.at<double>(2,1),R.at<double>(2,2)),
+//                    180.0/M_PI*atan2(-R.at<double>(2,0),sqrt(R.at<double>(2,1)*R.at<double>(2,1)+R.at<double>(2,2)*R.at<double>(2,2)) ),
+//                    180.0/M_PI*atan2(R.at<double>(1,0),R.at<double>(0,0))                     
+//                   ) << endl;
 /*
-	assert(isRotationMatrix(R));
+    assert(isRotationMatrix(R));
     float sy = sqrt(R.at<double>(0,0) * R.at<double>(0,0) +  R.at<double>(1,0) * R.at<double>(1,0) );
     bool singular = sy < 1e-6; // If
     float x, y, z;
@@ -121,32 +126,32 @@ void rotationMatrixToEulerAngles(cv::Mat &R, float *headpose, int type)
     if (l == 1) {
     //cout << "Theta:" << 180.0/M_PI*theta << " and Phi:" << 180.0/M_PI*phi << endl;
     l=0;
-	}
-	else
-		l=1;
+    }
+    else
+        l=1;
     //cout << "Rotation is: " << cv::Vec3f(x, y, z) << endl;
     headpose[0]=theta;
     headpose[1]=phi;
     return;
 */
     //if (type == LEFT) {
-    	//afto doulevei ok
-    	headpose[0] = -atan2(R.at<double>(0,2),R.at<double>(2,2));//theta
-    	headpose[1] =-asin(R.at<double>(1,2));//phi
+        //afto doulevei ok
+        headpose[0] = -atan2(R.at<double>(0,2),R.at<double>(2,2));//theta
+        headpose[1] =-asin(R.at<double>(1,2));//phi
 
-    	//afto tha prepe na doulevei
-    	
+        //afto tha prepe na doulevei
+        
     //}
    // else {
-    	//edw kanoyme flip kanonika 
-   // 	headpose[0] = asin(R.at<double>(1,2));
+        //edw kanoyme flip kanonika 
+   //   headpose[0] = asin(R.at<double>(1,2));
    //     headpose[1] = -atan2(R.at<double>(0,2),R.at<double>(2,2));
     
         //headpose[0] = -atan2(R.at<double>(0,2),R.at<double>(2,2));
-    	//headpose[1] =-asin(R.at<double>(1,2));
+        //headpose[1] =-asin(R.at<double>(1,2));
     //}
 
-	//return cv::Vec3f(-asin(R.at<double>(1,2)),-atan2(R.at<double>(0,2),R.at<double>(2,2)),1.0);
+    //return cv::Vec3f(-asin(R.at<double>(1,2)),-atan2(R.at<double>(0,2),R.at<double>(2,2)),1.0);
 
 /*
     assert(isRotationMatrix(R));
@@ -173,24 +178,47 @@ void rotationMatrixToEulerAngles(cv::Mat &R, float *headpose, int type)
 }
 int main()
 {
+	#ifdef TORCH_MODE
     torch::jit::script::Module module = torch::jit::load("../model.pt");
+    #endif
+
     try
     {
+    	/*
+    	const rlim_t kStackSize = 16 * 1024 * 1024;   // min stack size = 16 MB
+	    struct rlimit rl;
+	    int result;
+
+	    result = getrlimit(RLIMIT_STACK, &rl);
+	    if (result == 0)
+	    {
+	        if (rl.rlim_cur < kStackSize)
+	        {
+	            rl.rlim_cur = kStackSize;
+	            result = setrlimit(RLIMIT_STACK, &rl);
+	            if (result != 0)
+	            {
+	                fprintf(stderr, "setrlimit returned result = %d\n", result);
+	            }
+	        }
+	    }*/
+
         cv::VideoCapture cap(0);
         if (!cap.isOpened())
         {
             cerr << "Unable to connect to camera" << endl;
             return 1;
         }
-
+        #ifndef TORCH_MODE
         image_window win;
+        #endif
 
         // Load face detection and pose estimation models.
         frontal_face_detector detector = get_frontal_face_detector();
         shape_predictor pose_model;
         deserialize("../../Downloads/shape_predictor_68_face_landmarks.dat") >> pose_model;
-	
-		
+    
+        
  
 
         //define our 3D face model:
@@ -216,14 +244,21 @@ int main()
         //Create thread for graphics
         std::thread t1(GraphicsThread);
         SDL_Event event;
-	    Graphics graphics;
-	    graphics.init();
-	    graphics.setPos(pixW,pixH,false);
+        Graphics graphics;
+        graphics.init();
+        graphics.setPos(pixW,pixH,false);
 
         // Grab and process frames until the main window is closed by the user.
-        while(!win.is_closed() && !quit)
+        #ifdef TORCH_MODE
+        while(!quit)
+        #endif
+
+        #ifndef TORCH_MODE
+		while(!win.is_closed() && !quit)
+        #endif
+
         {
-            		
+                    
             // Grab a frame
             cv::Mat temp;
             //cv::flip(temp, temp, 1);
@@ -267,15 +302,15 @@ int main()
                 //n.48: deksia akri stoma
                 //n.54: aristeri akri stoma                                
                 shapes2d.push_back(pose_model(cimg, faces[i]));//size=68, shape.part(0)         
-        		double focal_length = temp.cols;// Approximate focal length.
-   				cv::Point2d center = cv::Point2d(temp.cols/2,temp.rows/2);//rows=460, cols=640
-    			
+                double focal_length = temp.cols;// Approximate focal length.
+                cv::Point2d center = cv::Point2d(temp.cols/2,temp.rows/2);//rows=460, cols=640
+                
                 cv::Mat Cr = (cv::Mat_<double>(3,3) << focal_length, 0, center.x, 0 , focal_length, center.y, 0, 0, 1);
                 Cr.convertTo(Cr, CV_32FC1);
-    			cv::Mat dist_coeffs = cv::Mat::zeros(4,1,cv::DataType<double>::type);// Assuming no lens distortion
-				cv::Mat rotation_vector; // Rotation in axis-angle form
-    			cv::Mat tvec;	
-    			cv::solvePnP(model3Dpoints, image_points,Cr, dist_coeffs, rotation_vector, tvec);
+                cv::Mat dist_coeffs = cv::Mat::zeros(4,1,cv::DataType<double>::type);// Assuming no lens distortion
+                cv::Mat rotation_vector; // Rotation in axis-angle form
+                cv::Mat tvec;   
+                cv::solvePnP(model3Dpoints, image_points,Cr, dist_coeffs, rotation_vector, tvec);
                 //cout << rotation_vector << endl;
                 
                 cv::Mat Rr;
@@ -397,13 +432,13 @@ int main()
 
                 //cv::Mat gazeout = R.inv()*(cv::Mat_<float>(3, 1) << gaze[0], gaze[1], 0);
                 //cv::Mat gazeout = R.inv()*(cv::Mat_<float>(3, 1) << gaze[0], gaze[1], 0);   
-            	//cout << "final pred:" <<  gazeout* 180.0/M_PI << endl;
-  				//ws apostasi mporw na thewrisw to translation_vector me antitheto z-aksona
-           		float dx,dy;
-				           	      			
-           		//tan(gaze[0]) = (dx+x)/(-tvec(2))
-           		//tan(gaze[1])= (dy+tvec(1))/(-tvec(2)) 
-           	    cv::Mat gaze_r = R.inv()*(cv::Mat_<float>(3, 1) << gaze_n[1], gaze_n[0], 0);
+                //cout << "final pred:" <<  gazeout* 180.0/M_PI << endl;
+                //ws apostasi mporw na thewrisw to translation_vector me antitheto z-aksona
+                float dx,dy;
+                                            
+                //tan(gaze[0]) = (dx+x)/(-tvec(2))
+                //tan(gaze[1])= (dy+tvec(1))/(-tvec(2)) 
+                cv::Mat gaze_r = R.inv()*(cv::Mat_<float>(3, 1) << gaze_n[1], gaze_n[0], 0);
                 //cout << "gaze is: " << gaze_r << endl;
                 cout << "prediction:(" << gaze_r.at<float>(1,0)* 180.0/M_PI << "," << 
                 
@@ -431,18 +466,18 @@ int main()
                     cout <<"case4:"<<pixW<<"dx:"<<dx  << endl;
                 }
                 //pixW=620;
-           		
+                
                 //dx = -tan(gaze_r.at<float>(1,0))*reye.at<float>(2,0) -reye.at<float>(0,0);//in mm's
 
-      			//dy = -tan(gaze_r.at<float>(0,0))*reye.at<float>(2,0) - reye.at<float>(1,0);//in mm's
-      			dy=50;
+                //dy = -tan(gaze_r.at<float>(0,0))*reye.at<float>(2,0) - reye.at<float>(1,0);//in mm's
+                dy=50;
                 //cout << "translation_vector:" << translation_vector << endl;
                 //cout << "a1:" << gaze_r.at<float>(0,0) << endl;
                 //cout << "a3:" << translation_vector.at<float>(1 ,0) << endl;//in mm's
                 //cout << "a2:" << translation_vector.at<float>(2,0) << endl;
                 //cout << "a3:" << translation_vector.at<float>(0,0) << endl;//in mm's
                 //cout  << " dx is " << dx<<", dy is " << dy<< endl;
-      			//cout << "theta:("<< gaze_r.at<float>(1,0)* 180.0/M_PI<<",phi:" << gaze_r.at<float>(0,0)* 180.0/M_PI<<")"<< endl;
+                //cout << "theta:("<< gaze_r.at<float>(1,0)* 180.0/M_PI<<",phi:" << gaze_r.at<float>(0,0)* 180.0/M_PI<<")"<< endl;
                 //cout  << "dist:(" << dx <<"," << dy<<")"<< endl;
                 //-1.21378 gaze_r.at<float>(0,0)
                 //-584.579 translation_vector.at<float>(2,0)
@@ -453,24 +488,26 @@ int main()
                 //dx = -tan(-1.21378)*(-584.579) - (-61.781)
 
 
-           		dy = 4 * dy;
-           		//dx =  4 * dx + 340/2;
-           		pixH = dy;//set
-           		//pixW = dx;
+                dy = 4 * dy;
+                //dx =  4 * dx + 340/2;
+                pixH = dy;//set
+                //pixW = dx;
 
-           		//othoni diastaseis:W=1240px kai 340cm kai H = 780px kai 190cm
+                //othoni diastaseis:W=1240px kai 340cm kai H = 780px kai 190cm
                 //1240 = 3400mm
                 //???  = 1mm=0.3647px
                 //???=0.3647
 
-           		//cout  << "pixel:(" << pixW <<"," << pixH<<")"<< endl;
+                //cout  << "pixel:(" << pixW <<"," << pixH<<")"<< endl;
                 graphics.setPos(pixW,pixH,false);
 
 
                 cv_image<bgr_pixel> cimg2(output_orig);
+                #ifndef TORCH_MODE
                 win.clear_overlay();
                 win.set_image(cimg2);
-                win.add_overlay(render_face_detections(shapes2d)); 
+                win.add_overlay(render_face_detections(shapes2d));
+                #endif 
             }
             
 
@@ -479,7 +516,7 @@ int main()
             //win.clear_overlay();
             //win.set_image(cimg);
             //win.add_overlay(render_face_detections(shapes2d)); 
-	    		    
+                    
         }
         regressor.close();
     }
@@ -496,19 +533,19 @@ int main()
     }
 }
 
-	
+    
 
 /*
-    	vector<Point3d> nose_end_point3D;//Project a 3D point (0,0,1000.0) onto the image plane.
-    	vector<Point2d> nose_end_point2D;
-    	nose_end_point3D.push_back(Point3d(0,0,1000.0));
+        vector<Point3d> nose_end_point3D;//Project a 3D point (0,0,1000.0) onto the image plane.
+        vector<Point2d> nose_end_point2D;
+        nose_end_point3D.push_back(Point3d(0,0,1000.0));
      
-    	projectPoints(nose_end_point3D, rotation_vector, translation_vector, camera_matrix, dist_coeffs, nose_end_point2D);
+        projectPoints(nose_end_point3D, rotation_vector, translation_vector, camera_matrix, dist_coeffs, nose_end_point2D);
 */
 
 
 
 //dlib::array<array2d<rgb_pixel> > face_chips;
 //extract_image_chips(cimg, get_face_chip_details(shapes), face_chips);
-//win.set_image(tile_images(face_chips));	
+//win.set_image(tile_images(face_chips));   
         

@@ -164,6 +164,9 @@ target_link_libraries(webcam_face_pose_ex dlib::dlib)
 #Cannot generate a safe runtime search path for target ok because files in
 #  some directories may conflict with libraries in implicit directories,run the command:
 #cp ../libtorch/lib/libc10.so /usr/lib
+#sudo cmake --DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=/home/olympia/OpenFace/build/libtorch . && make
+
+
 if (DLIB_NO_GUI_SUPPORT)
    message("No GUI support, so we won't build the webcam_face_pose_ex example.")
 else()
@@ -172,14 +175,14 @@ else()
    find_package(SDL2 REQUIRED)
    #find_package(CUDA QUIET)
 
-   #set(CMAKE_PREFIX_PATH "/home/olympia/OpenFace/libtorch/share/cmake/Torch")
+   set(CMAKE_PREFIX_PATH "/home/olympia/MPIIGaze/libtorch/share/cmake/Torch")
    find_package(Torch REQUIRED)
 
    if (OpenCV_FOUND)
       include_directories(${OpenCV_INCLUDE_DIRS})
       include_directories(${HDF5_INCLUDE_DIRS})
       include_directories(${SDL2_INCLUDE_DIRS})
-      #include_directories(${Torch_INCLUDE_DIRS})
+      include_directories(${Torch_INCLUDE_DIRS})
       #include_directories(${CUDA_INCLUDE_DIRS})
 
       #link_directories
@@ -363,3 +366,9 @@ endif()
 
 
 
+
+
+
+#set(CMAKE_CXX_FLAGS_DEBUG  "-g")
+
+#set(CMAKE_PREFIX_PATH "libtorch/share/cmake/Torch")
