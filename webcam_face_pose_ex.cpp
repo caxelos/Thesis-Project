@@ -27,9 +27,9 @@
     2011.  SSE4 is the next fastest and is supported by most current machines.  
 */
 
-#include <sys/resource.h>
+//#include <sys/resource.h>
 #include <dlib/opencv.h>
-#include <opencv2/highgui/highgui.hpp>
+//#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 #include <dlib/image_processing/frontal_face_detector.h>
 #include <dlib/image_processing/render_face_detections.h>
@@ -429,9 +429,9 @@ int main()
                 float pose[2];
                 float gaze_n[2];
 				pose[0]= phi; pose[1]=theta;
+				cout << "edw eimaste " << endl;
 				model.predict(output,pose,gaze_n);
-				
-
+				cout << "ksana edw" << endl;
 				#endif
 
 
@@ -461,9 +461,7 @@ int main()
                 //tan(gaze[1])= (dy+tvec(1))/(-tvec(2)) 
                 cv::Mat gaze_r = R.inv()*(cv::Mat_<float>(3, 1) << gaze_n[1], gaze_n[0], 0);
                 //cout << "gaze is: " << gaze_r << endl;
-                cout << "prediction:(" << gaze_r.at<float>(1,0)* 180.0/M_PI << "," << 
-                
-                gaze_r.at<float>(0,0)* 180.0/M_PI << ")" << endl;
+                //cout << "prediction:(" << gaze_r.at<float>(1,0)* 180.0/M_PI << "," << gaze_r.at<float>(0,0)* 180.0/M_PI << ")" << endl;
 
                 //to dx einai i metatopisi apo to (0,0), diladi aptin kamera
                 if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) > 0) { 
