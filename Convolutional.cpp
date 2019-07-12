@@ -17,17 +17,18 @@ void Convolutional::load_model(void) {
 //efficient push_back:https://en.cppreference.com/w/cpp/utility/move
 
 void Convolutional::predict(cv::Mat imgCV,float *poseF,float *gaze) {
-	this->module = torch::jit::load("../model.pt");
+	//this->module = torch::jit::load("../model.pt");
+
+	imgCV.convertTo(imgCV, CV_32F, 1.0 / 255, 0);
 
 	std::vector<torch::jit::IValue> inputs;
     torch::Tensor pose= torch::rand({1,2});
 
-    //auto img = torch::from_blob(imgCV.data, {1, 1, 60, 36});
     //cout << "size:" << img.sizes() << endl;//size:[1, 36, 60, 1]
     //img = img.permute({0, 3, 1, 2});
 
     //prosoxh! Apo torch::kU8, egine: torch::kFloat32, logw tou Normalization me to 1/255
-    torch::Tensor img = (torch::from_blob(imgCV.data, {1, 1,imgCV.rows,imgCV.cols},torch::kFloat32));//torch::Tensor img= torch::from_blob(imgCV.ptr<float>(),{imgCV.rows,imgCV.cols});//
+    torch::Tensor img = torch::from_blob(imgCV.data, {1, 1,imgCV.rows,imgCV.cols},torch::kFloat32));//torch::Tensor img= torch::from_blob(imgCV.ptr<float>(),{imgCV.rows,imgCV.cols});//
     std::cout << img.slice(/*dim=*/1, /*start=*/0, /*end=*/1) << '\n';//3.2470e-09
     
     //std::vector<int64_t> sizes = {1, 1, imgCV.rows, imgCV.cols};
@@ -38,7 +39,7 @@ void Convolutional::predict(cv::Mat imgCV,float *poseF,float *gaze) {
     //inputs.push_back(torch::zeros({1,1,60, 36})) ;//inputs.emplace_back(img);//inputs.push_back(img);
 	inputs.push_back(img);
 	inputs.push_back(pose);
-	torch::Tensor output = module.forward(inputs).toTensor();
+	torch::Tensor output = (this->module).forward(inputs).toTensor();
 	gaze[0] = output[0][0].item<float>();
 	gaze[1] = output[0][1].item<float>();
 	//cout << "gaze_n:("<<gaze[0]* 180.0/M_PI<<","<<gaze[1]* 180.0/M_PI <<")"<<endl;
