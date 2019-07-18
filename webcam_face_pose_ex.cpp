@@ -38,7 +38,6 @@
 #include <opencv2/opencv.hpp>
 #include <thread>
 #include "Regressor.h"
-#include "Convolutional.h"
 #include "Graphics.h"
 
 // sudo cmake -DCMAKE_PREFIX_PATH=../libtorch .. && make
@@ -53,6 +52,7 @@
 
 #ifdef TORCH_MODE
 #include <torch/script.h> // One-stop header.
+#include "Convolutional.h"
 #endif
 
 
@@ -139,9 +139,12 @@ void rotationMatrixToEulerAngles(cv::Mat &R, float *headpose, int type)
     return;
 */
     //if (type == LEFT) {
-        //afto doulevei ok
-        headpose[0] = -atan2(R.at<double>(0,2),R.at<double>(2,2));//theta
-        headpose[1] =-asin(R.at<double>(1,2));//phi
+        
+
+        //afto gia to deksi mati!!! Gia to aristero,tsekare to "preprocess_data.py",grammi 85
+        headpose[0] = /*-*/atan2(R.at<double>(0,2),R.at<double>(2,2));//theta
+        headpose[1] =/*-*/asin(R.at<double>(1,2));//phi
+
 
         //afto tha prepe na doulevei
         
@@ -214,9 +217,7 @@ int main()
             cerr << "Unable to connect to camera" << endl;
             return 1;
         }
-        #ifndef TORCH_MODE
-        image_window win;
-        #endif
+  
 
         // Load face detection and pose estimation models.
         frontal_face_detector detector = get_frontal_face_detector();
@@ -260,6 +261,7 @@ int main()
         #endif
 
         #ifndef TORCH_MODE
+        image_window win;
 		while(!win.is_closed() && !quit)
         #endif
 
@@ -373,48 +375,16 @@ int main()
                 cv::Mat Rn = R*Rr;
                 //cv::Mat rvecn;
                 //cv::Rodrigues(Rn,rvecn);
-
-                //rvecn = rvecn*(180.0/M_PI);
-
-                //cv::Rodrigues(rvecn,Rn);
-                //cout << "rvec is:"<<rvecn << endl;//rvecn=rvecn.row(0);
-
-               //cout << "rvec normalized:"<<rvecn<<endl;
-               // << rvecn.at<double>(0,0)//*(180.0/M_PI)
-                 //                          <<","<< rvecn.at<double>(0,1)//*(180.0/M_PI)
-                  //                          <<","<< rvecn.at<double>(0,2)/**(180.0/M_PI)*/<<endl;
-                float theta = asin(Rn.at<float>(1,2));//theta
-                //float phi =   atan2(Rn.at<float>(0,2),Rn.at<float>(2,2));//phi
-                float phi =   atan(Rn.at<float>(0,2)/Rn.at<float>(2,2));//phi
-                //float theta = asin(rvecn.at<float>(1,0));
-                //float phi = atan2(rvecn.at<float>(0,0), rvecn.at<float>(2,0));
-                //theta = asin(rvecn.at<float>(1,0));
-                //phi = atan2(rvecn.at<float>(0,0),rvecn.at<float>(2,0));
-
-
-                //cv::Rodrigues(Rn,R_new);        
-                //cout << "Rn is:" << Rn << endl;
-                //cout << "R_new is:" << R_new << endl;
-
-                //float theta = asin(Rn.at<float>(1,0));
-                //float phi = atan2(Rn.at<float>(0,0),Rn.at<float>(2,0));
-                //0.159155
-                //phi = phi - 1.5708;
-                //if (phi <0)
-                //    phi = -(1.508 +phi);
-                //else
-                //    phi = 1.508-phi;
-                //phi=0.352451;
-                //theta=-0.197364;
-
+                //rvecn = rvecn[0,:]
+				
+                //deksi mati::
+                float phi =  -atan(Rn.at<float>(0,2)/Rn.at<float>(2,2));//phi
+				float theta = asin(Rn.at<float>(1,2));//theta
+              
                 //cout << "pose:(" << phi/**(180.0/M_PI)*/<<","<<theta/**(180.0/M_PI)*/<<")"<<endl;
-                //cout << "pose1:(" <<theta1* 180.0/M_PI <<","<<phi1* (180.0/M_PI)<<")"<<endl;
-
-                //gaze
-                cv::flip(output, output, 0);
+                //cout << "pose1:(" <<theta1* 180.0/M_PI <<","<<phi1* (180.0/M_PI)<<")"<<endl;  
+                //cv::flip(output, output, 0);
                 cv::Mat output_orig=output;
-
-
                 cvtColor( output, output, CV_BGR2GRAY );/// Convert to grayscale
                 equalizeHist( output, output);/// Apply Histogram Equalization
                 
@@ -429,9 +399,7 @@ int main()
                 float pose[2];
                 float gaze_n[2];
 				pose[0]= phi; pose[1]=theta;
-				cout << "edw eimaste " << endl;
 				model.predict(output,pose,gaze_n);
-				cout << "ksana edw" << endl;
 				#endif
 
 
@@ -447,7 +415,7 @@ int main()
                 //TODO:Allakse ton Face-Detector wste na mporei na 
                 //pianei kai meros tou proswpou
 
-                //cout << "prediction:(" << gaze_n[1]* 180.0/M_PI << "," << gaze_n[0]* 180.0/M_PI << ")" << endl;
+                //cout << "prediction gaze_n:(" << gaze_n[0]* 180.0/M_PI << "," << gaze_n[1]* 180.0/M_PI << ")" << endl;
                 //cout << "tvec:" << tvec << endl;
                 //cout << "right_eye_center:" << reye << endl;
 
@@ -459,30 +427,31 @@ int main()
                                             
                 //tan(gaze[0]) = (dx+x)/(-tvec(2))
                 //tan(gaze[1])= (dy+tvec(1))/(-tvec(2)) 
-                cv::Mat gaze_r = R.inv()*(cv::Mat_<float>(3, 1) << gaze_n[1], gaze_n[0], 0);
+                cv::Mat gaze_r = R.inv()*(cv::Mat_<float>(3, 1) << gaze_n[0], gaze_n[1], 0);
                 //cout << "gaze is: " << gaze_r << endl;
-                //cout << "prediction:(" << gaze_r.at<float>(1,0)* 180.0/M_PI << "," << gaze_r.at<float>(0,0)* 180.0/M_PI << ")" << endl;
+                cout << "prediction gaze_r:(" << gaze_r.at<float>(0,0)* 180.0/M_PI << "," << gaze_r.at<float>(1,0)* 180.0/M_PI << ")" << endl;
+                //(katheto,orizontio)
 
                 //to dx einai i metatopisi apo to (0,0), diladi aptin kamera
                 if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) > 0) { 
                     dx = -reye.at<float>(0,0)+ reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
                     pixW=620-dx/0.3647;//*4;//mm se pixels
-                    cout <<"case1:" <<pixW<<"dx:"<<dx << endl;
+                    //cout <<"case1:" <<pixW<<"dx:"<<dx << endl;
                 }
                 else if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) < 0) {
                     dx = reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
                     pixW = 620+(reye.at<float>(0,0)+dx)/0.3647;///0.3647;//1mm=0.3647px
-                    cout <<"case2:"<<pixW<<"dx:"<<dx  << endl;
+                    //cout <<"case2:"<<pixW<<"dx:"<<dx  << endl;
                 } 
                 else if (reye.at<float>(0,0)>0 && gaze_r.at<float>(0,0) >0) {
                     dx = (-reye.at<float>(2,0))*tan(gaze_r.at<float>(0,0));
                     pixW=620+(reye.at<float>(0,0)+dx)/0.3647;
-                    cout <<"case3:"<<pixW<<"dx:"<<dx  << endl;
+                    //cout <<"case3:"<<pixW<<"dx:"<<dx  << endl;
                 }
                 else if (reye.at<float>(0,0)>0 && gaze_r.at<float>(0,0) <0) {
                     dx = reye.at<float>(0,0) - reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
                     pixW=620+dx/0.3647;
-                    cout <<"case4:"<<pixW<<"dx:"<<dx  << endl;
+                    //cout <<"case4:"<<pixW<<"dx:"<<dx  << endl;
                 }
                 //pixW=620;
                 
@@ -519,8 +488,6 @@ int main()
 
                 //cout  << "pixel:(" << pixW <<"," << pixH<<")"<< endl;
                 graphics.setPos(pixW,pixH,false);
-
-
                 cv_image<bgr_pixel> cimg2(output_orig);
                 #ifndef TORCH_MODE
                 win.clear_overlay();
