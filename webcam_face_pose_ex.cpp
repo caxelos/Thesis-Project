@@ -45,7 +45,6 @@
 #include <iostream>
 #include <memory>
 
-#define CONV_NETWORK
 #define TORCH_MODE
 //#define REGRESSION_FORESTS
 
@@ -244,7 +243,7 @@ int main()
         // 1c.Calculate xr(x axis) of the head coordinate system
         //cv::Mat xr =(leftmidpoints-rightmidpoints);///cv::norm(leftmidpoints-rightmidpoints);
         //cv::Point3d xr =(leftmidpoints-rightmidpoints)/cv::norm(leftmidpoints-rightmidpoints);
-
+        
 
         Regressor regressor;
         regressor.load_model();
@@ -253,7 +252,7 @@ int main()
         SDL_Event event;
         Graphics graphics;
         graphics.init();
-        graphics.setPos(pixW,pixH,false);
+        graphics.setPos(pixW,pixH,false,0);
 
         // Grab and process frames until the main window is closed by the user.
         #ifdef TORCH_MODE
@@ -375,27 +374,32 @@ int main()
                 cv::Mat Rn = R*Rr;
                 //cv::Mat rvecn;
                 //cv::Rodrigues(Rn,rvecn);
+                //cout << "rvecn is: " << rvecn << endl; 
+        
                 //rvecn = rvecn[0,:]
 				
                 //deksi mati::
+     
+                //float phi =  -atan(rvecn.at<float>(0,0)/rvecn.at<float>(2,0));//phi
+				//float theta = asin(rvecn.at<float>(1,0));//theta
                 float phi =  -atan(Rn.at<float>(0,2)/Rn.at<float>(2,2));//phi
 				float theta = asin(Rn.at<float>(1,2));//theta
               
-                //cout << "pose:(" << phi/**(180.0/M_PI)*/<<","<<theta/**(180.0/M_PI)*/<<")"<<endl;
+                cout << "pose:(" << phi*(180.0/M_PI)<<","<<theta*(180.0/M_PI)<<")"<<endl;
                 //cout << "pose1:(" <<theta1* 180.0/M_PI <<","<<phi1* (180.0/M_PI)<<")"<<endl;  
                 //cv::flip(output, output, 0);
                 cv::Mat output_orig=output;
                 cvtColor( output, output, CV_BGR2GRAY );/// Convert to grayscale
                 equalizeHist( output, output);/// Apply Histogram Equalization
-                
-
+                cv::flip(output, output, 0);
+                cv::flip(output, output, 1);
                 #ifdef REGRESSION_FORESTS
                 float pose[2]; pose[0] = phi;pose[1]=theta;
                 float gaze_n[2];
                 regressor.predict(pose,output.data,gaze_n);
                 #endif
 
-                #ifdef CONV_NETWORK
+                #ifdef TORCH_MODE
                 float pose[2];
                 float gaze_n[2];
 				pose[0]= phi; pose[1]=theta;
@@ -415,7 +419,7 @@ int main()
                 //TODO:Allakse ton Face-Detector wste na mporei na 
                 //pianei kai meros tou proswpou
 
-                //cout << "prediction gaze_n:(" << gaze_n[0]* 180.0/M_PI << "," << gaze_n[1]* 180.0/M_PI << ")" << endl;
+                cout << "prediction gaze_n:(" << -gaze_n[0]* 180.0/M_PI << "," << -gaze_n[1]* 180.0/M_PI << ")" << endl;
                 //cout << "tvec:" << tvec << endl;
                 //cout << "right_eye_center:" << reye << endl;
 
@@ -428,30 +432,50 @@ int main()
                 //tan(gaze[0]) = (dx+x)/(-tvec(2))
                 //tan(gaze[1])= (dy+tvec(1))/(-tvec(2)) 
                 cv::Mat gaze_r = R.inv()*(cv::Mat_<float>(3, 1) << gaze_n[0], gaze_n[1], 0);
+		        //gaze_r.at<float>(0,0) = -gaze_r.at<float>(0,0);
                 //cout << "gaze is: " << gaze_r << endl;
+                //cout << "headpose pose_r:(" << pose[0] * 180.0/M_PI << "," << pose[1] * 180.0/M_PI  << ")" << endl;
                 cout << "prediction gaze_r:(" << gaze_r.at<float>(0,0)* 180.0/M_PI << "," << gaze_r.at<float>(1,0)* 180.0/M_PI << ")" << endl;
-                //(katheto,orizontio)
+                //(orizontio,katheto)
 
                 //to dx einai i metatopisi apo to (0,0), diladi aptin kamera
-                if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) > 0) { 
+                int dx0;
+                if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) > 0) {
+                    dx0 = -reye.at<float>(0,0);
+                    dx0 =   620-dx0/0.3647;
                     dx = -reye.at<float>(0,0)+ reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
+                    
                     pixW=620-dx/0.3647;//*4;//mm se pixels
-                    //cout <<"case1:" <<pixW<<"dx:"<<dx << endl;
+                    cout <<"case1:" <<pixW<<"dx:"<<dx << endl;
+                    //edw lathos,giati koitaw deksia kai leei oti koitaw aristera,
+                    //me theorei case 2
                 }
                 else if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) < 0) {
+                	dx0 = 620+(reye.at<float>(0,0))/0.3647;
                     dx = reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
-                    pixW = 620+(reye.at<float>(0,0)+dx)/0.3647;///0.3647;//1mm=0.3647px
-                    //cout <<"case2:"<<pixW<<"dx:"<<dx  << endl;
+                    pixW = 620+(reye.at<float>(0,0)-dx)/0.3647;///0.3647;//1mm=0.3647px
+                    //kentro+(thesi_matiou-dx)/pixel_ana_mm
+                    cout <<"case2:"<<pixW<<"dx:"<<dx  << endl;
+                    //swsto,alla prepei na provlepei kalutera tis akraies times
+                	//lathos,me theorei case 1
                 } 
                 else if (reye.at<float>(0,0)>0 && gaze_r.at<float>(0,0) >0) {
+                    dx0 = 0;
+                    dx0=620+(reye.at<float>(0,0)+dx0)/0.3647;
+
                     dx = (-reye.at<float>(2,0))*tan(gaze_r.at<float>(0,0));
                     pixW=620+(reye.at<float>(0,0)+dx)/0.3647;
-                    //cout <<"case3:"<<pixW<<"dx:"<<dx  << endl;
+                    cout <<"case3:"<<pixW<<"dx:"<<dx  << endl;
+                    //lathos,me theorei case 4 edw
+                    //swsto,alla prepei na provlepei kalutera tis akraies times(terma deksia)
                 }
                 else if (reye.at<float>(0,0)>0 && gaze_r.at<float>(0,0) <0) {
+                    dx0 = reye.at<float>(0,0);
+                    dx0=620+dx0/0.3647;
                     dx = reye.at<float>(0,0) - reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
                     pixW=620+dx/0.3647;
-                    //cout <<"case4:"<<pixW<<"dx:"<<dx  << endl;
+                    cout <<"case4:"<<pixW<<"dx:"<<dx  << endl;
+                    //me theorei arketa case3
                 }
                 //pixW=620;
                 
@@ -487,8 +511,10 @@ int main()
                 //???=0.3647
 
                 //cout  << "pixel:(" << pixW <<"," << pixH<<")"<< endl;
-                graphics.setPos(pixW,pixH,false);
-                cv_image<bgr_pixel> cimg2(output_orig);
+                graphics.setPos(pixW,pixH,false,dx0);
+                //cv_image<bgr_pixel> cimg2(output_orig);
+
+                cv_image<unsigned char> cimg2(output);
                 #ifndef TORCH_MODE
                 win.clear_overlay();
                 win.set_image(cimg2);

@@ -6,7 +6,8 @@ using namespace std;
 
 void Convolutional::load_model(void) {
 	//torch::jit::script::Module module = torch::jit::load("../model.pt");
-	this->module = torch::jit::load("../model.pt");
+	//this->module = torch::jit::load("../model.pt");
+	this->module = torch::jit::load("../model_40_epochs.pt");
 
 }
 
@@ -28,8 +29,8 @@ void Convolutional::predict(cv::Mat imgCV,float *poseF,float *gaze) {
     //img = img.permute({0, 3, 1, 2});
 
     //prosoxh! Apo torch::kU8, egine: torch::kFloat32, logw tou Normalization me to 1/255
-    torch::Tensor img = torch::from_blob(imgCV.data, {1, 1,imgCV.rows,imgCV.cols},torch::kFloat32));//torch::Tensor img= torch::from_blob(imgCV.ptr<float>(),{imgCV.rows,imgCV.cols});//
-    std::cout << img.slice(/*dim=*/1, /*start=*/0, /*end=*/1) << '\n';//3.2470e-09
+    torch::Tensor img = torch::from_blob(imgCV.data, {1, 1,imgCV.rows,imgCV.cols},torch::kFloat32);//torch::Tensor img= torch::from_blob(imgCV.ptr<float>(),{imgCV.rows,imgCV.cols});//
+    //std::cout << img.slice(/*dim=*/1, /*start=*/0, /*end=*/1) << '\n';//3.2470e-09
     
     //std::vector<int64_t> sizes = {1, 1, imgCV.rows, imgCV.cols};
     //at::TensorOptions options(at::ScalarType::Byte);
