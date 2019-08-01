@@ -15,8 +15,36 @@ def can_be_center(groups,theta,phi,numGrps,curr_dist):
 	print("new center!!!!!")
 	return True
 
+####
 def find_R_nearest_groups(centerTheta, centerPhi, groups, R, first, NUM_OF_GROUPS):
-	pass
+	listOfGroupIds=[-1 for i in range(R+1)]
+	listOfGroupIds[0] = first+1
+	minDist=[]#zeros(R+1)
+	for i in range(R+1):
+		minDist.append(7+i)
+
+	for i in range(NUM_OF_GROUPS):
+		if i != first:#fi+1 not in  listOfGroupIds:
+  			dist = abs(groups_centers[i][0]-centerTheta) + abs(groups_centers[i][1]-centerPhi)
+  			if dist < minDist[R]:
+  				for o in range(1,R+1):
+  					if dist < minDist[o]:
+  						if o == R:
+  							listOfGroupIds[o]=i+1
+  							minDist[o]=dist
+  						else:
+  							j=R-1
+  							while j >= o:
+  								listOfGroupIds[j+1]=listOfGroupIds[j]
+  								minDist[j+1]=minDist[j]
+  								j=j-1
+  							listOfGroupIds[o]=i+1
+  							minDist[o]=dist
+  						break
+	print("final list:",listOfGroupIds)
+	return np.array(listOfGroupIds)
+
+
 
 numGrps=-1;groups_centers=[]
 subject_ids = ['p{:02}'.format(index) for index in range(15)]
@@ -82,7 +110,7 @@ for subject_id in subject_ids[0:2]:
 	for i in range(len(poses[:,1])):
 		### find_nearest_group() ###
 		minDst=1000
-		maxDist=0.3;
+		maxDist=0.1;
 		
 		for j in range(numGrps):
 			if abs(groups_centers[j][0]-poses[i,0]) < maxDist and abs(groups_centers[j][1]-poses[i,1]) < maxDist: 
@@ -105,7 +133,7 @@ im.show()
 import h5py
 with h5py.File('train_dataset.h5','w') as hdf:
 	for i in range(numGrps):
-	    g=hdf.create_group('g'+str(i))
+	    g=hdf.create_group('g'+str(i+1))
 	    g.create_dataset('gaze',data=groups_gazes[i])
 	    g.create_dataset('headpose',data=groups_poses[i])
 	    images_final= np.empty((len(groups_images[i]), 1, 9, 15))
@@ -113,10 +141,20 @@ with h5py.File('train_dataset.h5','w') as hdf:
 	    groups_images[i]=np.array(groups_images[i])	    
 	    images_final[:,0,:,:]=groups_images[i][:,:,:]
 
-	    
+	    RADIUS=60
 	    g.create_dataset('data',data=images_final,dtype='u8')
 	    g.create_dataset('center',data=groups_centers[i])
 	    g.create_dataset('samples',data=len(groups_gazes[i]))
+	    listOfGroupIds=find_R_nearest_groups(centerTheta=groups_centers[i][0],
+																 centerPhi=groups_centers[i][1],
+																 groups=groups_centers,
+																 R=RADIUS,
+																 first=i,
+																 NUM_OF_GROUPS=len(groups_centers))
+	    g.create_dataset('nearestIDs',data=listOfGroupIds)
+
+
+
 
 # with h5py.File('test_dataset.h5','w') as hdf:
 #     hdf.create_dataset('gazes',data=test_gaze)
