@@ -53,7 +53,7 @@
 
 
 
-#define NUM_OF_TREES 238
+#define NUM_OF_TREES 114//238
 /*
  * - total number of trees that get build built
  * - the number of clusters must be equal with the number below
@@ -611,7 +611,7 @@ int main(int argc, char *argv[])  {
          rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
 
          memspace.setExtentSimple( rank, dims );//24x1x9x15    
-         dataset.read(curr_imgs, PredType::C_S1, memspace, dataspace );
+         dataset.read(curr_imgs, PredType::NATIVE_UCHAR/*GIA STRING:C_S1*/, memspace, dataspace );
 
 
           	
@@ -729,7 +729,7 @@ int main(int argc, char *argv[])  {
             dataspace = dataset.getSpace();//dataspace???
             rank = dataspace.getSimpleExtentDims( dims );// get rank = numOfDims
             memspace.setExtentSimple( rank, dims );//24x1x9x15 
-            dataset.read(curr_imgs, PredType::C_S1, memspace, dataspace );
+            dataset.read(curr_imgs, PredType::NATIVE_UCHAR/*GIA STRING:C_S1*/, memspace, dataspace );
 
 	    grpContribution = sqrt( dims[0]);//dims[0] is the numOfSamples in group1
             if (grpContribution != 0) { 
@@ -750,11 +750,12 @@ int main(int argc, char *argv[])  {
                   return -1;  
 	       }
 	    }
-
-      #ifdef EXPORT_TO_FILE
-       for (int q=0; q<dims[0]*dims[1];q++)
-        myfile << test_nearest[q] << " ";
-       #endif
+      
+      //#ifdef EXPORT_TO_FILE
+      //ofstream myfile;
+      // for (int q=0; q<dims[0]*dims[1];q++)
+      //  myfile << test_nearest[q] << " ";
+      //#endif
 
 	    for (j= 0; j < grpContribution; j++)  {
 	      /*
@@ -804,6 +805,7 @@ int main(int argc, char *argv[])  {
       * - Here we start the building of the tree nodes. This function takes a lot of time
       * - After that function, we continue with the algorithm evaluation
       */ 
+     ;
      #ifdef EXPORT_TO_FILE
      trees = buildRegressionForest(samplesInTree, treeImgs, treeGazes, treePoses);
      ofstream myfile;
@@ -895,7 +897,7 @@ int main(int argc, char *argv[])  {
 	  cout << "Error allocating memory" << endl;
 	  return -1;
        }
-       dataset.read(test_imgs, PredType::C_S1, memspace, dataspace );
+       dataset.read(test_imgs,PredType::NATIVE_UCHAR/*GIA STRING:C_S1*/, memspace, dataspace );
        
 
        dataspace.close();
