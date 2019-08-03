@@ -1,1 +1,1 @@
-sudo h5c++ -std=c++11 tempforest.cpp -o tempforest
+sudo h5c++ -g -Wall -std=c++11 forest.cpp -o forest -fopenmp

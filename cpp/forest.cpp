@@ -53,7 +53,7 @@
 
 
 
-#define NUM_OF_TREES 93//204//238
+#define NUM_OF_TREES 140//114//204//238
 /*
  * - total number of trees that get build built
  * - the number of clusters must be equal with the number below
@@ -959,6 +959,7 @@ int main(int argc, char *argv[])  {
 	  */ 
           predict[0] = predict[0]/(RADIUS+1);
           predict[1] = predict[1]/(RADIUS+1);
+          cout<<"prediction:("<<predict[0]*(180.0/M_PI)<<","<<predict[1]*(180.0/M_PI)<<").Real:("<<test_gazes[(j<<1)]*(180.0/M_PI)<<","<<test_gazes[(j<<1)+1]*(180.0/M_PI)<<")"<<endl;
 	  errors[2*j] = predict[0]-test_gazes[(j<<1)];
           if (errors[2*j] < 0)
              errors[2*j] = -errors[2*j];
