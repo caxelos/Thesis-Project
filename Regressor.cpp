@@ -7,7 +7,7 @@
 using namespace H5;
 using namespace std;
 
-#define NUM_OF_TREES 238
+#define NUM_OF_TREES 204//238
 #define RADIUS 5//10//30
 #define HEIGHT 9
 #define WIDTH 15
@@ -147,7 +147,7 @@ void Regressor::importForestFromTxt(ifstream& infile) {
     } 
 }
 void Regressor::importNearestTrees(void) {
-    H5File *file = new H5File("../TRAIN_samples_10000_dist0.05.h5", H5F_ACC_RDWR);
+    H5File *file = new H5File(/*"TRAIN_samples_10000_dist0.05.h5"*/"../train_dataset.h5", H5F_ACC_RDWR);
     int rank; 
     char grpName[10];
     Group *group = NULL;

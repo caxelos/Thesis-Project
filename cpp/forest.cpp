@@ -53,7 +53,7 @@
 
 
 
-#define NUM_OF_TREES 114//238
+#define NUM_OF_TREES 93//204//238
 /*
  * - total number of trees that get build built
  * - the number of clusters must be equal with the number below
@@ -805,11 +805,11 @@ int main(int argc, char *argv[])  {
       * - Here we start the building of the tree nodes. This function takes a lot of time
       * - After that function, we continue with the algorithm evaluation
       */ 
-     ;
+     
      #ifdef EXPORT_TO_FILE
      trees = buildRegressionForest(samplesInTree, treeImgs, treeGazes, treePoses);
      ofstream myfile;
-     myfile.open ("tree_info.txt");
+     myfile.open ("example.txt");//"tree_info.txt");
      exportForestToTxt(trees,NUM_OF_TREES,myfile);
      myfile.close();
      myfile.open("nearests.txt");     
@@ -1682,8 +1682,7 @@ treeT **buildRegressionForest(unsigned int *rootSize,unsigned char **treeImgs,do
          try{
             sprintf(buffer, "trees/%d_mytree.dot", i);  	
             outputFile.open( buffer );//"mytree.dot");
-
-	            drawTree(trees[i]);
+	           drawTree(trees[i]);
 	           outputFile.close();
 		
          }catch(...){

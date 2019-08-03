@@ -41,17 +41,23 @@ def find_R_nearest_groups(centerTheta, centerPhi, groups, R, first, NUM_OF_GROUP
   							listOfGroupIds[o]=i+1
   							minDist[o]=dist
   						break
-	print("final list:",listOfGroupIds)
+	#print("final list:",listOfGroupIds)
 	return np.array(listOfGroupIds)
 
 
 
-numGrps=-1;groups_centers=[]
+#initialize data
+groups_poses={}
+groups_gazes={}
+groups_images={}
+groups_nearests={}
+
+numGrps=0;groups_centers=[]
 subject_ids = ['p{:02}'.format(index) for index in range(15)]
 dataset_dir='/home/olympia/MPIIGaze/python/pytorch/data/'
 curr_dist = 0.06#[0.03 0.04 0.05 0.06 0.07];%evgala to 0.06
 
-for subject_id in subject_ids[0:2]:
+for subject_id in subject_ids[0:1]:
 	path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 	#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 	with np.load(path) as fin:
@@ -70,9 +76,22 @@ for subject_id in subject_ids[0:2]:
 			if  np.sqrt( (groups_centers[j][0]-poses[i][0])**2 + (groups_centers[j][1]- poses[i][1])**2 ) < curr_dist:
 				#if  np.sqrt( (groups[i][0]-theta)<<1 + (groups[i][1]- phi)<<1 ) < curr_dist:
 				answer = False
-		if answer==True:
-			numGrps=numGrps+1
+		if answer==True:	
 			groups_centers.append(poses[i,:])#([poses[i,0],poses[i,1]])
+
+
+			# groups_poses[numGrps] = []#struct(gazes,poses,data)
+			# groups_gazes[numGrps] = []
+			# groups_images[numGrps] = []
+			# groups_nearests[numGrps]=[]	
+			# groups_poses[numGrps].append(poses[i,:])
+			# groups_gazes[numGrps].append(gazes[i,:])
+			# groups_images[numGrps].append(images[i,0,13:22,22:37])
+			# groups_nearests[numGrps]=[numGrps]#isws exei thema edw.Vale "-1" an xreiastei
+			# groups_poses[nearestGrp].append(poses[i,:])
+			# groups_gazes[nearestGrp].append(gazes[i,:])
+			# groups_images[nearestGrp].append(images[i,0,13:22,22:37])
+			numGrps=numGrps+1
 			print("new center!!!!!")
 
 print("NumOfCenters:",numGrps)
@@ -80,19 +99,15 @@ print("NumOfCenters:",numGrps)
 
 #gia ta regression forests,prepei na kanoume reshape ta data.Opote,anti gia 60x36,
 #to resolution einai 16x9
-
-#initialize data
-groups_poses={}
-groups_gazes={}
-groups_images={}
-groups_nearests={}
+groups_centers=np.array(groups_centers)
+w=0
 for i in range(numGrps):
 	groups_poses[i] = []#struct(gazes,poses,data)
 	groups_gazes[i] = []
 	groups_images[i] = []
 	groups_nearests[i]=[]	
 
-for subject_id in subject_ids[0:2]:
+for subject_id in subject_ids[0:1]:
 	path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 	#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 	with np.load(path) as fin:
@@ -110,17 +125,21 @@ for subject_id in subject_ids[0:2]:
 	for i in range(len(poses[:,1])):
 		### find_nearest_group() ###
 		minDst=1000
-		maxDist=0.1;
+		maxDist=0.3;
 		
 		for j in range(numGrps):
-			if abs(groups_centers[j][0]-poses[i,0]) < maxDist and abs(groups_centers[j][1]-poses[i,1]) < maxDist: 
-				dist= abs(groups_centers[j][0]-poses[i,0])+abs(groups_centers[j][1]-poses[i,1]);
+
+			if abs(groups_centers[j,0]-poses[i,0]) < maxDist and abs(groups_centers[j,1]-poses[i,1]) < maxDist: 
+				dist= abs(groups_centers[j,0]-poses[i,0])+abs(groups_centers[j,1]-poses[i,1]);
 				if dist < minDst:
 					minDst=dist
 					nearestGrp=j
+		if minDst==0:
+			w=w+1
+			print("grps:",numGrps,"popa:",w)
 
-
-		print("Added to Group:",nearestGrp)
+		
+		#print("Added to Group:",nearestGrp)
 		groups_poses[nearestGrp].append(poses[i,:])
 		groups_gazes[nearestGrp].append(gazes[i,:])
 		groups_images[nearestGrp].append(images[i,0,13:22,22:37])#images[:,0,13:22,22:38]
@@ -131,27 +150,29 @@ im.show()
 #images=images[:,0,0:9,0:16]
 
 import h5py
-with h5py.File('train_dataset.h5','w') as hdf:
+with h5py.File('small_train_dataset.h5','w') as hdf:
 	for i in range(numGrps):
 	    g=hdf.create_group('g'+str(i+1))
-	    g.create_dataset('gaze',data=groups_gazes[i])
-	    g.create_dataset('headpose',data=groups_poses[i])
+	    g.create_dataset('gaze',data=groups_gazes[i],dtype='f8')
+	    g.create_dataset('headpose',data=groups_poses[i],dtype='f8')
 	    images_final= np.empty((len(groups_images[i]), 1, 9, 15))
 	    #(images_final.shape)=(53, 1, 9, 16)
-	    groups_images[i]=np.array(groups_images[i])	    
+	    groups_images[i]=np.array(groups_images[i])
+	    print('i=',i,groups_images[i].shape)#problima an den uparxoun arketa deigmata	    
 	    images_final[:,0,:,:]=groups_images[i][:,:,:]
 
 	    RADIUS=60
-	    g.create_dataset('data',data=images_final,dtype='u8')
-	    g.create_dataset('center',data=groups_centers[i])
-	    g.create_dataset('samples',data=len(groups_gazes[i]))
+	    images_final.astype('uint8') 
+	    g.create_dataset('data',data=images_final,dtype='uint8')
+	    g.create_dataset('center',data=groups_centers[i].transpose(),dtype='f8')
+	    g.create_dataset('samples',data=len(groups_gazes[i]),dtype='uint32')
 	    listOfGroupIds=find_R_nearest_groups(centerTheta=groups_centers[i][0],
 																 centerPhi=groups_centers[i][1],
 																 groups=groups_centers,
 																 R=RADIUS,
 																 first=i,
 																 NUM_OF_GROUPS=len(groups_centers))
-	    g.create_dataset('nearestIDs',data=listOfGroupIds)
+	    g.create_dataset('nearestIDs',data=listOfGroupIds,dtype='uint32')
 
 
 
