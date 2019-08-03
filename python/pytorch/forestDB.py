@@ -16,7 +16,24 @@ def can_be_center(groups,theta,phi,numGrps,curr_dist):
 	return True
 
 ####
-def find_R_nearest_groups(centerTheta, centerPhi, groups, R, first, NUM_OF_GROUPS):
+def find_nearest_group(theta,phi,groups_centers):
+	minDst = 100;
+	maxDist=0.3
+	nearestGrp = -1;   
+	for i in range(len(groups_centers)):
+		if abs(groups_centers[i,0]-theta) < maxDist and abs(groups_centers[i,1]-phi) < maxDist: 
+			dist= abs(groups_centers[i,0]-theta)+abs(groups_centers[i,1]-phi)
+			if dist < minDst:
+				minDst=dist
+				nearestGrp=i
+
+	if nearestGrp==-1:
+		print("probleeeeeeeeeeemmmmmmmmmmmmmmmmmmmmm")
+		print("len:",)
+		print("minDst:",minDst)
+	return nearestGrp
+
+def find_R_nearest_groups(centerTheta, centerPhi, groups_centers, R, first, NUM_OF_GROUPS):
 	listOfGroupIds=[-1 for i in range(R+1)]
 	listOfGroupIds[0] = first+1
 	minDist=[]#zeros(R+1)
@@ -45,7 +62,7 @@ def find_R_nearest_groups(centerTheta, centerPhi, groups, R, first, NUM_OF_GROUP
 	return np.array(listOfGroupIds)
 
 
-
+import h5py
 #initialize data
 groups_poses={}
 groups_gazes={}
@@ -149,7 +166,7 @@ im = Image.fromarray(images[10,0,13:22,22:37])#np.flip(images[10]))
 im.show()
 #images=images[:,0,0:9,0:16]
 
-import h5py
+
 with h5py.File('small_train_dataset.h5','w') as hdf:
 	for i in range(numGrps):
 	    g=hdf.create_group('g'+str(i+1))
@@ -168,14 +185,38 @@ with h5py.File('small_train_dataset.h5','w') as hdf:
 	    g.create_dataset('samples',data=len(groups_gazes[i]),dtype='uint32')
 	    listOfGroupIds=find_R_nearest_groups(centerTheta=groups_centers[i][0],
 																 centerPhi=groups_centers[i][1],
-																 groups=groups_centers,
+																 groups_centers=groups_centers,
 																 R=RADIUS,
 																 first=i,
 																 NUM_OF_GROUPS=len(groups_centers))
 	    g.create_dataset('nearestIDs',data=listOfGroupIds,dtype='uint32')
+	    groups_nearests[i].append(listOfGroupIds)
 
+###### TEST DATA #####
+with h5py.File('small_test_dataset.h5','w') as hdf:
+	for subject_id in subject_ids[1:2]:
+		path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
+		#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
+		with np.load(path) as fin:
+			images= np.empty((len(fin['image']), 1,9,15))
+			images[:,0,:,:] = fin['image'][:,13:22,22:37]*255			
+			poses = fin['pose']
+			gazes = fin['gaze']
 
+			hdf.create_dataset('gaze',data=gazes,dtype='f8')
+			hdf.create_dataset('headpose',data=poses,dtype='f8')
+			images.astype('uint8')
+			hdf.create_dataset('data',data=images,dtype='uint8')
+			nearests=np.zeros((len(poses[:,0]),RADIUS+1))
+			for i in range(len(poses[:,0])):
+				print(i)
+				grp=find_nearest_group(poses[i,0],poses[i,1],groups_centers)
+				print(groups_nearests[grp])
+				nearests[i,:]=np.array(groups_nearests[grp])
+			#nearests=np.array(nearests)
+			hdf.create_dataset('nearestIDs',data=nearests,dtype='uint32')
 
+			
 
 # with h5py.File('test_dataset.h5','w') as hdf:
 #     hdf.create_dataset('gazes',data=test_gaze)
