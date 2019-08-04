@@ -74,7 +74,7 @@ subject_ids = ['p{:02}'.format(index) for index in range(15)]
 dataset_dir='/home/olympia/MPIIGaze/python/pytorch/data/'
 curr_dist = 0.05#[0.03 0.04 0.05 0.06 0.07];%evgala to 0.06
 
-for subject_id in subject_ids[0:1]:
+for subject_id in subject_ids[0:10]:
 	path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 	#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 	with np.load(path) as fin:
@@ -124,7 +124,7 @@ for i in range(numGrps):
 	groups_images[i] = []
 	groups_nearests[i]=[]	
 
-for subject_id in subject_ids[0:1]:
+for subject_id in subject_ids[0:10]:
 	path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 	#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 	with np.load(path) as fin:
@@ -161,11 +161,11 @@ for subject_id in subject_ids[0:1]:
 		groups_gazes[nearestGrp].append(gazes[i,:])
 		groups_images[nearestGrp].append(images[i,0,13:22,22:37])#images[:,0,13:22,22:38]
 		#groups_nearests[i].append(j)						
-from PIL import Image
-im = Image.fromarray(images[10,0,13:22,22:37])#np.flip(images[10]))
-im.show()
-#images=images[:,0,0:9,0:16]
+#from PIL import Image
+#im = Image.fromarray(images[10,0,13:22,22:37])#np.flip(images[10]))
+#im.show()
 
+RADIUS=60
 
 with h5py.File('small_train_dataset.h5','w') as hdf:
 	for i in range(numGrps):
@@ -178,7 +178,7 @@ with h5py.File('small_train_dataset.h5','w') as hdf:
 	    print('i=',i,groups_images[i].shape)#problima an den uparxoun arketa deigmata	    
 	    images_final[:,0,:,:]=groups_images[i][:,:,:]
 
-	    RADIUS=60
+
 	    images_final.astype('uint8') 
 	    g.create_dataset('data',data=images_final,dtype='uint8')
 	    g.create_dataset('center',data=groups_centers[i].transpose(),dtype='f8')
@@ -200,7 +200,7 @@ with h5py.File('small_test_dataset.h5','w') as hdf:
 	image_dset=hdf.create_dataset('data',(0,1,9,15),maxshape=(None,1,9,15),dtype='uint8')
 	nearests_dset = hdf.create_dataset('nearestIDs',(0,RADIUS+1),maxshape=(None,RADIUS+1),dtype='uint32')
 			
-	for subject_id in subject_ids[10:14]:
+	for subject_id in subject_ids[10:11]:
 		path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 		#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 		with np.load(path) as fin:#dynamic datasets:https://stackoverflow.com/questions/25655588/incremental-writes-to-hdf5-with-h5py?rq=1
