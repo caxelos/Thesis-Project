@@ -486,27 +486,33 @@ int main()
                 pixW=620;
                 //vertical
                 int dy0;
+                #define FACTOR 0.4105
                 if (reye.at<float>(1,0) <0 && gaze_r.at<float>(1,0) > 0) {
                     //dy0=300
                     //dy0=300+dy;
                     dy = reye.at<float>(2,0)*tan(gaze_r.at<float>(1,0))-reye.at<float>(1,0);
-                    pixH = dy/0.3647;
+                    pixH = dy/FACTOR;//0.3647;
                     cout << "periptwsi 1:" <<pixH<<"px"<< endl;
                 }
                 else if (reye.at<float>(1,0) <0 && gaze_r.at<float>(1,0) < 0) {
                     dy = -reye.at<float>(2,0)*tan(-gaze_r.at<float>(1,0));
-                    dy = (-reye.at<float>(1,0)+dy)/0.3647;
+                    dy = (-reye.at<float>(1,0)+dy)/FACTOR;//0.3647;
                     cout << "ekatosta:"<<dy/10 << endl;
-                    pixH=dy/0.3647;
+                    pixH=dy/FACTOR;//0.3647;
                     cout << "periptwsi 2:" <<pixH<<"px"<< endl;
 
+                }
+                else if (reye.at<float>(1,0)>0 && gaze_r.at<float>(1,0)<0) {
+                    dy = -tan(-gaze_r.at<float>(1,0))*reye.at<float>(2,0)-reye.at<float>(1,0);
+                    pixH=dy/FACTOR;
+                    cout << "periptwsi 3:" << pixH<<"px" << endl;
                 }
                 else {
                     cout << "poulo.Thesi:"<< reye.at<float>(1,0)<< endl;
 
                 }
-                dy0=(-reye.at<float>(1,0))/0.3647;
-                pixH = pixH-25/0.3647;//-700;
+                dy0=(-reye.at<float>(1,0))/FACTOR;//0.3647;
+                pixH = pixH-20/FACTOR;//0.3647;//-700;
                 //cout << "position is:" << reye.at<float>(1,0) << endl;
 
 
@@ -552,9 +558,13 @@ int main()
                 //pixW = dx;
 
                 //othoni diastaseis:W=1240px kai 340cm kai H = 780px kai 190cm
+                //HORIZONTAL
                 //1240 = 3400mm
                 //???  = 1mm=0.3647px
                 //???=0.3647
+                //VERTICAL
+                //780px=1900mm
+                //??? = 1mm=0.4105px
 
                 //cout  << "pixel:(" << pixW <<"," << pixH<<")"<< endl;
                 dx0=620;
