@@ -61,7 +61,7 @@ def find_R_nearest_groups(centerTheta, centerPhi, groups_centers, R, first, NUM_
 	#print("final list:",listOfGroupIds)
 	return np.array(listOfGroupIds)
 
-
+DATA_CHUNKS=1
 import h5py
 #initialize data
 groups_poses={}
@@ -74,13 +74,13 @@ subject_ids = ['p{:02}'.format(index) for index in range(15)]
 dataset_dir='/home/olympia/MPIIGaze/python/pytorch/data/'
 curr_dist = 0.05#[0.03 0.04 0.05 0.06 0.07];%evgala to 0.06
 
-for subject_id in subject_ids[0:10]:
+for subject_id in subject_ids[0:DATA_CHUNKS]:
 	path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 	#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 	with np.load(path) as fin:
-		images = fin['image']
-		poses = fin['pose']
-		gazes = fin['gaze']
+		images = fin['image'][0:2400]
+		poses = fin['pose'][0:2400]
+		gazes = fin['gaze'][0:2400]
 		length = len(images)
 
 	for i in range(len(poses[:,1])):
@@ -124,16 +124,16 @@ for i in range(numGrps):
 	groups_images[i] = []
 	groups_nearests[i]=[]	
 
-for subject_id in subject_ids[0:10]:
+for subject_id in subject_ids[0:DATA_CHUNKS]:
 	path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 	#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 	with np.load(path) as fin:
-		images= np.empty((len(fin['image']), 1, 36, 60))
-		images[:,0,:,:] = fin['image']*255
+		images= np.empty((2400, 1, 36, 60))
+		images[:,0,:,:] = fin['image'][0:2400,:,:]*255
 		#images[:,0,0:9,0:16]=images[:,0,13:22,22:38]#images[:,22:37,13:22]
-		poses = fin['pose']
-		gazes = fin['gaze']
-		length = len(images)
+		poses = fin['pose'][0:2400]
+		gazes = fin['gaze'][0:2400]
+		#length = len(images)
 
 	#img = temp.data.left.image(num_i, 14:22, 23:37);
     #img = reshape(img, HEIGHT ,WIDTH);
@@ -193,34 +193,33 @@ with h5py.File('small_train_dataset.h5','w') as hdf:
 	    groups_nearests[i].append(listOfGroupIds)
 
 ###### TEST DATA #####
-
 with h5py.File('small_test_dataset.h5','w') as hdf:
 	gaze_dset=hdf.create_dataset('gaze',(0,2),maxshape=(None,2),dtype='f8')
 	pose_dset=hdf.create_dataset('headpose',(0,2),maxshape=(None,2),dtype='f8')
 	image_dset=hdf.create_dataset('data',(0,1,9,15),maxshape=(None,1,9,15),dtype='uint8')
 	nearests_dset = hdf.create_dataset('nearestIDs',(0,RADIUS+1),maxshape=(None,RADIUS+1),dtype='uint32')
 			
-	for subject_id in subject_ids[10:11]:
+	for subject_id in subject_ids[0:DATA_CHUNKS]:
 		path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 		#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 		with np.load(path) as fin:#dynamic datasets:https://stackoverflow.com/questions/25655588/incremental-writes-to-hdf5-with-h5py?rq=1
-			images= np.empty((len(fin['image']), 1,9,15))
-			images[:,0,:,:] = fin['image'][:,13:22,22:37]*255			
-			poses = fin['pose']
-			gazes = fin['gaze']
+			images= np.empty((len(fin['image'][2400:]), 1,9,15))
+			images[:,0,:,:] = fin['image'][2400:,13:22,22:37]*255			
+			poses = fin['pose'][2400:]
+			gazes = fin['gaze'][2400:]
 
 			#gaze_dset=hdf.create_dataset('gaze',data=gazes,dtype='f8')
-			gaze_dset.resize(gaze_dset.shape[0]+len(fin['pose']), axis=0)
-			gaze_dset[-len(fin['pose']):]=fin['pose'] 
+			gaze_dset.resize(gaze_dset.shape[0]+len(gazes), axis=0)
+			gaze_dset[-len(gazes):]=gazes 
 
 			#pose_dset=hdf.create_dataset('headpose',data=poses,dtype='f8')
-			images.astype('uint8')
-			pose_dset.resize(pose_dset.shape[0]+len(fin['pose']), axis=0)
-			pose_dset[-len(fin['pose']):]=fin['pose'] 
+			pose_dset.resize(pose_dset.shape[0]+len(poses), axis=0)
+			pose_dset[-len(poses):]=poses 
 			
 			#image_dset=hdf.create_dataset('data',data=images,dtype='uint8')
-			image_dset.resize(image_dset.shape[0]+len(fin['image']), axis=0)
-			image_dset[-len(fin['image']):]=images#fin['image'] 
+			images.astype('uint8')
+			image_dset.resize(image_dset.shape[0]+len(images), axis=0)
+			image_dset[-len(images):]=images#fin['image'] 
 
 			nearests=np.zeros((len(poses[:,0]),RADIUS+1))
 			for i in range(len(poses[:,0])):
@@ -229,8 +228,8 @@ with h5py.File('small_test_dataset.h5','w') as hdf:
 				nearests[i,:]=np.array(groups_nearests[grp])
 			#nearests=np.array(nearests)
 			#nearests_dset = hdf.create_dataset('nearestIDs',data=nearests,dtype='uint32')
-			nearests_dset.resize(nearests_dset.shape[0]+len(fin['image']), axis=0)
-			nearests_dset[-len(fin['image']):]=nearests#fin['image'] 
+			nearests_dset.resize(nearests_dset.shape[0]+len(images), axis=0)
+			nearests_dset[-len(images):]=nearests#fin['image'] 
 	
 
 # with h5py.File('test_dataset.h5','w') as hdf:
