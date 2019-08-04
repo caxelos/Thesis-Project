@@ -184,31 +184,31 @@ void rotationMatrixToEulerAngles(cv::Mat &R, float *headpose, int type)
 }
 int main()
 {
-	#ifdef TORCH_MODE
-	Convolutional model;
+    #ifdef TORCH_MODE
+    Convolutional model;
     model.load_model();
     #endif
 
     try
     {
-    	/*
-    	const rlim_t kStackSize = 16 * 1024 * 1024;   // min stack size = 16 MB
-	    struct rlimit rl;
-	    int result;
+        /*
+        const rlim_t kStackSize = 16 * 1024 * 1024;   // min stack size = 16 MB
+        struct rlimit rl;
+        int result;
 
-	    result = getrlimit(RLIMIT_STACK, &rl);
-	    if (result == 0)
-	    {
-	        if (rl.rlim_cur < kStackSize)
-	        {
-	            rl.rlim_cur = kStackSize;
-	            result = setrlimit(RLIMIT_STACK, &rl);
-	            if (result != 0)
-	            {
-	                fprintf(stderr, "setrlimit returned result = %d\n", result);
-	            }
-	        }
-	    }*/
+        result = getrlimit(RLIMIT_STACK, &rl);
+        if (result == 0)
+        {
+            if (rl.rlim_cur < kStackSize)
+            {
+                rl.rlim_cur = kStackSize;
+                result = setrlimit(RLIMIT_STACK, &rl);
+                if (result != 0)
+                {
+                    fprintf(stderr, "setrlimit returned result = %d\n", result);
+                }
+            }
+        }*/
 
         cv::VideoCapture cap(0);
         if (!cap.isOpened())
@@ -261,7 +261,7 @@ int main()
 
         #ifndef TORCH_MODE
         image_window win;
-		while(!win.is_closed() && !quit)
+        while(!win.is_closed() && !quit)
         #endif
 
         {
@@ -339,8 +339,14 @@ int main()
 
                 float z_scale = 600/cv::norm(reye);
                 int fx = 960;int fy = 960;int cx = 30;int cy = 18;
+                #ifdef TORCH_MODE
                 int NWIDTH = 60;
                 int NHEIGHT = 36;
+                #endif
+                #ifdef REGRESSION_FORESTS
+                int NWIDTH = 15;
+                int NHEIGHT = 9;
+                #endif
                 cv::Mat Cn = (cv::Mat_<float>(3, 3) << fx,0,cx,0,fy,cy,0,0,1);              
                 Cn.convertTo(Cn, CV_32FC1);
                 cv::Mat S = (cv::Mat_<float>(3, 3) << 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, z_scale);//cv::magnitude(cameramidpoints));
@@ -377,13 +383,13 @@ int main()
                 //cout << "rvecn is: " << rvecn << endl; 
         
                 //rvecn = rvecn[0,:]
-				
+                
                 //deksi mati::
      
                 //float phi =  -atan(rvecn.at<float>(0,0)/rvecn.at<float>(2,0));//phi
-				//float theta = asin(rvecn.at<float>(1,0));//theta
+                //float theta = asin(rvecn.at<float>(1,0));//theta
                 float phi =  -atan(Rn.at<float>(0,2)/Rn.at<float>(2,2));//phi
-				float theta = asin(Rn.at<float>(1,2));//theta
+                float theta = asin(Rn.at<float>(1,2));//theta
               
                 cout << "pose:(" << phi*(180.0/M_PI)<<","<<theta*(180.0/M_PI)<<")"<<endl;
                 //cout << "pose1:(" <<theta1* 180.0/M_PI <<","<<phi1* (180.0/M_PI)<<")"<<endl;  
@@ -402,9 +408,9 @@ int main()
                 #ifdef TORCH_MODE
                 float pose[2];
                 float gaze_n[2];
-				pose[0]= phi; pose[1]=theta;
-				model.predict(output,pose,gaze_n);
-				#endif
+                pose[0]= phi; pose[1]=theta;
+                model.predict(output,pose,gaze_n);
+                #endif
 
 
               
@@ -432,7 +438,7 @@ int main()
                 //tan(gaze[0]) = (dx+x)/(-tvec(2))
                 //tan(gaze[1])= (dy+tvec(1))/(-tvec(2)) 
                 cv::Mat gaze_r = R.inv()*(cv::Mat_<float>(3, 1) << gaze_n[0], gaze_n[1], 0);
-		        //gaze_r.at<float>(0,0) = -gaze_r.at<float>(0,0);
+                //gaze_r.at<float>(0,0) = -gaze_r.at<float>(0,0);
                 //cout << "gaze is: " << gaze_r << endl;
                 //cout << "headpose pose_r:(" << pose[0] * 180.0/M_PI << "," << pose[1] * 180.0/M_PI  << ")" << endl;
                 cout << "prediction gaze_r:(" << gaze_r.at<float>(0,0)* 180.0/M_PI << "," << gaze_r.at<float>(1,0)* 180.0/M_PI << ")" << endl;
@@ -441,23 +447,23 @@ int main()
                 //to dx einai i metatopisi apo to (0,0), diladi aptin kamera
                 int dx0;
                 if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) > 0) {
-                    dx0 = -reye.at<float>(0,0);
-                    dx0 =   620-dx0/0.3647;
+                    //dx0 = -reye.at<float>(0,0);
+                    //dx0 =   620-dx0/0.3647;
+                    dx0=620 + (reye.at<float>(0,0))/0.3647;
                     dx = -reye.at<float>(0,0)+ reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
-                    
                     pixW=620-dx/0.3647;//*4;//mm se pixels
                     cout <<"case1:" <<pixW<<"dx:"<<dx << endl;
                     //edw lathos,giati koitaw deksia kai leei oti koitaw aristera,
                     //me theorei case 2
                 }
                 else if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) < 0) {
-                	dx0 = 620+(reye.at<float>(0,0))/0.3647;
+                    dx0 = 620+(reye.at<float>(0,0))/0.3647;
                     dx = reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
                     pixW = 620+(reye.at<float>(0,0)-dx)/0.3647;///0.3647;//1mm=0.3647px
                     //kentro+(thesi_matiou-dx)/pixel_ana_mm
                     cout <<"case2:"<<pixW<<"dx:"<<dx  << endl;
                     //swsto,alla prepei na provlepei kalutera tis akraies times
-                	//lathos,me theorei case 1
+                    //lathos,me theorei case 1
                 } 
                 else if (reye.at<float>(0,0)>0 && gaze_r.at<float>(0,0) >0) {
                     dx0 = 0;
@@ -477,12 +483,52 @@ int main()
                     cout <<"case4:"<<pixW<<"dx:"<<dx  << endl;
                     //me theorei arketa case3
                 }
+                pixW=620;
+                //vertical
+                int dy0;
+                if (reye.at<float>(1,0) <0 && gaze_r.at<float>(1,0) > 0) {
+                    //dy0=300
+                    //dy0=300+dy;
+                    dy = reye.at<float>(2,0)*tan(gaze_r.at<float>(1,0))-reye.at<float>(1,0);
+                    pixH = dy/0.3647;
+                    cout << "periptwsi 1:" <<pixH<<"px"<< endl;
+                }
+                else if (reye.at<float>(1,0) <0 && gaze_r.at<float>(1,0) < 0) {
+                    dy = -reye.at<float>(2,0)*tan(-gaze_r.at<float>(1,0));
+                    dy = (-reye.at<float>(1,0)+dy)/0.3647;
+                    cout << "ekatosta:"<<dy/10 << endl;
+                    pixH=dy/0.3647;
+                    cout << "periptwsi 2:" <<pixH<<"px"<< endl;
+
+                }
+                else {
+                    cout << "poulo.Thesi:"<< reye.at<float>(1,0)<< endl;
+
+                }
+                dy0=(-reye.at<float>(1,0))/0.3647;
+                pixH = pixH-25/0.3647;//-700;
+                //cout << "position is:" << reye.at<float>(1,0) << endl;
+
+
                 //pixW=620;
-                
+
+            //    right_eye_center:[37.656487;
+ //-50.929279;
+ //-587.14728]
+
+
+
+
+
+
+
+
+
+
                 //dx = -tan(gaze_r.at<float>(1,0))*reye.at<float>(2,0) -reye.at<float>(0,0);//in mm's
 
                 //dy = -tan(gaze_r.at<float>(0,0))*reye.at<float>(2,0) - reye.at<float>(1,0);//in mm's
-                dy=50;
+                //dy=50;
                 //cout << "translation_vector:" << translation_vector << endl;
                 //cout << "a1:" << gaze_r.at<float>(0,0) << endl;
                 //cout << "a3:" << translation_vector.at<float>(1 ,0) << endl;//in mm's
@@ -500,9 +546,9 @@ int main()
                 //dx = -tan(-1.21378)*(-584.579) - (-61.781)
 
 
-                dy = 4 * dy;
+                //dy = 4 * dy;
                 //dx =  4 * dx + 340/2;
-                pixH = dy;//set
+                //pixH = dy;//set
                 //pixW = dx;
 
                 //othoni diastaseis:W=1240px kai 340cm kai H = 780px kai 190cm
@@ -511,7 +557,8 @@ int main()
                 //???=0.3647
 
                 //cout  << "pixel:(" << pixW <<"," << pixH<<")"<< endl;
-                graphics.setPos(pixW,pixH,false,dx0);
+                dx0=620;
+                graphics.setPos(pixW,pixH,dx0,dy0);
                 //cv_image<bgr_pixel> cimg2(output_orig);
 
                 cv_image<unsigned char> cimg2(output);
