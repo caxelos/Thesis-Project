@@ -13,9 +13,12 @@ import numpy as np
 
 #model = load_checkpoint('results/resnet_preact/00/model_state.pth')
 import importlib
-module = importlib.import_module('models.resnet_preact')#models.{}'.format(args.arch))
+module = importlib.import_module('models.zhang')#model_state_zhang.pth')#'models.resnet_preact')#models.{}'.format(args.arch))
 model = module.Model()
-model.load_state_dict(torch.load('model_state.pt'))
+
+checkpoint = torch.load('model_state_zhang.pth',map_location='cpu')
+model.load_state_dict(checkpoint['state_dict'])
+#model.load_state_dict('model_state_zhang.pth')#model.load_state_dict(torch.load('model_state.pt'))
 model.eval()
 img = torch.rand(1,1,60,36)
 pose = torch.rand(1,2)
