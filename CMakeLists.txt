@@ -190,7 +190,7 @@ else()
 
       target_link_libraries(webcam_face_pose_ex dlib::dlib ${OpenCV_LIBS})
       target_link_libraries(webcam_face_pose_ex dlib::dlib ${HDF5_CXX_LIBRARIES} ${HDF5_LIBRARIES} )
-      target_link_libraries(webcam_face_pose_ex ${SDL2_LIBRARIES})
+      target_link_libraries(webcam_face_pose_ex ${SDL2_LIBRARIES} -lSDL2_ttf)
       target_link_libraries(webcam_face_pose_ex "${TORCH_LIBRARIES}")
       target_link_libraries(webcam_face_pose_ex ${SDL2_LIBRARIES})
       #target_link_libraries(webcam_face_pose_ex dlib::dlib $(pkg-config --cflags --libs sdl2) -lSDL2_ttf)
