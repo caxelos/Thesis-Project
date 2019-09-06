@@ -1,0 +1,3 @@
+22secs ana epoch
+60 epochs
+1320secs=22min
