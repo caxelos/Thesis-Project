@@ -51,8 +51,10 @@ class ResidualBlock(nn.Module):
         self.shortcut = nn.Identity()   
     
     def forward(self, x):
+        print("                 ResidualBlock runs!")
         residual = x
         if self.should_apply_shortcut: residual = self.shortcut(x)
+
         x = self.blocks(x)#identity
         x += residual#+identity
         x = self.activate(x)
@@ -89,6 +91,7 @@ class ResNetResidualBlock(ResidualBlock):
         
     @property
     def expanded_channels(self):
+        print("             expanded channels:",self.out_channels * self.expansion)
         return self.out_channels * self.expansion
     
     @property
@@ -164,6 +167,7 @@ class ResNetLayer(nn.Module):
 
 
     def forward(self, x):
+        print("     ResNetLayer runs!")
         x = self.blocks(x)
         return x
 
@@ -216,6 +220,7 @@ class ResNetEncoder(nn.Module):
     def forward(self, x):#3->64->128->256->512
         x = self.gate(x)
         for block in self.blocks:#iterate module list
+            print(" ResNetEncoder runs!")
             x = block(x)
         return x
 
@@ -235,7 +240,7 @@ class ResnetDecoder(nn.Module):
 
     def forward(self, x):
         x = self.avg(x)
-        x = x.view(x.size(0), -1)
+        x = x.view(x.size(0), -1)#flatten
         x = self.decoder(x)
         return x
 
@@ -252,7 +257,7 @@ class ResNet(nn.Module):
         super().__init__()
         self.encoder = ResNetEncoder(in_channels, *args, **kwargs)
         self.decoder = ResnetDecoder(self.encoder.blocks[-1].blocks[-1].expanded_channels, n_classes)
-        
+        #.expanded_channels=512.kai decoder=ResnetDecoder(features=512,classes=12)
     def forward(self, x):
         x = self.encoder(x)
         x = self.decoder(x)
@@ -280,9 +285,9 @@ def resnet152(in_channels, n_classes, block=ResNetBottleNeckBlock, *args, **kwar
 from torchsummary import summary
 
 ### diko mas ###
-model = resnet18(3, 1000,block=ResNetBottleNeckBlock)
+model = resnet18(3, 1000,block=ResNetBasicBlock)
 summary(model,(3,224,224))#summary(model.cuda(), (3, 224, 224))
-
+#print(model)
 ### etoimi ulopoihsh ###
 #import torchvision.models as models
 #summary(models.resnet18(False), (3, 224, 224))
