@@ -85,6 +85,7 @@ class ResNetResidualBlock(ResidualBlock):
         
         self.expansion, self.downsampling, self.conv = expansion, downsampling, conv
         
+        #expanded_channels={64,128,256,512}
         self.shortcut = nn.Sequential(
             nn.Conv2d(self.in_channels, self.expanded_channels, kernel_size=1,
                       stride=self.downsampling, bias=False),
@@ -181,25 +182,21 @@ class ResNetEncoder(nn.Module):
 
     """
     #2
-    def __init__(self, in_channels=3, blocks_sizes=[64, 128, 256, 512], deepths=[2,2,2,2], 
+    def __init__(self, in_channels=1, blocks_sizes=[64, 128, 256, 512], deepths=[2,2,2,2], 
                  activation='relu', block=ResNetBasicBlock, *args, **kwargs):
         super().__init__()
         #print(" ResNetEncoder created!")
        
 
         self.blocks_sizes = blocks_sizes # = [64, 128, 256, 512] = out_channels
-        self.gate = nn.Sequential(
+        
+        self.gate = nn.Sequential(#great info here:https://www.reddit.com/r/MachineLearning/comments/6fsqww/d_why_does_resnet_have_a_77_convolution_in_the/
             nn.Conv2d(in_channels, self.blocks_sizes[0], kernel_size=7, stride=2, padding=3, bias=False),
             nn.BatchNorm2d(self.blocks_sizes[0]),
             activation_func(activation),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            #nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         )
-        #self.gate = nn.Sequential(
-        #    nn.Conv2d(in_channels=3,out_channels=64, kernel_size=7, stride=2, padding=3, bias=False),
-        #    nn.BatchNorm2d(64),
-        #    activation_func('relu'),
-        #    nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        #)
+        
         
         self.in_out_block_sizes = list(zip(blocks_sizes, blocks_sizes[1:]))
         #sizes: [(64, 128), (128, 256), (256, 512)]
@@ -220,7 +217,10 @@ class ResNetEncoder(nn.Module):
         #    ResNetLayer(256,512, n=2, activation=activation,block=block, *args, **kwargs)])
         
     def forward(self, x):#3->64->128->256->512
-        x = self.gate(x)
+        #print("before gate:",x)
+        #torch.Size([32, 1, 36, 60])
+        x = self.gate(x)#torch.Size([32, 64, 9, 15])
+        print("x before flatten:",x.size())
         for block in self.blocks:#iterate module list
             #print(" ResNetEncoder runs!")
             x = block(x)
@@ -238,14 +238,21 @@ class ResnetDecoder(nn.Module):
         #print("ResNetDecoder created!")
         super().__init__()
         self.avg = nn.AdaptiveAvgPool2d((1, 1))
+        #in_features=512
         self.decoder = nn.Linear(in_features+2, n_outputs)
 
     def forward(self, x,pose):
-        x = self.avg(x)
+        x = self.avg(x)#512
+
         x = x.view(x.size(0), -1)#flatten
         x = torch.cat([x, pose], dim=1)
+        print("x after flatten:",x.size())
+#x after flatten: torch.Size([32, 66])...xwrisd
+#
 
         x = self.decoder(x)
+        print(x)
+
         return x
 
 
@@ -257,14 +264,21 @@ class Model(nn.Module):
         #print("Resnet created!")
         #args: () 
         #kwargs:,'block': <class '__main__.ResNetBasicBlock'>,'deepths': [2, 2, 2, 2]
-        
+        #input_shape = (1, 1, 36, 60)
+        # compute conv feature size
+        #with torch.no_grad():
+        #    self.feature_size = self._forward_conv(
+        #        torch.zeros(*input_shape)).view(-1).size(0)
+
         super().__init__()
         self.encoder = ResNetEncoder(in_channels, *args, **kwargs)
+        #self.decoder = ResnetDecoder(in, n_outputs)
         self.decoder = ResnetDecoder(self.encoder.blocks[-1].blocks[-1].expanded_channels, n_outputs)
         #.expanded_channels=512.kai decoder=ResnetDecoder(features=512,classes=12)
     def forward(self, image,pose):
         x = self.encoder(image)
         x = self.decoder(x,pose)
+        #print("x",x)
         return x
 
 
