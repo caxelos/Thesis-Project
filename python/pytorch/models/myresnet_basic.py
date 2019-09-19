@@ -181,8 +181,9 @@ class ResNetEncoder(nn.Module):
     ResNet encoder composed by layers with increasing features.
 
     """
-    #2
-    def __init__(self, in_channels=1, blocks_sizes=[64, 128, 256, 512], deepths=[2,2,2,2], 
+
+    #blocks_sizes=[64, 128, 256, 512], deepths=[2,2,2,2]
+    def __init__(self, in_channels=1, blocks_sizes=[64, 128], deepths=[2,2], 
                  activation='relu', block=ResNetBasicBlock, *args, **kwargs):
         super().__init__()
         #print(" ResNetEncoder created!")
@@ -191,10 +192,10 @@ class ResNetEncoder(nn.Module):
         self.blocks_sizes = blocks_sizes # = [64, 128, 256, 512] = out_channels
         
         self.gate = nn.Sequential(#great info here:https://www.reddit.com/r/MachineLearning/comments/6fsqww/d_why_does_resnet_have_a_77_convolution_in_the/
-            nn.Conv2d(in_channels, self.blocks_sizes[0], kernel_size=7, stride=2, padding=3, bias=False),
+            nn.Conv2d(in_channels, self.blocks_sizes[0], kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(self.blocks_sizes[0]),
             activation_func(activation),
-            #nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         )
         
         
@@ -220,7 +221,7 @@ class ResNetEncoder(nn.Module):
         #print("before gate:",x)
         #torch.Size([32, 1, 36, 60])
         x = self.gate(x)#torch.Size([32, 64, 9, 15])
-        print("x before flatten:",x.size())
+        #print("x before flatten:",x.size())
         for block in self.blocks:#iterate module list
             #print(" ResNetEncoder runs!")
             x = block(x)
@@ -246,12 +247,12 @@ class ResnetDecoder(nn.Module):
 
         x = x.view(x.size(0), -1)#flatten
         x = torch.cat([x, pose], dim=1)
-        print("x after flatten:",x.size())
+        #print("x after flatten:",x.size())
 #x after flatten: torch.Size([32, 66])...xwrisd
 #
 
         x = self.decoder(x)
-        print(x)
+        #print(x)
 
         return x
 
