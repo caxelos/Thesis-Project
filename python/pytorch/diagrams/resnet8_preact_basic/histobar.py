@@ -16,7 +16,7 @@ std_errors=pd.read_csv('test_stdev.txt',skiprows=skips).values
 # Visualising the results
 #plt.plot(real_stock_price, color = 'red', label = 'Real Google Stock Price')
 #plt.plot(predicted_stock_price, color = 'blue', label = 'Test mean error during epochs')
-plt.title('Resnet-3: Angle error of gaze predictions(in degrees).')
+plt.title('Resnet-8 preact using basic block: Angle error of gaze predictions(in degrees).')
 plt.xlabel('epochs')
 plt.ylabel('mean angle error(degrees)')
 plt.grid(alpha=0.5, linestyle=':')

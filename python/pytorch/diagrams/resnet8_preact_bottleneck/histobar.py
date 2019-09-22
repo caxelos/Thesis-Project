@@ -14,7 +14,7 @@ std_errors=pd.read_csv('test_stdev.txt',skiprows=skips).values
 #data = dataset_train.iloc[:, 1:2].values
 
 # Visualising the results
-plt.title('Resnet-6(basic,L=2,BPL=2) : Angle error of gaze predictions(in degrees).')
+plt.title('Resnet-8 preact using bottleneck block: Angle error of gaze predictions(in degrees).')
 plt.xlabel('epochs')
 plt.ylabel('mean angle error(degrees)')
 plt.grid(alpha=0.5, linestyle=':')
