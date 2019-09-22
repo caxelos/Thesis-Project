@@ -53,13 +53,31 @@ class ResidualBlock(nn.Module):
         self.shortcut = nn.Identity()   
     
     def forward(self, x):
-        #print("                 ResidualBlock runs!")
+        ### Basic Resnet ###
+        # residual = x
+        # if self.should_apply_shortcut: residual = self.shortcut(x)
+        # x = self.blocks(x)#identity
+        # x += residual#+identity
+        # x = self.activate(x)
+
+        ### Preact Resnet ###
+        # residual = x
+        # if self.should_apply_shortcut: residual = self.shortcut(x)
+        # x = self.blocks(x)#identity
+        # #print("residual:",residual.shape)
+        # #print("after convs:",x.shape)
+        # x += residual#+identity
+            
+
+        ### ReLU before addition ###
         residual = x
         if self.should_apply_shortcut: residual = self.shortcut(x)
-
         x = self.blocks(x)#identity
         x += residual#+identity
-        x = self.activate(x)
+
+        #print("residual:",residual.shape):residual: torch.Size([32, 128, 9, 15])
+        #print("after convs:",x.shape):after convs: torch.Size([32, 128, 5, 8])
+
         return x
    
     #function "should_apply_shortcut" replaced by special object "should_apply_shortcut"
@@ -121,10 +139,28 @@ class ResNetBasicBlock(ResNetResidualBlock):
         #print("         ResNetBasicBlock created!")
         super().__init__(in_channels, out_channels, *args, **kwargs)
         self.blocks = nn.Sequential(
+            ### Basic Resnet ###
+            #conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
+            #activation_func(self.activation),
+            #conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False),
+                    
+            ### Preact Resnet ###
+        #     nn.BatchNorm2d(in_channels),
+        #     activation_func(self.activation),
+        #     nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=self.downsampling, padding=1, bias=False),
+        #     nn.BatchNorm2d(out_channels),
+        #     activation_func(self.activation),            
+        #     nn.Conv2d(out_channels,self.expanded_channels,kernel_size=3, stride=self.downsampling,padding=1,bias=False)
+        
+            ### ReLU before addition ###
+            activation_func(self.activation),
             conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
             activation_func(self.activation),
-            conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False),
-        )
+            conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False)
+         )
+
+
+        
 
 
 ##### ResNetBottleNeckBlock #####
@@ -183,7 +219,10 @@ class ResNetEncoder(nn.Module):
     """
 
     #blocks_sizes=[64, 128, 256, 512], deepths=[2,2,2,2]
-    def __init__(self, in_channels=1, blocks_sizes=[64, 128], deepths=[2,2], 
+
+    #[32,64] kai [3,3] -> 258
+    #
+    def __init__(self, in_channels=1, blocks_sizes=[64,128], deepths=[2,2], 
                  activation='relu', block=ResNetBasicBlock, *args, **kwargs):
         super().__init__()
         #print(" ResNetEncoder created!")

@@ -1,0 +1,64 @@
+### the article is here:https://github.com/FrancescoSaverioZuppichini/ResNet ###
+
+
+#includes
+import torch
+import torch.nn as nn
+from functools import partial
+
+##### ACTIVATION FUNCTIONS #####
+# We use ModuleDict to create a dictionary with different activation 
+# functions, this will be handy later.If you are unfamiliar with ModuleDict 
+# I suggest to read my previous article Pytorch: 
+# "how and when to use Module, Sequential, ModuleList and ModuleDict"
+def activation_func(activation):
+    return  nn.ModuleDict([
+        ['relu', nn.ReLU(inplace=True)],
+        ['leaky_relu', nn.LeakyReLU(negative_slope=0.01, inplace=True)],
+        ['selu', nn.SELU(inplace=True)],
+        ['none', nn.Identity()]
+    ])[activation]
+
+
+
+##### BASIC BLOCK #####
+#the first thing is to think about what we need. Well, first of
+# all we must have a convolution layer and since PyTorch does not 
+#have the 'auto' padding in Conv2d, we will have to code ourself!
+class Conv2dAuto(nn.Conv2d):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.padding =  (self.kernel_size[0] // 2, self.kernel_size[1] // 2) # dynamic add padding based on the kernel_size
+        
+conv3x3 = partial(Conv2dAuto, kernel_size=3, bias=False)
+conv = conv3x3(in_channels=32, out_channels=64)
+print(conv)
+del conv 
+
+
+##### RESIDUAL BLOCK #####
+# The residual block takes an input with in_channels, applies some blocks 
+# of convolutional layers to reduce it to out_channels and sum it up to the 
+# original input. If their sizes mismatch, then the input goes into an identity. 
+# We can abstract this process and create an interface that can be extended.
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, activation='relu'):
+        super().__init__()
+        self.in_channels, self.out_channels, self.activation = in_channels, out_channels, activation
+        self.blocks = nn.Identity()
+        self.activate = activation_func(activation)
+        self.shortcut = nn.Identity()   
+    
+    def forward(self, x):
+        residual = x
+        if self.should_apply_shortcut: residual = self.shortcut(x)
+        x = self.blocks(x)
+        x += residual
+        x = self.activate(x)
+        return x
+    
+    @property
+    def should_apply_shortcut(self):
+        return self.in_channels != self.out_channels
+
+ResidualBlock(32, 64)  

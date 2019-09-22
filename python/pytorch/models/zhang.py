@@ -92,16 +92,16 @@ class Model(nn.Module):
 
 		# Convolution part
 		out = self._forward_conv(x)#1
-		if (out != out).any():
-			error('prwto!!!!!!')
+		#if (out != out).any():
+		#	error('prwto!!!!!!')
 		#print("feature_size:",self.feature_size)
 		#print("popa:",x.size(0))#(32,50,6,12)3602 x 500
 
 		#prin:out_prin:( 32 , 50 , 6 , 12)
 		#out = out.view(out.size(0), -1)#why??! #(32,)
 		out = out.view(-1, 3600)#why??! #(32,)
-		if (out != out).any():
-			error('deftero!!!!!!')
+		#if (out != out).any():
+		#	error('deftero!!!!!!')
 		#if torch.isnan(out)==True:
 		#	print("poulo")
 		#	return
@@ -117,22 +117,22 @@ class Model(nn.Module):
 
 		# Fully connected-500
 		out = self.fc500(out)
-		if (out != out).any():
-			error('trito!!!!!!')
+		#if (out != out).any():
+		#	error('trito!!!!!!')
 
 		# Relu function
 		out = self.relu(out)
-		if (out != out).any():
-			error('tetarto!!!!!!')
+		#if (out != out).any():
+		#	error('tetarto!!!!!!')
 		# Embedd the pose
 		#out = out.view(out.size(0), -1)#why??
 
 		out = torch.cat([out, y], dim=1)
-		if (out != out).any():
-			error('pempto!!!!!!')
+		#if (out != out).any():
+		#	error('pempto!!!!!!')
 		# Fully connected-2
 		out = self.fc2(out)
-		if (out != out).any():
-			error('ekto!!!!!!')
+		#if (out != out).any():
+		#	error('ekto!!!!!!')
 
 		return out
