@@ -1,0 +1,264 @@
+% Created by Anders Wettergreen Gundersen -----------------
+
+\documentclass[english, a4paper, 12pt, oneside]{book} 
+
+% -------------- Setup, do not change these ---------------
+\usepackage[hidelinks]{hyperref}
+% \usepackage[options]{nohyperref} 
+
+\usepackage{textcomp}
+\usepackage[T1]{fontenc, url}
+\usepackage[utf8]{inputenc}
+\usepackage{titlesec}
+\setcounter{secnumdepth}{4}
+\usepackage{multirow}
+\usepackage{minted} % Code highlighting
+\usepackage{adjustbox}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb, amsthm} % Mathematical packages
+\usepackage{parskip} % Removing indenting in new paragraphs
+\urlstyle{sf}
+\usepackage{color}
+\usepackage{subcaption} 
+\usepackage{appendix}
+\usepackage{chngcntr} % needed for correct table numbering
+\counterwithin{table}{section} % numbering of tables 
+\counterwithin{figure}{section} % numbering of figures
+\numberwithin{equation}{section} % numbering of equations
+\hyphenpenalty=100000 % preventing splitting of words
+\sloppy 
+\raggedbottom 
+\usepackage{xparse,nameref}
+\usepackage[bottom]{footmisc} % Fotnotes are fixed to bottom of page
+\usepackage{lipsum} % For genereating dummy text
+% --------- You can edit from this point on --------
+
+
+% ----- Appearance and language ----- 
+\usepackage[greek, english]{babel} % document language
+\graphicspath{{Images/}{../Images/}} % path to images
+\usepackage[margin=2.54cm]{geometry} % sets margins for the document
+\usepackage{setspace}
+\linespread{1.5} % line spread for the document
+\usepackage{microtype}
+
+
+% ----- Sections -----
+\titleformat*{\section}{\LARGE\bfseries} % \section heading
+\titleformat*{\subsection}{\Large\bfseries} % \subsection heading
+\titleformat*{\subsubsection}{\large\bfseries} % \subsubsection heading
+% next three lines creates the \paragraph command with correct heading 
+\titleformat{\paragraph}
+{\normalfont\normalsize\bfseries}{\theparagraph}{1em}{}
+\titlespacing*{\paragraph}
+{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+
+% ----- Figures and tables ----- 
+\usepackage{fancyhdr}
+\usepackage{subfiles}
+\usepackage{array}
+\usepackage[rightcaption]{sidecap}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage[labelfont=bf]{caption} % bold text for captions
+\usepackage[para]{threeparttable} % fancy tables, check these before you use them
+\usepackage{url}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{makecell}
+\usepackage{hhline}
+
+
+\usepackage{gensymb}
+
+
+% \titleformat{\chapter}%
+%   {\normalfont\bfseries\Huge}{\thechapter.}{10pt}{}
+% \newpagestyle{mystyle}{
+%   \sethead[][\thechapter.\enspace\chaptertitle][]{}{\thesection~\sectiontitle}{}
+% \setfoot{}{\thepage}{}}
+
+
+% ----- Sources -----
+\usepackage{natbib}
+\bibliographystyle{IEEEtran} % citation and reference list style
+\def\biblio{\clearpage\bibliographystyle{IEEEtran}\bibliography{References.bib}} % defines the \biblio command used for referencing in subfiles - DO NOT CHANGE
+
+
+
+% \epstopdfsetup{outdir=./}
+
+
+% ----- Header and footer -----
+\pagestyle{fancy}
+\fancyhead[RO,LE]{\thepage} % page number on right for odd pages and left for even pages in the header
+\fancyhead[RE,LO]{\nouppercase{\rightmark}} % chapter name and number on the right for even pages and left for odd pages in the header
+%\renewcommand{\headrulewidth}{0pt} % sets thickness of header line
+\fancyfoot{} % removes page number on bottom of page
+
+
+
+
+
+% ----- Header of the frontpage ----- 
+\fancypagestyle{frontpage}{
+	\fancyhf{}
+	\renewcommand{\headrulewidth}{0pt}
+	\renewcommand{\footrulewidth}{0pt}
+	\vspace*{1\baselineskip}
+	
+	\fancyhead[R]{University of Thessaly
+	\linebreak       Greece, Spring 2019\vspace*{5\baselineskip}}
+	\fancyhead[L]{ \includegraphics[width=1.5in]{uth.png}} % change to nhhlogo1.png for golden NHH logo
+}
+
+\counterwithout{figure}{section}
+\counterwithin{figure}{chapter}
+
+\counterwithout{table}{section}
+\counterwithin{table}{chapter}
+
+\counterwithout{equation}{section}
+\counterwithin{equation}{chapter}
+
+
+% ----- Document starts here ----- 
+\begin{document}
+
+% \renewcommand{\familydefault}{\sffamily}
+
+
+\setcitestyle{square}
+\selectlanguage{english}
+
+\def\biblio{} % resets the biblio command, if not here a new reference list will be produced after every chapter
+
+\include{Chapters/Frontpage}
+\restoregeometry % restores the margins after frontpage
+%\nocite{*} % uncomment if you want all sources to be printed in the reference list, including the ones which are not cited in the text 
+
+\pagenumbering{gobble} % suppress page numbering
+\thispagestyle{plain} % suppress header
+\clearpage\mbox{}\clearpage % add blank page
+
+\pagenumbering{roman} % starting roman page numbering
+
+\newpage
+\section*{}
+    \subfile{Chapters/Quote}
+
+\newpage
+\section*{Declaration of Authorship}
+    \subfile{Chapters/Declaration}
+
+\selectlanguage{greek}
+\newpage
+\section*{Περίληψη}
+    \subfile{Chapters/Abstract_Gre}
+\selectlanguage{english}
+
+\newpage
+\section*{Abstract}
+    \subfile{Chapters/Abstract_Eng}
+
+
+\newpage
+\selectlanguage{greek}
+\section*{Eυχαριστίες}
+    \subfile{Chapters/Acknowledgments}
+
+%\selectlanguage{greek}
+\newpage
+{\setstretch{1.0} % line spacing for the list
+\tableofcontents
+}
+
+\newpage
+{\setstretch{1.0} 
+\listoffigures}
+ 
+\newpage
+{\setstretch{1.0} 
+\listoftables}
+
+\newpage
+\addtocontents{toc}{\protect\setcounter{tocdepth}{4}} % sets depth of toc to 4, 1.1.1.1
+\pagenumbering{arabic} % Starting arabic page numbering
+\setcounter{page}{1} % sets pagecounter to 1
+
+\chapter{Εισαγωγή} % section/chapter name
+\label{intro}
+    \subfile{Chapters/01Introduction} % including the subfile for the chapter
+\clearpage % clears the page after the chapter is finished
+
+
+%\chapter{Deep Learning}
+\chapter{Βαθειά μηχανική μάθηση}
+\label{deep}
+    \subfile{Chapters/02DeepL}
+\clearpage
+
+
+\chapter{Όραση Υπολογιστών}
+\label{vision}
+    \subfile{Chapters/02ComputerVision}
+\clearpage
+
+\chapter{Διαδικασία αναγνώρισης κατεύθυνσης βλέμματος}
+\label{DCASE}
+    \subfile{Chapters/03methodPipeline}
+\clearpage
+
+\chapter{Analysis of DCASE Task 3 Data}
+\label{analysis}
+    \subfile{Chapters/04DataAnalysis}
+\clearpage
+  
+\chapter{Our Sound Event Detection and Localization Algorithm}
+\label{method}
+    \subfile{Chapters/05Method}
+\clearpage 
+
+\chapter{Results}
+\label{results}
+    \subfile{Chapters/06Results}
+\clearpage
+
+\chapter{Conclusion}
+\label{conclusion}
+    \subfile{Chapters/07Conclusion}
+\clearpage
+
+% \section{Analysis}
+%     \subfile{Chapters/05Analysis}
+% \clearpage
+
+% \section{Discussion}
+%     \subfile{Chapters/06Discussion}
+% \clearpage
+
+
+
+\newpage
+\renewcommand\refname{References} % name for the reference list
+{\setstretch{1.0} % linespacing for the references
+\addcontentsline{toc}{section}{References} % to change the name of the references in the TOC
+\bibliography{References.bib} % adds the references to the document
+}
+
+% \newpage
+% \renewcommand{\appendixpagename}{Appendix} % Heading of appendix
+% \renewcommand{\appendixtocname}{Appendix} % name of appendix in TOC
+% \appendixpage 
+% \addappheadtotoc
+
+% \begin{appendices}
+%     \subfile{Chapters/Appendix}
+% \end{appendices}
+
+% TIPS AND TRICKS - REMOVE WHEN YOU DON'T NEED IT ANYMORE
+% \newpage
+% \section{Tips and tricks to get you started}
+%     \subfile{Chapters/Tips}
+
+\end{document}
