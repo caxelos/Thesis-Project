@@ -54,6 +54,9 @@ def open_file(rootDir):
 def calcs():
     dir_path = os.getcwd()
     LIST_DIRS = os.walk(dir_path)
+    
+    totals={}
+    
     for ROOT, DIRS, FILES in LIST_DIRS:#outter
         for i in range(len(DIRS)):
             print(i)
@@ -63,15 +66,48 @@ def calcs():
                 break 
             
         for D in DIRS:#now get in pij
-            print(D)
+            #print(D)
+            totals[D]={}
+            totals[D]['sum']=0
             list_dirs = os.walk(os.path.join(ROOT,D))
             for root, dirs, files in list_dirs:#inner
                 for f in files:#now get in .mat
-                    print(os.path.join(root, f))
+                    totals[D][f]={}
+                    #print(os.path.join(root, f))
                     mat_contents=sio.loadmat(os.path.join(root, f))
                     data = mat_contents['data']
                     right = data['right']#(40,3)
-  
+                    #left  = data['left']
+                    right=right[0,0]
+                    #left =left[0,0]
+                    totals[D][f]['f']=len(right['gaze'][0,0])
+                    totals[D]['sum'] = totals[D]['sum'] + len(right['gaze'][0,0])                    
+                    #print("totals:",totals[D]['sum'])
+                    #right_gaze = right['gaze'][0,0]
+                    #right_img = right['image'][0,0]
+                    #right_pose = right['pose'][0,0]
+                    #left_gaze = left['gaze'][0,0]
+                    #left_img = left['image'][0,0]
+                    #left_pose = left['pose'][0,0]
+        for D in DIRS:
+            pony=0
+            list_dirs = os.walk(os.path.join(ROOT,D))
+            for root, dirs, files in list_dirs:#inner
+                for f in files:#now get in .mat
+                    mat_contents=sio.loadmat(os.path.join(root, f))
+                    data = mat_contents['data']
+                    right = data['right']
+                    right=right[0,0]
+                    totals[D][f]['per_f']= (totals[D][f]['f']*1500)/totals[D]['sum']
+                    pony=pony+totals[D][f]['per_f']
+                    #totals[D]['sum'] = totals[D]['sum'] + len(right['gaze'][0,0])
+                    print("pony:",pony)         
+
+    #print(totals['as']['asas'])
+    #pony: 1499.9999999999998
+    #pony: 1500.0000000000005
+                     
+    print(totals)
 
 def make_dataset():
     dir_path = os.getcwd()#+'#os.getcwd()+data_path
