@@ -61,7 +61,6 @@ def find_R_nearest_groups(centerTheta, centerPhi, groups_centers, R, first, NUM_
 	#print("final list:",listOfGroupIds)
 	return np.array(listOfGroupIds)
 
-DATA_CHUNKS=1
 import h5py
 #initialize data
 groups_poses={}
@@ -76,7 +75,7 @@ curr_dist = 0.05#[0.03 0.04 0.05 0.06 0.07];%evgala to 0.06
 
 
 print(subject_ids) 
-for subject_id in subject_ids[0:10]:#(0,5,10,15)
+for subject_id in subject_ids[0:2]:#(0,5,10,15)
 	path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 	#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 	
@@ -116,7 +115,6 @@ for subject_id in subject_ids[0:10]:#(0,5,10,15)
 
 #print("NumOfCenters:",numGrps)
 print("numGrps:",numGrps)
-error('popa')
 #gia ta regression forests,prepei na kanoume reshape ta data.Opote,anti gia 60x36,
 #to resolution einai 16x9
 groups_centers=np.array(groups_centers)
@@ -131,11 +129,11 @@ for subject_id in subject_ids[0:2]:
 	path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 	#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 	with np.load(path) as fin:
-		images= np.empty((2400, 1, 36, 60))
-		images[:,0,:,:] = fin['image'][0:2400,:,:]*255
+		images= np.empty((3000, 1, 36, 60))
+		images[:,0,:,:] = fin['image']*255
 		#images[:,0,0:9,0:16]=images[:,0,13:22,22:38]#images[:,22:37,13:22]
-		poses = fin['pose'][0:2400]
-		gazes = fin['gaze'][0:2400]
+		poses = fin['pose']#[0:2400]
+		gazes = fin['gaze']#[0:2400]
 		#length = len(images)
 
 	#img = temp.data.left.image(num_i, 14:22, 23:37);
@@ -204,14 +202,15 @@ with h5py.File('small_test_dataset.h5','w') as hdf:
 	image_dset=hdf.create_dataset('data',(0,1,9,15),maxshape=(None,1,9,15),dtype='uint8')
 	nearests_dset = hdf.create_dataset('nearestIDs',(0,RADIUS+1),maxshape=(None,RADIUS+1),dtype='uint32')
 			
-	for subject_id in subject_ids[0:2]:
+	for subject_id in subject_ids[3:4]:
 		path = os.path.join(dataset_dir, '{}.npz'.format(subject_id ))
 		#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 		with np.load(path) as fin:#dynamic datasets:https://stackoverflow.com/questions/25655588/incremental-writes-to-hdf5-with-h5py?rq=1
-			images= np.empty((len(fin['image'][2400:]), 1,9,15))
-			images[:,0,:,:] = fin['image'][2400:,13:22,22:37]*255			
-			poses = fin['pose'][2400:]
-			gazes = fin['gaze'][2400:]
+			images= np.empty((len(fin['image']), 1,9,15))
+			images[:,0,:,:] = fin['image'][:,13:22,22:37]*255			
+			poses = fin['pose']
+			gazes = fin['gaze']
+
 
 			#gaze_dset=hdf.create_dataset('gaze',data=gazes,dtype='f8')
 			gaze_dset.resize(gaze_dset.shape[0]+len(gazes), axis=0)
