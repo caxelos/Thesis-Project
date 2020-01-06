@@ -28,6 +28,13 @@ def main():
 	for folder in folders:
 		subfolder = os.listdir (root_dir+folder)
 		for sij in subfolder:
-			print(sij)	
+			curr_path = root_dir+folder+'/'+sij+'/synth'
+			dirlist = os.listdir (curr_path)
+			for name in dirlist:
+				if os.path.isdir(os.path.join(curr_path,name)):
+					print(name)
+
+
+
 if __name__ == '__main__':
     main()
