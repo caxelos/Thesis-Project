@@ -2,8 +2,15 @@
  * Titlos Eidikou Thematos: Epeksergasia dedomenwn video proswpou apo pollaples pozes 
  */
 
-#define EXPORT_TO_FILE
+//1)τις ελάχιστες αποστάσεις μεταξύ των κέντρων των ομάδων  
+//2)τον αριθμό των clusters-γειτόνων, τα
+//3)thresholds στους κόμβους του κάθε δέντρου, 
+//4)το μέγιστο βάθος κάθε δέντρου (αν έχει οριστεί μέγιστο βάθος) 
+//5)και τέλος στο πώς θα υπολογιστεί η έξοδος του κάθε δέντρου, αν έχουνε καταλήξει πολλά δείγματα σε ένα φύλλο του δέντρο
 
+
+#define EXPORT_TO_FILE
+//#define IMPORT_FROM_FILE
 
 #define PARALLEL
 #ifdef PARALLEL
@@ -51,9 +58,27 @@
  * - You can define below the minimum number of training samples per leaf
  */
 
-
-
-#define NUM_OF_TREES 140//114//204//238
+//LEAVE-ONE-OUT
+//loc14:280
+//loc13:269
+//loc12:277
+//loc11:279
+//loc10:280
+//loc9:280
+//loc8:268
+//loc7:281
+//loc6:277
+//loc5:278
+//loc4:277
+//loc3:277
+//loc2:272
+//loc1:283
+//loc0:282
+//3-FOLD CROSS VAL
+//F1:261
+//F2:270
+//F3:255
+#define NUM_OF_TREES 269//277//280//281//277//278//261//277//275//283//282//280//255//261//208//140//114//204//238
 /*
  * - total number of trees that get build built
  * - the number of clusters must be equal with the number below
@@ -64,9 +89,9 @@
 /*
  * - just some defines..
  */
-#define MAX_SAMPLES_PER_TREE 1000
+//#define MAX_SAMPLES_PER_TREE 1000
 #define MAX_RECURSION_DEPTH 15
-#define MAX_GRP_SIZE 500
+//#define MAX_GRP_SIZE 500
 #define LEFT 1
 #define RIGHT 2
 
@@ -83,7 +108,7 @@
 /*
  * - This parameter sets the number of neighbours(R) used by the algorithm
  */
-#define RADIUS 30
+#define RADIUS 30//10//30
 
 
 
@@ -834,7 +859,7 @@ int main(int argc, char *argv[])  {
        */
        Exception::dontPrint();
        file = new H5File(argv[2], H5F_ACC_RDWR);
-      
+       
        //inits
        dims[0]=0;
        dims[1]=0;
@@ -855,7 +880,9 @@ int main(int argc, char *argv[])  {
 	  cout << "Error allocating memory" << endl;
 	  return -1;
        }
-       dataset.read(test_nearest, PredType::NATIVE_INT, memspace, dataspace );	
+       dataset.read(test_nearest, PredType::NATIVE_INT, memspace, dataspace );
+
+
 
        //headpose         
        dataset = file->openDataSet("headpose");     
@@ -930,17 +957,17 @@ int main(int argc, char *argv[])  {
           predict[0] =  0;
           predict[1] =  0;
           #ifdef PRINT_TREES_PREDICTIONS
-	  cout << endl << "***** no." << j << ". Test sample=(" << test_gazes[(j<<1)]*(180.0/M_PI) << ", " << test_gazes[(j<<1)+1]*(180.0/M_PI) << ") " << "******" << endl;
-	  #endif
+	         cout << endl << "***** no." << j << ". Test sample=(" << test_gazes[(j<<1)]*(180.0/M_PI) << ", " << test_gazes[(j<<1)+1]*(180.0/M_PI) << ") " << "******" << endl;
+	        #endif
       
 	  for (int k = 0; k < RADIUS+1; k++)  {     
 
              //each tree's prediction
-
        temp_predict = testSampleInTree(trees[ test_nearest[j*max_neighbours + k]-1 ], test_imgs, test_poses, j );
+
 	     predict[0] = predict[0] + temp_predict->mean[0];
 	     predict[1] = predict[1] + temp_predict->mean[1];
-	   
+	      
              
 	     #ifdef PRINT_TREES_PREDICTIONS
 	     cout << "\t" << k << ": mean=(" << temp_predict->mean[0]*(180.0/M_PI) << ", " << temp_predict->mean[1]*(180.0/M_PI)  << "), stdev=" <<     sqrt(pow(temp_predict->stdev[0],2)+pow(temp_predict->stdev[1],2)) *(180.0/M_PI)  << ", tree=" << test_nearest[j*max_neighbours + k]-1 <<  ", RADIUS=" <<k  << ", error=" <<   sqrt( pow(temp_predict->mean[0]-test_gazes[(j<<1) ],2) + pow(temp_predict->mean[1]-test_gazes[(j<<1)+1],2) )*(180.0/M_PI) << ", n=" << temp_predict->numOfPtrs << endl;
@@ -978,28 +1005,35 @@ int main(int argc, char *argv[])  {
       
        //mean error
        double mean_error[2] = {0,0};
+       double mymean=0;
        for (j = 0; j < dims[0]; j++)  {
-
           mean_error[0] =  mean_error[0] + errors[2*j]/dims[0];
-	  mean_error[1] =  mean_error[1] + errors[2*j+1]/dims[0]; 
-          
+	        mean_error[1] =  mean_error[1] + errors[2*j+1]/dims[0]; 
+          mymean = mymean + (errors[2*j]+errors[2*j+1])/dims[0];
        }
 
 
        //stdev error
        double stdev_error[2] = {0,0};
+       double mystdev=0;
        for (j = 0; j < dims[0]; j++)  {
           stdev_error[0] = stdev_error[0] + pow(errors[2*j]-mean_error[0],2);
-	  stdev_error[1] = stdev_error[1] + pow(errors[2*j+1]-mean_error[1],2);
+	        stdev_error[1] = stdev_error[1] + pow(errors[2*j+1]-mean_error[1],2);
+          mystdev = mystdev + pow((errors[2*j]+errors[2*j+1])-mymean,2);
        }
 
        stdev_error[0] = stdev_error[0]/(dims[0]);
        stdev_error[1] = stdev_error[1]/(dims[0]);
        stdev_error[0] = sqrt( stdev_error[0] );
-       stdev_error[1] = sqrt( stdev_error[1] );  
+       stdev_error[1] = sqrt( stdev_error[1] );
+       mystdev = mystdev/dims[0];
+       mystdev = sqrt(mystdev);
 
        cout << "mean_error(deg) is: (" << mean_error[0]*(180.0/M_PI) << ","<< mean_error[1]*(180.0/M_PI) << ") or better: " << (mean_error[0]+mean_error[1])*(180.0/M_PI) << " degrees" << endl;
        cout << "stdev_error(deg) is: (" << stdev_error[0]*(180.0/M_PI) << "," << stdev_error[1]*(180.0/M_PI) <<  ") or better: " << (stdev_error[0]+stdev_error[1])*(180.0/M_PI) << " degrees" <<  endl;        
+       cout << "myerror(deg) is: " << mymean*(180.0/M_PI) << " degrees" << endl;
+       cout << "mystdev(deg) is: " << mystdev*(180.0/M_PI) << " degrees" << endl;
+
 
        free( errors );
     }//try 
