@@ -66,7 +66,7 @@ def main():
 					data =pd.read_csv(curr_path+name+'.csv',header=None,usecols=[0,1,2,3,4,5]).values#read only gaze and pose
 					img_list=os.listdir(curr_path+name)
 					img_list.sort()#print(type(df.values))
-					indices=np.random.choice(144,5,replace=False)#5 out of 144 eye imgs
+					indices=np.random.choice(144,4,replace=False)#5 out of 144 eye imgs
 					for i in indices:#144 images
 						img = img_list[i]
 						num_img=num_img+1
