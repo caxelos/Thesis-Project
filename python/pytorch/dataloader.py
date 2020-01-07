@@ -77,14 +77,14 @@ def get_loader_multiview_mpiigaze(trainset_dir, testset_dir, batch_size, num_wor
     assert os.path.exists(testset_dir)
     #assert test_subject_id in range(15)
 
-    trainsubject_ids = ['p{:02}'.format(index) for index in range(50)]
-    testsubject_id = ['p{:02}'.format(index) for index in range(15)]
+    trainsubject_ids = ['s{:02}'.format(index) for index in range(50)]
+    testsubject_ids = ['p{:02}'.format(index) for index in range(15)]
 
     train_dataset = torch.utils.data.ConcatDataset([
         MPIIGazeDataset(subject_id, trainset_dir) for subject_id in trainsubject_ids
     ])
-    train_dataset = torch.utils.data.ConcatDataset([
-        MPIIGazeDataset(subject_id, testset_dir) for subject_id in trainsubject_ids
+    test_dataset = torch.utils.data.ConcatDataset([
+        MPIIGazeDataset(subject_id, testset_dir) for subject_id in testsubject_ids
     ])
 
 

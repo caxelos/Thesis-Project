@@ -3,7 +3,7 @@
 #python -u main_resnet18.py --arch myresnet_basic --dataset data --test_id 0 --outdir results/resnet_preact/00 --batch_size 32 --base_lr 0.1 --momentum 0.9 --nesterov True --weight_decay 1e-4 --epochs 40 --milestones '[30, 35]' --lr_decay 0.1 --tensorboard
 
 ###cross dataset
-#python -u main_resnet18.py --arch myresnet_basic --dataset data --testset data_UT_Multiview  --outdir results/resnet_preact/00 --batch_size 32 --base_lr 0.1 --momentum 0.9 --nesterov True --weight_decay 1e-4 --epochs 40 --milestones '[30, 35]' --lr_decay 0.1 --tensorboard
+#python -u main_resnet18.py --arch myresnet_basic --dataset data_UT_Multiview --testset data  --outdir results/resnet_preact/00 --batch_size 32 --base_lr 0.1 --momentum 0.9 --nesterov True --weight_decay 1e-4 --epochs 40 --milestones '[30, 35]' --lr_decay 0.1 --tensorboard
 
 
 #!/usr/bin/env python
@@ -59,8 +59,8 @@ def parse_args():
     parser.add_argument(
         '--arch', type=str, required=True, choices=['lenet', 'resnet_preact','zhang','myresnet_basic'])
     parser.add_argument('--dataset', type=str, required=True)
-    parser.add_argument('--test_id', type=int, required=True)
-    parser.add_argument('--testset', type=int)
+    parser.add_argument('--test_id', type=int)
+    parser.add_argument('--testset', type=str)
     parser.add_argument('--outdir', type=str, required=True)
     parser.add_argument('--seed', type=int, default=17)
     parser.add_argument('--num_workers', type=int, default=7)
