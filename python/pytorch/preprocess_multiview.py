@@ -28,11 +28,17 @@ def main():
 	for folder in folders:
 		subfolder = os.listdir (root_dir+folder)
 		for sij in subfolder:
-			curr_path = root_dir+folder+'/'+sij+'/synth'
+			curr_path = root_dir+folder+'/'+sij+'/synth/'
 			dirlist = os.listdir (curr_path)
 			for name in dirlist:
 				if os.path.isdir(os.path.join(curr_path,name)):
-					print(name)
+					df =pd.read_csv(curr_path+name+'.csv',usecols=[0,1,2,3,4,5])#read only gaze and pose
+					img_list=os.listdir(curr_path+name)
+					img_list.sort()
+					print(type(df.values))
+
+
+				
 
 
 
