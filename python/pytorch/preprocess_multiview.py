@@ -21,7 +21,7 @@ def convert_gaze(vect):
     pitch = np.arcsin(-y)
     return np.array([yaw, pitch])
 
-
+import cv2
 def main():
 	root_dir = '/home/olympia/MPIIGaze/'
 	folders = ['s00-09','s10-19','s20-29','s30-39','s40-49']
@@ -34,8 +34,15 @@ def main():
 				if os.path.isdir(os.path.join(curr_path,name)):
 					df =pd.read_csv(curr_path+name+'.csv',usecols=[0,1,2,3,4,5])#read only gaze and pose
 					img_list=os.listdir(curr_path+name)
-					img_list.sort()
-					print(type(df.values))
+					img_list.sort()#print(type(df.values))
+					for img in img_list:
+						print(curr_path+name+"/"+img)
+						img = cv2.imread(curr_path+name+"/"+img, 0)
+						print(type(img))
+
+						#for i in range(img.shape[0]): #traverses through height of the image
+						#	for j in range (img.shape[1]): #traverses through width of the image
+						#		print(img[i][j])
 
 
 				
