@@ -132,7 +132,7 @@ for subject_id in multiview_ids: #my_list:# subject_ids[1:]:#my_list
 	path = os.path.join(multiview_dir, '{}.npz'.format(subject_id ))
 	#/home/olympia/MPIIGaze/python/pytorch/data/p12.npz
 	with np.load(path) as fin:
-		images= np.empty((1600, 1, 36, 60))
+		images= np.empty((1280, 1, 36, 60))
 		images[:,0,:,:] = fin['image']*255
 		#images[:,0,0:9,0:16]=images[:,0,13:22,22:38]#images[:,22:37,13:22]
 		poses = fin['pose']#[0:2400]
