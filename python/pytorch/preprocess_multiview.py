@@ -30,20 +30,45 @@ def main():
 		for sij in subfolder:
 			curr_path = root_dir+folder+'/'+sij+'/synth/'
 			dirlist = os.listdir (curr_path)
+			images = []
+			poses = []
+			gazes = []
 			for name in dirlist:
 				if os.path.isdir(os.path.join(curr_path,name)):
-					df =pd.read_csv(curr_path+name+'.csv',usecols=[0,1,2,3,4,5])#read only gaze and pose
+					data =pd.read_csv(curr_path+name+'.csv',header=None,usecols=[0,1,2,3,4,5]).values#read only gaze and pose
 					img_list=os.listdir(curr_path+name)
 					img_list.sort()#print(type(df.values))
-					for img in img_list:
-						print(curr_path+name+"/"+img)
-						img = cv2.imread(curr_path+name+"/"+img, 0)
-						print(type(img))
+					for img in img_list:#144 images
+						print(img)
+						image = cv2.imread(curr_path+name+"/"+img, 0)
+						images.append(image)
+					for i in range(len(data)):
+						if 'r' in name: #right eye
+							gaze=convert_gaze(data[i,0:3])*np.array([-1,1])
+							pose=convert_pose(data[i,3:6])*np.array([-1,1])
+
+						else:#left eye
+							gaze = convert_gaze(data[i,0:3])
+							pose = convert_pose(data[i,3:6])
+							
+						poses.append(pose)
+						gazes.append(gaze)
+						
+								
+						#pose = convert_pose(right_poses[day][index]) * np.array([-1, 1])
+						#gaze = convert_gaze(right_gazes[day][index]) * np.array([-1, 1])
+				
+
 
 						#for i in range(img.shape[0]): #traverses through height of the image
 						#	for j in range (img.shape[1]): #traverses through width of the image
 						#		print(img[i][j])
+			images = np.array(images).astype(np.float32) / 255
+			poses = np.array(poses).astype(np.float32)
+			gazes = np.array(gazes).astype(np.float32)
 
+			outpath = os.path.join("data_UT_Multiview", sij)
+			np.savez(outpath, image=images, pose=poses, gaze=gazes)
 
 				
 
