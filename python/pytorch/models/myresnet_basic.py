@@ -1,4 +1,4 @@
-### the article is here:https://github.com/FrancescoSaverioZuppichini/ResNet ###
+﻿### the article is here:https://github.com/FrancescoSaverioZuppichini/ResNet ###
 ### RUN MODEL WITH:
 #python -u main.py --arch myresnet_basic --dataset data --test_id 0 --outdir results/resnet_preact/00 --batch_size 32 --base_lr 0.1 --momentum 0.9 --nesterov True --weight_decay 1e-4 --epochs 40 --milestones '[30, 35]' --lr_decay 0.1 --tensorboard
 
@@ -7,6 +7,34 @@
 import torch
 import torch.nn as nn
 from functools import partial
+
+
+
+#### Resnet Network #####
+# Final, we can put all the pieces together and create the final model.
+class ResNet6(nn.Module):
+    # ResNet(in_channels, n_classes, block=block, deepths=[2, 2, 2, 2], *args, **kwargs)
+    def __init__(self, in_channels=1, n_outputs=2, *args, **kwargs):#1
+        #print("Resnet created!")
+        #args: () 
+        #kwargs:,'block': <class '__main__.ResNetBasicBlock'>,'deepths': [2, 2, 2, 2]
+        #input_shape = (1, 1, 36, 60)
+        # compute conv feature size
+        #with torch.no_grad():
+        #    self.feature_size = self._forward_conv(
+        #        torch.zeros(*input_shape)).view(-1).size(0)
+
+        super(ResNet6, self).__init__()
+        self.encoder = ResNetEncoder(in_channels, *args, **kwargs)
+        #self.decoder = ResnetDecoder(in, n_outputs)
+        self.decoder = ResnetDecoder(self.encoder.blocks[-1].blocks[-1].expanded_channels, n_outputs)
+        #.expanded_channels=512.kai decoder=ResnetDecoder(features=512,classes=12)
+    def forward(self, image,pose):
+        x = self.encoder(image)
+        x = self.decoder(x,pose)
+        #print("x",x)
+        return x
+
 
 ##### ACTIVATION FUNCTIONS #####
 # We use ModuleDict to create a dictionary with different activation 
@@ -53,12 +81,12 @@ class ResidualBlock(nn.Module):
         self.shortcut = nn.Identity()   
     
     def forward(self, x):
-        ### Basic Resnet ###
-        # residual = x
-        # if self.should_apply_shortcut: residual = self.shortcut(x)
-        # x = self.blocks(x)#identity
-        # x += residual#+identity
-        # x = self.activate(x)
+        ## Basic Resnet ###
+        residual = x
+        if self.should_apply_shortcut: residual = self.shortcut(x)
+        x = self.blocks(x)#identity
+        x += residual#+identity
+        x = self.activate(x)
 
         ### Preact Resnet ###
         # residual = x
@@ -69,11 +97,11 @@ class ResidualBlock(nn.Module):
         # x += residual#+identity
             
 
-        ### ReLU before addition ###
-        residual = x
-        if self.should_apply_shortcut: residual = self.shortcut(x)
-        x = self.blocks(x)#identity
-        x += residual#+identity
+        # ### ReLU before addition ###
+        # residual = x
+        # if self.should_apply_shortcut: residual = self.shortcut(x)
+        # x = self.blocks(x)#identity
+        # x += residual#+identity
 
         #print("residual:",residual.shape):residual: torch.Size([32, 128, 9, 15])
         #print("after convs:",x.shape):after convs: torch.Size([32, 128, 5, 8])
@@ -140,9 +168,9 @@ class ResNetBasicBlock(ResNetResidualBlock):
         super().__init__(in_channels, out_channels, *args, **kwargs)
         self.blocks = nn.Sequential(
             ### Basic Resnet ###
-            #conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
-            #activation_func(self.activation),
-            #conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False),
+            conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
+            activation_func(self.activation),
+            conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False),
                     
             ### Preact Resnet ###
         #     nn.BatchNorm2d(in_channels),
@@ -153,10 +181,10 @@ class ResNetBasicBlock(ResNetResidualBlock):
         #     nn.Conv2d(out_channels,self.expanded_channels,kernel_size=3, stride=self.downsampling,padding=1,bias=False)
         
             ### ReLU before addition ###
-            activation_func(self.activation),
-            conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
-            activation_func(self.activation),
-            conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False)
+         #    activation_func(self.activation),
+         #    conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
+         #    activation_func(self.activation),
+         #    conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False)
          )
 
 
@@ -208,6 +236,7 @@ class ResNetLayer(nn.Module):
     def forward(self, x):
         #print("     ResNetLayer runs!")
         x = self.blocks(x)
+        #print("after block:", x.shape)
         return x
 
 ##### ResNet Encoder #####
@@ -259,11 +288,14 @@ class ResNetEncoder(nn.Module):
     def forward(self, x):#3->64->128->256->512
         #print("before gate:",x)
         #torch.Size([32, 1, 36, 60])
+        #print("init image:", x.shape) 
         x = self.gate(x)#torch.Size([32, 64, 9, 15])
+        #print("after gate:", x.shape)
         #print("x before flatten:",x.size())
         for block in self.blocks:#iterate module list
             #print(" ResNetEncoder runs!")
             x = block(x)
+            #print("after layer:", x.shape)
         return x
 
 ##### Decoder #####
@@ -282,7 +314,10 @@ class ResnetDecoder(nn.Module):
         self.decoder = nn.Linear(in_features+2, n_outputs)
 
     def forward(self, x,pose):
-        x = self.avg(x)#512
+        #print("before avg pool:", x.shape)
+        x = self.avg(x)#512 
+        #print("before concat(shape):",x.shape)
+
 
         x = x.view(x.size(0), -1)#flatten
         x = torch.cat([x, pose], dim=1)
@@ -291,56 +326,42 @@ class ResnetDecoder(nn.Module):
 #
 
         x = self.decoder(x)
+        #print("final gaze:", x.shape)
+
         #print(x)
 
         return x
 
+#init image: torch.Size([32, 1, 36, 60])
+#after gate: torch.Size([32, 64, 18, 30])
+#after layer: torch.Size([32, 64, 18, 30])
+#after layer: torch.Size([32, 128, 9, 15])
+#before avg pool: torch.Size([32, 128, 9, 15])
+#before concat(shape): torch.Size([32, 128, 1, 1])
+#final gaze: torch.Size([32, 2])
 
-#### Resnet Network #####
-# Final, we can put all the pieces together and create the final model.
-class Model(nn.Module):
-    # ResNet(in_channels, n_classes, block=block, deepths=[2, 2, 2, 2], *args, **kwargs)
-    def __init__(self, in_channels=1, n_outputs=2, *args, **kwargs):#1
-        #print("Resnet created!")
-        #args: () 
-        #kwargs:,'block': <class '__main__.ResNetBasicBlock'>,'deepths': [2, 2, 2, 2]
-        #input_shape = (1, 1, 36, 60)
-        # compute conv feature size
-        #with torch.no_grad():
-        #    self.feature_size = self._forward_conv(
-        #        torch.zeros(*input_shape)).view(-1).size(0)
 
-        super().__init__()
-        self.encoder = ResNetEncoder(in_channels, *args, **kwargs)
-        #self.decoder = ResnetDecoder(in, n_outputs)
-        self.decoder = ResnetDecoder(self.encoder.blocks[-1].blocks[-1].expanded_channels, n_outputs)
-        #.expanded_channels=512.kai decoder=ResnetDecoder(features=512,classes=12)
-    def forward(self, image,pose):
-        x = self.encoder(image)
-        x = self.decoder(x,pose)
-        #print("x",x)
-        return x
 
 
 ##### Defining several models #####
 # We can now define the five models proposed by the authors, resnet18,34,50,101,152
-def resnet18(in_channels, n_outputs, block=ResNetBasicBlock, *args, **kwargs):
-    #args=none,kwargs=none
-    return Model(in_channels, n_outputs, block=block, deepths=[2, 2, 2, 2], *args, **kwargs)
+#def resnet18(in_channels, n_outputs, block=ResNetBasicBlock, *args, **kwargs):
+#    #args=none,kwargs=none
+#    return Model(in_channels, n_outputs, block=block, deepths=[2, 2, 2, 2], *args, **kwargs)
 
-def resnet34(in_channels, n_outputs, block=ResNetBasicBlock, *args, **kwargs):
-    return Model(in_channels, n_outputs, block=block, deepths=[3, 4, 6, 3], *args, **kwargs)
+#def resnet34(in_channels, n_outputs, block=ResNetBasicBlock, *args, **kwargs):
+#   return Model(in_channels, n_outputs, block=block, deepths=[3, 4, 6, 3], *args, **kwargs)
 
-def resnet50(in_channels, n_outputs, block=ResNetBottleNeckBlock, *args, **kwargs):
-    return Model(in_channels, n_outputs, block=block, deepths=[3, 4, 6, 3], *args, **kwargs)
+#def resnet50(in_channels, n_outputs, block=ResNetBottleNeckBlock, *args, **kwargs):
+#    return Model(in_channels, n_outputs, block=block, deepths=[3, 4, 6, 3], *args, **kwargs)
 
-def resnet101(in_channels, n_outputs, block=ResNetBottleNeckBlock, *args, **kwargs):
-    return Model(in_channels, n_outputs, block=block, deepths=[3, 4, 23, 3], *args, **kwargs)
+#def resnet101(in_channels, n_outputs, block=ResNetBottleNeckBlock, *args, **kwargs):
+#    return Model(in_channels, n_outputs, block=block, deepths=[3, 4, 23, 3], *args, **kwargs)
 
-def resnet152(in_channels, n_outputs, block=ResNetBottleNeckBlock, *args, **kwargs):
-    return Model(in_channels, n_outputs, block=block, deepths=[3, 8, 36, 3], *args, **kwargs)
+#def resnet152(in_channels, n_outputs, block=ResNetBottleNeckBlock, *args, **kwargs):
+#    return Model(in_channels, n_outputs, block=block, deepths=[3, 8, 36, 3], *args, **kwargs)
 
-from torchsummary import summary
+#from torchsummary import summary
 
 ### diko mas ###
 #model = resnet18(in_channels=1, n_outputs=2,block=ResNetBasicBlock)
