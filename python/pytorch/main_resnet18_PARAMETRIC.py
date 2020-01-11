@@ -76,7 +76,6 @@ def parse_args():
     parser.add_argument('--milestones', type=str, default='[20, 30]')
     parser.add_argument('--lr_decay', type=float, default=0.1)
     parser.add_argument('--num_workers', type=int, default=7)
-    parser.add_argument('--avgPool', type=str2bool, default=True)
 
 
     # TensorBoard
@@ -331,7 +330,7 @@ def main():
 
     # model
     module = importlib.import_module('models.{}'.format(args.arch))
-    model = module.ResNet6(blocks_sizes=args.block_sizes,deepths=args.deepths,avgPool=args.avgPool)#blocks_sizes=[64,128,256,512], deepths=[2,2,2,2])
+    model = module.ResNet6(blocks_sizes=args.block_sizes,deepths=args.deepths)#blocks_sizes=[64,128,256,512], deepths=[2,2,2,2])
     #print(model)blocks_sizes=[64,128,256,512], deepths=[2,2,2,2]
     #from torchsummary import summary
     #img_n = (1,1,60,36)
