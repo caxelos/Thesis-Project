@@ -1,4 +1,4 @@
-﻿### the article is here:https://github.com/FrancescoSaverioZuppichini/ResNet ###
+### the article is here:https://github.com/FrancescoSaverioZuppichini/ResNet ###
 ### RUN MODEL WITH:
 #python -u main.py --arch myresnet_basic --dataset data --test_id 0 --outdir results/resnet_preact/00 --batch_size 32 --base_lr 0.1 --momentum 0.9 --nesterov True --weight_decay 1e-4 --epochs 40 --milestones '[30, 35]' --lr_decay 0.1 --tensorboard
 
@@ -15,6 +15,8 @@ from functools import partial
 class ResNet6(nn.Module):
     # ResNet(in_channels, n_classes, block=block, deepths=[2, 2, 2, 2], *args, **kwargs)
     def __init__(self, in_channels=1, n_outputs=2, *args, **kwargs):#1
+
+        
         #print("Resnet created!")
         #args: () 
         #kwargs:,'block': <class '__main__.ResNetBasicBlock'>,'deepths': [2, 2, 2, 2]
@@ -24,14 +26,19 @@ class ResNet6(nn.Module):
         #    self.feature_size = self._forward_conv(
         #        torch.zeros(*input_shape)).view(-1).size(0)
 
+
         super(ResNet6, self).__init__()
+
         self.encoder = ResNetEncoder(in_channels, *args, **kwargs)
         #self.decoder = ResnetDecoder(in, n_outputs)
+
         self.decoder = ResnetDecoder(self.encoder.blocks[-1].blocks[-1].expanded_channels, n_outputs)
         #.expanded_channels=512.kai decoder=ResnetDecoder(features=512,classes=12)
+        print(self.encoder,self.decoder)
     def forward(self, image,pose):
         x = self.encoder(image)
         x = self.decoder(x,pose)
+
         #print("x",x)
         return x
 
@@ -236,7 +243,7 @@ class ResNetLayer(nn.Module):
     def forward(self, x):
         #print("     ResNetLayer runs!")
         x = self.blocks(x)
-        #print("after block:", x.shape)
+        #print("   after block:", x.shape)
         return x
 
 ##### ResNet Encoder #####
@@ -288,7 +295,7 @@ class ResNetEncoder(nn.Module):
     def forward(self, x):#3->64->128->256->512
         #print("before gate:",x)
         #torch.Size([32, 1, 36, 60])
-        #print("init image:", x.shape) 
+        #print("\ninit image:", x.shape) 
         x = self.gate(x)#torch.Size([32, 64, 9, 15])
         #print("after gate:", x.shape)
         #print("x before flatten:",x.size())
@@ -311,24 +318,41 @@ class ResnetDecoder(nn.Module):
         super().__init__()
         self.avg = nn.AdaptiveAvgPool2d((1, 1))
         #in_features=512
-        self.decoder = nn.Linear(in_features+2, n_outputs)
-
+    
+        self.decoder1 = nn.Linear(in_features, in_features)
+        self.decoder2 = nn.Linear(in_features+2, in_features)
+        self.decoderFinal = nn.Linear(in_features, n_outputs)
+        
     def forward(self, x,pose):
         #print("before avg pool:", x.shape)
-        x = self.avg(x)#512 
-        #print("before concat(shape):",x.shape)
+        
+        ##### in case you measure avg.Pool ####
+        #if self.avgPool:
+        #    x = self.avg(x)#512
+        #else: 
+        #    x = x.view(x.size(0),-1)
+        #    print("not avgPooling.Final Shape:", x.shape)
+        x = self.avg(x)#512
+
+
 
 
         x = x.view(x.size(0), -1)#flatten
+        print("shape before 1st decoder:",x.shape)
+        x = self.decoder1(x)
+
+
         x = torch.cat([x, pose], dim=1)
         #print("x after flatten:",x.size())
-#x after flatten: torch.Size([32, 66])...xwrisd
-#
+ 
+        #x = self.in_features(x)
+        #print("shape before 2nd decoder:",x.shape)
+        x = self.decoder2(x)
+        #print("shape before final decoder:",x.shape)
+        x = self.decoderFinal(x)
 
-        x = self.decoder(x)
         #print("final gaze:", x.shape)
 
-        #print(x)
 
         return x
 
