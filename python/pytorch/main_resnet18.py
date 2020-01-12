@@ -74,8 +74,10 @@ def parse_args():
     parser.add_argument('--gate_kernel' ,type=int,default=3)
     parser.add_argument('--ff1_out' ,type=int,default=1024)
     parser.add_argument('--ff2_out' ,type=int,default=1024)
+    parser.add_argument('--block_type', type=str,default='basic')
     parser.add_argument('--block_sizes', nargs='+',type=int,default=[64,128,256,512])
     parser.add_argument('--deepths',nargs='+',type=int,default=[2,2,2,2])
+
 
     # optimizer
     parser.add_argument('--epochs', type=int, default=40)
@@ -341,7 +343,7 @@ def main():
 
     # model
     module = importlib.import_module('models.{}'.format(args.arch))
-    model = module.ResNet6(ff1_out=args.ff1_out,ff2_out=args.ff2_out, blocks_sizes=args.block_sizes,deepths=args.deepths,gate_kernel=args.gate_kernel)#blocks_sizes=[64,128,256,512], deepths=[2,2,2,2])
+    model = module.ResNet6(ff1_out=args.ff1_out,ff2_out=args.ff2_out, block=args.block_type, blocks_sizes=args.block_sizes,deepths=args.deepths,gate_kernel=args.gate_kernel)#blocks_sizes=[64,128,256,512], deepths=[2,2,2,2])
 
     #print(model)blocks_sizes=[64,128,256,512], deepths=[2,2,2,2]
     #from torchsummary import summary

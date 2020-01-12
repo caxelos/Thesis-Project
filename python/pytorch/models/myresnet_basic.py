@@ -265,6 +265,12 @@ class ResNetEncoder(nn.Module):
                  activation='relu', block=ResNetBasicBlock, gate_kernel=3, *args, **kwargs):
         super().__init__()
         #print(" ResNetEncoder created!")
+        if block=='basic':
+            block=ResNetBasicBlock
+        else:
+            block=ResNetBottleNeckBlock
+
+
        
         self.gate_kernel=gate_kernel
         self.blocks_sizes = blocks_sizes # = [64, 128, 256, 512] = out_channels
