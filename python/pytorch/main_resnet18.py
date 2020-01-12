@@ -6,6 +6,10 @@
 #python -u main_resnet18.py --arch myresnet_basic --dataset data_UT_Multiview --testset data  --outdir results/resnet_preact/00 --batch_size 32 --base_lr 0.1 --momentum 0.9 --nesterov True --weight_decay 1e-4 --epochs 40 --milestones '[30, 35]' --lr_decay 0.1 --tensorboard
 
 
+###parametric run
+#python -u main_resnet18.py --arch myresnet_basic --dataset data_UT_Multiview --testset data  --outdir results/resnet_preact/00 --batch_size 32 --base_lr 0.0001 --momentum 0.9 --nesterov True --weight_decay 1e-4 --epochs 40 --milestones '[30, 35]' --lr_decay 0.1 --tensorboard --gate_kernel 3 --ff1_out 512 --ff2_out 512 --block_sizes 32 64 128 256 512 1024   --deepths 2 2 2 1 1 1 
+
+
 #!/usr/bin/env python
 # coding: utf-8
 
@@ -63,7 +67,15 @@ def parse_args():
     parser.add_argument('--testset', type=str)
     parser.add_argument('--outdir', type=str, required=True)
     parser.add_argument('--seed', type=int, default=17)
-    parser.add_argument('--num_workers', type=int, default=7)
+
+
+
+    #ta dika mou
+    parser.add_argument('--gate_kernel' ,type=int,default=3)
+    parser.add_argument('--ff1_out' ,type=int,default=1024)
+    parser.add_argument('--ff2_out' ,type=int,default=1024)
+    parser.add_argument('--block_sizes', nargs='+',type=int,default=[64,128,256,512])
+    parser.add_argument('--deepths',nargs='+',type=int,default=[2,2,2,2])
 
     # optimizer
     parser.add_argument('--epochs', type=int, default=40)
@@ -74,6 +86,8 @@ def parse_args():
     parser.add_argument('--nesterov', type=str2bool, default=True)
     parser.add_argument('--milestones', type=str, default='[20, 30]')
     parser.add_argument('--lr_decay', type=float, default=0.1)
+    parser.add_argument('--num_workers', type=int, default=7)
+
 
     # TensorBoard
     parser.add_argument('--tensorboard', dest='tensorboard', action='store_true', default=True)
@@ -133,7 +147,11 @@ def compute_angle_error(preds, labels):
     #print("teliko error se moires:",torch.acos(angles) * 180 / np.pi)
     angles = abs(preds-labels)
     angles = angles[:,0]+angles[:,1]
-    return angles *180/np.pi
+
+    euclidean= pow(preds-labels,2)
+    euclidean=torch.sqrt(euclidean[:,0]+euclidean[:,1])
+
+    return [angles *180/np.pi, euclidean*180/np.pi]
     #return torch.acos(angles) * 180 / np.pi
 
 def train(epoch, model, optimizer, criterion, train_loader, config, writer):
@@ -146,69 +164,71 @@ def train(epoch, model, optimizer, criterion, train_loader, config, writer):
     loss_meter = AverageMeter()
     angle_error_meter = AverageMeter()
     start = time.time()
-    for step, (images, poses, gazes) in enumerate(train_loader):
-        #print("edw0")
-        global_step += 1
+    with torch.autograd.set_detect_anomaly(True):
+        for step, (images, poses, gazes) in enumerate(train_loader):
+            #print("edw0")
+            global_step += 1
 
 
-        if config['tensorboard_images'] and step == 0:
-            image = torchvision.utils.make_grid(
-                images, normalize=True, scale_each=True)
-            writer.add_image('Train/Image', image, epoch)#https://tensorboardx.readthedocs.io/en/latest/tensorboard.html#tensorboardX.SummaryWriter.add_image
-        #print("edw05")
-        #images = images.cuda()
-        #poses = poses.cuda()
-        #gazes = gazes.cuda()
+            if config['tensorboard_images'] and step == 0:
+                image = torchvision.utils.make_grid(
+                    images, normalize=True, scale_each=True)
+                writer.add_image('Train/Image', image, epoch)#https://tensorboardx.readthedocs.io/en/latest/tensorboard.html#tensorboardX.SummaryWriter.add_image
+            #print("edw05")
+            #images = images.cuda()
+            #poses = poses.cuda()
+            #gazes = gazes.cuda()
 
-        optimizer.zero_grad()
-        #print("edw1")
+            optimizer.zero_grad()
+            #print("edw1")
 
-        outputs = model(images, poses)
+            outputs = model(images, poses)
 
-        #print("edw2")
-        #print(outputs)
+            #print("edw2")
+            #print(outputs)
 
-        loss = criterion(outputs, gazes)
-        #print("edw3")
-        loss.backward()
-        #print("edw4")
-        optimizer.step()
+            loss = criterion(outputs, gazes)
+            #print("edw3")
+            loss.backward()
+            #print("edw4")
+            optimizer.step()
 
-        #absolute errors(vert+hor)
-        angle_error = compute_angle_error(outputs, gazes).mean()
-        #print("edw5")
-        num = images.size(0)
-        #print("edw51")
-        loss_meter.update(loss.item(), num)
-        #print("edw52")
-        angle_error_meter.update(angle_error.item(), num)
-        #print("edw53")
-        if config['tensorboard']:
-            #print("errors:",loss_meter.val,",step:",global_step)
-            writer.add_scalar('Train/RunningLoss', loss_meter.val, global_step)
-            # errors: 35.89125061035156 ,step: 2
-            # errors: 13759.7177734375 ,step: 3
-            # errors: 443536992.0 ,step: 4
-            # errors: 3.3213777035879766e+22 ,step: 5
-            # errors: inf ,step: 6
-            # Warning: NaN or Inf found in input tensor.
+            #absolute errors(vert+hor)
+            [angle_error,_] = compute_angle_error(outputs, gazes)
+            angle_error=angle_error.mean()
+            #print("edw5")
+            num = images.size(0)
+            #print("edw51")
+            loss_meter.update(loss.item(), num)
+            #print("edw52")
+            angle_error_meter.update(angle_error.item(), num)
+            #print("edw53")
+            if config['tensorboard']:
+                #print("errors:",loss_meter.val,",step:",global_step)
+                writer.add_scalar('Train/RunningLoss', loss_meter.val, global_step)
+                # errors: 35.89125061035156 ,step: 2
+                # errors: 13759.7177734375 ,step: 3
+                # errors: 443536992.0 ,step: 4
+                # errors: 3.3213777035879766e+22 ,step: 5
+                # errors: inf ,step: 6
+                # Warning: NaN or Inf found in input tensor.
 
-            #https://tensorboardx.readthedocs.io/en/latest/tensorboard.html#tensorboardX.SummaryWriter.add_scalar
-        #print("edw6")
-        if step % 100 == 0:
-            #print("edw7")
-            logger.info('Epoch {} Step {}/{} '
-                        'Loss {:.4f} ({:.4f}) '
-                        'AngleError {:.2f} ({:.2f})'.format(
-                            epoch,
-                            step,
-                            len(train_loader),
-                            loss_meter.val,
-                            loss_meter.avg,
-                            angle_error_meter.val,
-                            angle_error_meter.avg,
-                        ))
-            #print("edw8")
+                #https://tensorboardx.readthedocs.io/en/latest/tensorboard.html#tensorboardX.SummaryWriter.add_scalar
+            #print("edw6")
+            if step % 100 == 0:
+                #print("edw7")
+                logger.info('Epoch {} Step {}/{} '
+                            'Loss {:.4f} ({:.4f}) '
+                            'AngleError {:.2f} ({:.2f})'.format(
+                                epoch,
+                                step,
+                                len(train_loader),
+                                loss_meter.val,
+                                loss_meter.avg,
+                                angle_error_meter.val,
+                                angle_error_meter.avg,
+                            ))
+                #print("edw8")
     elapsed = time.time() - start
     logger.info('Elapsed {:.2f}'.format(elapsed))
 
@@ -228,6 +248,7 @@ def test(epoch, model, criterion, test_loader, config, writer):
 
     loss_meter = AverageMeter()
     angle_error_meter = AverageMeter()
+    euclidean_error_meter = AverageMeter()
     start = time.time()
 
     std_errors=[]
@@ -246,14 +267,16 @@ def test(epoch, model, criterion, test_loader, config, writer):
             
         loss = criterion(outputs, gazes)
 
-        mult_errors=compute_angle_error(outputs, gazes)
+        [mult_errors,euclidean]=compute_angle_error(outputs, gazes)
         angle_error = mult_errors.mean()
+        euclidean_mean=euclidean.mean()
         std_errors=std_errors+mult_errors.tolist()
 
         #find new average:
         num = images.size(0)
         loss_meter.update(loss.item(), num)
         angle_error_meter.update(angle_error.item(), num)
+        euclidean_error_meter.update(euclidean_mean.item(), num)
 
     std_errors=np.array(std_errors)
     #mean()
@@ -264,8 +287,8 @@ def test(epoch, model, criterion, test_loader, config, writer):
 
    
     std=abs(std_errors).std()
-    logger.info('Epoch {} Loss {:.4f} AngleError {:.2f} AngleError(std) {:.2f}'.format(
-        epoch, loss_meter.avg, angle_error_meter.avg,std))
+    logger.info('Epoch {} Loss {:.4f} AngleError {:.2f} AngleError(std) {:.2f} EuclideanError(std) {:.2f}'.format(
+        epoch, loss_meter.avg, angle_error_meter.avg,std,euclidean_error_meter.avg ))
 
     elapsed = time.time() - start
     logger.info('Elapsed {:.2f}'.format(elapsed))
@@ -274,7 +297,8 @@ def test(epoch, model, criterion, test_loader, config, writer):
         if epoch > 0:
             writer.add_scalar('Test/Loss', loss_meter.avg, epoch)
             writer.add_scalar('Test/AngleError', angle_error_meter.avg, epoch),
-            writer.add_scalar('Test/AngleError(std)', abs(std_errors).std(), epoch)
+            writer.add_scalar('Test/AngleError(std)', abs(std_errors).std(), epoch),
+            writer.add_scalar('Test/EuclideanError', euclidean_error_meter.avg, epoch),
         writer.add_scalar('Test/Time', elapsed, epoch)
 
     if config['tensorboard_parameters']:
@@ -317,8 +341,9 @@ def main():
 
     # model
     module = importlib.import_module('models.{}'.format(args.arch))
-    model = module.Model()
-    #print(model)
+    model = module.ResNet6(ff1_out=args.ff1_out,ff2_out=args.ff2_out, blocks_sizes=args.block_sizes,deepths=args.deepths,gate_kernel=args.gate_kernel)#blocks_sizes=[64,128,256,512], deepths=[2,2,2,2])
+
+    #print(model)blocks_sizes=[64,128,256,512], deepths=[2,2,2,2]
     #from torchsummary import summary
     #img_n = (1,1,60,36)
     #pose_n = (1,2)

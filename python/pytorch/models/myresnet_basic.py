@@ -14,9 +14,9 @@ from functools import partial
 # Final, we can put all the pieces together and create the final model.
 class ResNet6(nn.Module):
     # ResNet(in_channels, n_classes, block=block, deepths=[2, 2, 2, 2], *args, **kwargs)
-    def __init__(self, in_channels=1, n_outputs=2, *args, **kwargs):#1
+    def __init__(self, in_channels=1, n_outputs=2, ff1_out=1024,ff2_out=1024, *args, **kwargs):#1
 
-        
+
         #print("Resnet created!")
         #args: () 
         #kwargs:,'block': <class '__main__.ResNetBasicBlock'>,'deepths': [2, 2, 2, 2]
@@ -32,8 +32,11 @@ class ResNet6(nn.Module):
         self.encoder = ResNetEncoder(in_channels, *args, **kwargs)
         #self.decoder = ResnetDecoder(in, n_outputs)
 
-        self.decoder = ResnetDecoder(self.encoder.blocks[-1].blocks[-1].expanded_channels, n_outputs)
+
+        self.decoder = ResnetDecoder(self.encoder.blocks[-1].blocks[-1].expanded_channels, ff1_out, ff2_out, n_outputs)
         #.expanded_channels=512.kai decoder=ResnetDecoder(features=512,classes=12)
+        
+
         print(self.encoder,self.decoder)
     def forward(self, image,pose):
         x = self.encoder(image)
@@ -259,15 +262,15 @@ class ResNetEncoder(nn.Module):
     #[32,64] kai [3,3] -> 258
     #
     def __init__(self, in_channels=1, blocks_sizes=[64,128], deepths=[2,2], 
-                 activation='relu', block=ResNetBasicBlock, *args, **kwargs):
+                 activation='relu', block=ResNetBasicBlock, gate_kernel=3, *args, **kwargs):
         super().__init__()
         #print(" ResNetEncoder created!")
        
-
+        self.gate_kernel=gate_kernel
         self.blocks_sizes = blocks_sizes # = [64, 128, 256, 512] = out_channels
         
         self.gate = nn.Sequential(#great info here:https://www.reddit.com/r/MachineLearning/comments/6fsqww/d_why_does_resnet_have_a_77_convolution_in_the/
-            nn.Conv2d(in_channels, self.blocks_sizes[0], kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(in_channels, self.blocks_sizes[0], kernel_size=self.gate_kernel, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(self.blocks_sizes[0]),
             activation_func(activation),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -313,15 +316,17 @@ class ResnetDecoder(nn.Module):
     This class represents the tail of ResNet. It performs a global pooling and maps the output to the
     correct class by using a fully connected layer.
     """
-    def __init__(self, in_features, n_outputs):
+    def __init__(self, in_features, ff1_out, ff2_out, n_outputs):
         #print("ResNetDecoder created!")
         super().__init__()
         self.avg = nn.AdaptiveAvgPool2d((1, 1))
         #in_features=512
     
-        self.decoder1 = nn.Linear(in_features, in_features)
-        self.decoder2 = nn.Linear(in_features+2, in_features)
-        self.decoderFinal = nn.Linear(in_features, n_outputs)
+        self.ff1_out = ff1_out
+        self.ff2_out = ff2_out
+        self.decoder1 = nn.Linear(in_features, self.ff1_out)
+        self.decoder2 = nn.Linear(self.ff1_out+2, self.ff2_out)
+        self.decoderFinal = nn.Linear(self.ff2_out, n_outputs)
         
     def forward(self, x,pose):
         #print("before avg pool:", x.shape)
@@ -332,13 +337,14 @@ class ResnetDecoder(nn.Module):
         #else: 
         #    x = x.view(x.size(0),-1)
         #    print("not avgPooling.Final Shape:", x.shape)
+        print("before avgPool:",x.shape)
         x = self.avg(x)#512
 
 
 
 
         x = x.view(x.size(0), -1)#flatten
-        print("shape before 1st decoder:",x.shape)
+        #print("shape before 1st decoder:",x.shape)
         x = self.decoder1(x)
 
 
