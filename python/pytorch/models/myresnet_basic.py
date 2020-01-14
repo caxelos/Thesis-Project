@@ -15,7 +15,7 @@ from functools import partial
 # Final, we can put all the pieces together and create the final model.
 class ResNet6(nn.Module):
     # ResNet(in_channels, n_classes, block=block, deepths=[2, 2, 2, 2], *args, **kwargs)
-    def __init__(self, in_channels=1, n_outputs=2, ff1_out=1024,ff2_out=1024, *args, **kwargs):#1
+    def __init__(self, in_channels=1, n_outputs=2, numOfFC=3,ff1_out=1024,ff2_out=1024, *args, **kwargs):#1
 
 
         #print("Resnet created!")
@@ -34,7 +34,7 @@ class ResNet6(nn.Module):
         #self.decoder = ResnetDecoder(in, n_outputs)
 
 
-        self.decoder = ResnetDecoder(self.encoder.blocks[-1].blocks[-1].expanded_channels, ff1_out, ff2_out, n_outputs)
+        self.decoder = ResnetDecoder(self.encoder.blocks[-1].blocks[-1].expanded_channels, numOfFC, ff1_out, ff2_out, n_outputs)
         #.expanded_channels=512.kai decoder=ResnetDecoder(features=512,classes=12)
         
 
@@ -106,13 +106,12 @@ class ResidualBlock(nn.Module):
             if self.should_apply_shortcut: residual = self.shortcut(x)
             x = self.blocks(x)#identity
             x += residual#+identity
-            
-
+        elif self.resnet_type == 'relu_b_add':           
         # ### ReLU before addition ###
-        # residual = x
-        # if self.should_apply_shortcut: residual = self.shortcut(x)
-        # x = self.blocks(x)#identity
-        # x += residual#+identity
+            residual = x
+            if self.should_apply_shortcut: residual = self.shortcut(x)
+            x = self.blocks(x)#identity
+            x += residual#+identity
 
         #print("residual:",residual.shape):residual: torch.Size([32, 128, 9, 15])
         #print("after convs:",x.shape):after convs: torch.Size([32, 128, 5, 8])
@@ -194,13 +193,15 @@ class ResNetBasicBlock(ResNetResidualBlock):
                 nn.BatchNorm2d(out_channels),
                 activation_func(self.activation),            
                 nn.Conv2d(out_channels,self.expanded_channels,kernel_size=3,stride=1,padding=1,bias=False)
-            )        
+            )
+        elif self.resnet_type == 'relu_b_add':    
             ### ReLU before addition ###
-         #    activation_func(self.activation),
-         #    conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
-         #    activation_func(self.activation),
-         #    conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False)
-         
+            self.blocks = nn.Sequential(
+                activation_func(self.activation),
+                conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
+                activation_func(self.activation),
+                conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False)
+            ) 
 
 
         
@@ -238,7 +239,6 @@ class ResNetLayer(nn.Module):
     #3ResNetBottleNeckBlock
     def __init__(self, in_channels, out_channels, block=ResNetBasicBlock, n=1, *args, **kwargs):
         #print("     ResNetLayer created!")
-        print(kwargs)
         super().__init__()
         # 'We perform downsampling directly by convolutional layers that have a stride of 2.'
         downsampling = 2 if in_channels != out_channels else 1
@@ -328,49 +328,38 @@ class ResnetDecoder(nn.Module):
     This class represents the tail of ResNet. It performs a global pooling and maps the output to the
     correct class by using a fully connected layer.
     """
-    def __init__(self, in_features, ff1_out, ff2_out, n_outputs):
+    def __init__(self, in_features, numOfFC, ff1_out, ff2_out, n_outputs):
         #print("ResNetDecoder created!")
         super().__init__()
         self.avg = nn.AdaptiveAvgPool2d((1, 1))
         #in_features=512
-    
-        self.ff1_out = ff1_out
-        self.ff2_out = ff2_out
-        self.decoder1 = nn.Linear(in_features, self.ff1_out)
-        self.decoder2 = nn.Linear(self.ff1_out+2, self.ff2_out)
-        self.decoderFinal = nn.Linear(self.ff2_out, n_outputs)
-        
+        self.numOfFC=ff1_out
+        if self.numOfFC == 3:
+            self.ff1_out = ff1_out
+            self.ff2_out = ff2_out
+            self.decoder1 = nn.Linear(in_features, self.ff1_out)
+            self.decoder2 = nn.Linear(self.ff1_out+2, self.ff2_out)
+            self.decoderFinal = nn.Linear(self.ff2_out, n_outputs)
+        else:
+            self.ff1_out=ff1_out
+            self.decoder1 = nn.Linear(in_features+2,self.ff1_out)
+            self.decoderFinal = nn.Linear(self.ff1_out, n_outputs)
+
     def forward(self, x,pose):
-        #print("before avg pool:", x.shape)
         
-        ##### in case you measure avg.Pool ####
-        #if self.avgPool:
-        #    x = self.avg(x)#512
-        #else: 
-        #    x = x.view(x.size(0),-1)
-        #    print("not avgPooling.Final Shape:", x.shape)
-        #print("before avgPool:",x.shape)
         x = self.avg(x)#512
 
 
-
-
         x = x.view(x.size(0), -1)#flatten
-        #print("shape before 1st decoder:",x.shape)
-        x = self.decoder1(x)
-
-
-        x = torch.cat([x, pose], dim=1)
-        #print("x after flatten:",x.size())
- 
-        #x = self.in_features(x)
-        #print("shape before 2nd decoder:",x.shape)
-        x = self.decoder2(x)
-        #print("shape before final decoder:",x.shape)
-        x = self.decoderFinal(x)
-
-        #print("final gaze:", x.shape)
-
+        if self.numOfFC == 3:
+            x = self.decoder1(x)
+            x = torch.cat([x, pose], dim=1)
+            x = self.decoder2(x)
+            x = self.decoderFinal(x)
+        else:
+            x = torch.cat([x,pose],dim=1)
+            x = self.decoder1(x)
+            x = self.decoderFinal(x)
 
         return x
 
