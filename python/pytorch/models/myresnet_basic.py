@@ -1,6 +1,7 @@
 ### the article is here:https://github.com/FrancescoSaverioZuppichini/ResNet ###
 ### RUN MODEL WITH:
-#python -u main.py --arch myresnet_basic --dataset data --test_id 0 --outdir results/resnet_preact/00 --batch_size 32 --base_lr 0.1 --momentum 0.9 --nesterov True --weight_decay 1e-4 --epochs 40 --milestones '[30, 35]' --lr_decay 0.1 --tensorboard
+#python -u main_resnet18.py --arch myresnet_basic --dataset data_UT_Multiview --testset data  --outdir results/resnet_preact/00 --batch_size 32 --base_lr 0.0001 --momentum 0.9 --nesterov True --weight_decay 1e-4 --epochs 40 --milestones '[30, 35]' --lr_decay 0.1 --tensorboard --gate_kernel 3 --ff1_out 512 --ff2_out 512 --block_type bottle --block_sizes 32 64 128 256    --deepths 2 2 2 1  
+
 
 
 #includes
@@ -82,29 +83,29 @@ conv3x3 = partial(Conv2dAuto, kernel_size=3, bias=False)#https://pytorch.org/doc
 # We can abstract this process and create an interface that can be extended.
 class ResidualBlock(nn.Module):
     #6#9
-    def __init__(self, in_channels, out_channels, activation='relu'):
+    def __init__(self, in_channels, out_channels, activation='relu', resnet_type='basic'):
         #print("                 ResidualBlock created!")
         super().__init__()
         self.in_channels, self.out_channels, self.activation = in_channels, out_channels, activation
         self.blocks = nn.Identity()#identity mapping is 
         self.activate = activation_func(activation)
-        self.shortcut = nn.Identity()   
-    
+        self.shortcut = nn.Identity()
+        
+
     def forward(self, x):
         ## Basic Resnet ###
-        residual = x
-        if self.should_apply_shortcut: residual = self.shortcut(x)
-        x = self.blocks(x)#identity
-        x += residual#+identity
-        x = self.activate(x)
-
-        ### Preact Resnet ###
-        # residual = x
-        # if self.should_apply_shortcut: residual = self.shortcut(x)
-        # x = self.blocks(x)#identity
-        # #print("residual:",residual.shape)
-        # #print("after convs:",x.shape)
-        # x += residual#+identity
+        if self.resnet_type == 'basic':
+            residual = x
+            if self.should_apply_shortcut: residual = self.shortcut(x)
+            x = self.blocks(x)#identity
+            x += residual#+identity
+            x = self.activate(x)
+        elif self.resnet_type == 'preact':
+            ## Preact Resnet ###
+            residual = x
+            if self.should_apply_shortcut: residual = self.shortcut(x)
+            x = self.blocks(x)#identity
+            x += residual#+identity
             
 
         # ### ReLU before addition ###
@@ -173,29 +174,33 @@ class ResNetBasicBlock(ResNetResidualBlock):
     """
     #4#7
     expansion = 1
-    def __init__(self, in_channels, out_channels, *args, **kwargs):
+    def __init__(self,in_channels, out_channels, *args, **kwargs):
         #print("         ResNetBasicBlock created!")
         super().__init__(in_channels, out_channels, *args, **kwargs)
-        self.blocks = nn.Sequential(
-            ### Basic Resnet ###
-            conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
-            activation_func(self.activation),
-            conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False),
-                    
+        self.resnet_type=kwargs['resnet_type']
+        if self.resnet_type == 'basic':
+            self.blocks = nn.Sequential(
+                ### Basic Resnet ###
+                conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
+                activation_func(self.activation),
+                conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False),
+            )
+        elif self.resnet_type == 'preact':
             ### Preact Resnet ###
-        #     nn.BatchNorm2d(in_channels),
-        #     activation_func(self.activation),
-        #     nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=self.downsampling, padding=1, bias=False),
-        #     nn.BatchNorm2d(out_channels),
-        #     activation_func(self.activation),            
-        #     nn.Conv2d(out_channels,self.expanded_channels,kernel_size=3, stride=self.downsampling,padding=1,bias=False)
-        
+            self.blocks = nn.Sequential(
+                nn.BatchNorm2d(in_channels),
+                activation_func(self.activation),
+                nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=self.downsampling, padding=1, bias=False),
+                nn.BatchNorm2d(out_channels),
+                activation_func(self.activation),            
+                nn.Conv2d(out_channels,self.expanded_channels,kernel_size=3,stride=1,padding=1,bias=False)
+            )        
             ### ReLU before addition ###
          #    activation_func(self.activation),
          #    conv_bn(self.in_channels, self.out_channels, conv=self.conv, bias=False, stride=self.downsampling),
          #    activation_func(self.activation),
          #    conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False)
-         )
+         
 
 
         
@@ -233,6 +238,7 @@ class ResNetLayer(nn.Module):
     #3ResNetBottleNeckBlock
     def __init__(self, in_channels, out_channels, block=ResNetBasicBlock, n=1, *args, **kwargs):
         #print("     ResNetLayer created!")
+        print(kwargs)
         super().__init__()
         # 'We perform downsampling directly by convolutional layers that have a stride of 2.'
         downsampling = 2 if in_channels != out_channels else 1
@@ -261,7 +267,7 @@ class ResNetEncoder(nn.Module):
 
     #[32,64] kai [3,3] -> 258
     #
-    def __init__(self, in_channels=1, blocks_sizes=[64,128], deepths=[2,2], 
+    def __init__(self,in_channels=1, blocks_sizes=[64,128], deepths=[2,2], 
                  activation='relu', block=ResNetBasicBlock, gate_kernel=3, *args, **kwargs):
         super().__init__()
         #print(" ResNetEncoder created!")
@@ -343,7 +349,7 @@ class ResnetDecoder(nn.Module):
         #else: 
         #    x = x.view(x.size(0),-1)
         #    print("not avgPooling.Final Shape:", x.shape)
-        print("before avgPool:",x.shape)
+        #print("before avgPool:",x.shape)
         x = self.avg(x)#512
 
 
