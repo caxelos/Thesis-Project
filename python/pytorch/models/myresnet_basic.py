@@ -4,6 +4,9 @@
 
 
 
+#dokimase na to guriseis apo regression se klassification
+#kane kai regression episis to sfalma provlepsis(kalman filter)
+
 #includes
 import torch
 import torch.nn as nn
@@ -340,25 +343,29 @@ class ResnetDecoder(nn.Module):
             self.decoder1 = nn.Linear(in_features, self.ff1_out)
             self.decoder2 = nn.Linear(self.ff1_out+2, self.ff2_out)
             self.decoderFinal = nn.Linear(self.ff2_out, n_outputs)
-        else:
+        elif self.numOfFC==2:
             self.ff1_out=ff1_out
             self.decoder1 = nn.Linear(in_features+2,self.ff1_out)
             self.decoderFinal = nn.Linear(self.ff1_out, n_outputs)
+        else:
+            print("in_features:",in_features)
+            self.decoderFinal = nn.Linear(in_features+2, n_outputs)
 
     def forward(self, x,pose):
         
         x = self.avg(x)#512
-
-
         x = x.view(x.size(0), -1)#flatten
         if self.numOfFC == 3:
             x = self.decoder1(x)
             x = torch.cat([x, pose], dim=1)
             x = self.decoder2(x)
             x = self.decoderFinal(x)
-        else:
+        elif self.numOfFC == 2:
             x = torch.cat([x,pose],dim=1)
             x = self.decoder1(x)
+            x = self.decoderFinal(x)
+        else:
+            x = torch.cat([x,pose],dim=1)
             x = self.decoderFinal(x)
 
         return x
