@@ -18,12 +18,12 @@ def calcs():
     totals={}
     for ROOT, DIRS, FILES in LIST_DIRS:#outter
         for i in range(len(DIRS)):
-            print(i)
             if DIRS[i] == '..Normalized':
                 print("deleting ",DIRS[i], " at position ",i)
                 del DIRS[i]
                 break     
         for D in DIRS:#now get in pij
+            print(D)
             totals[D]={}
             totals[D]['sum']=0
             list_dirs = os.walk(os.path.join(ROOT,D))
@@ -45,7 +45,7 @@ def calcs():
                     data = mat_contents['data']
                     right = data['right']
                     right=right[0,0]
-                    totals[D][f]= int(round((totals[D][f]*3000)/totals[D]['sum']))#aristero melos: totals[D][f]['per_f']
+                    totals[D][f]= int(round((totals[D][f]*2000)/totals[D]['sum']))#aristero melos: totals[D][f]['per_f']
     json.dump(totals, open("text.txt",'w'))
 
 
@@ -62,15 +62,36 @@ def read_mat(root_mat,pij, f):
     
     if right['gaze'][0,0].shape[0]<totals[pij][f]:
         totals[pij][f]=right['gaze'][0,0].shape[0]
-        print("entered here!!!!!!!!!!!!!!!!!!!!!")
+        #print("entered here!!!!!!!!!!!!!!!!!!!!!")
     
     indices=np.random.choice(right['gaze'][0,0].shape[0],totals[pij][f],replace=False)
-    right_gaze = right['gaze'][0,0][indices]
-    right_img = right['image'][0,0][indices]
-    right_pose = right['pose'][0,0][indices]
-    left_gaze = left['gaze'][0,0][indices]
-    left_img = left['image'][0,0][indices]
-    left_pose = left['pose'][0,0][indices]
+    #right_gaze = right['gaze'][0,0][indices]
+    #right_img = right['image'][0,0][indices]
+    #right_pose = right['pose'][0,0][indices]
+    #left_gaze = left['gaze'][0,0][indices]
+    #left_img = left['image'][0,0][indices]
+    left_pose=[]
+    right_pose=[]
+    left_gaze=[]
+    right_gaze=[]
+    right_img=[]
+    left_img=[]
+    for indice in indices:
+        left_pose.append(convert_pose(left['pose'][0,0][indice]))
+        right_pose.append(convert_pose(right['pose'][0,0][indice])* np.array([-1, 1]))
+        left_gaze.append(convert_pose(left['gaze'][0,0][indice]))
+        right_gaze.append(convert_pose(right['gaze'][0,0][indice])* np.array([-1, 1]))
+        right_img.append(right['image'][0,0][indice])
+        left_img.append(left['image'][0,0][indice])
+
+    left_img = np.array(left_img).astype(np.float32) / 255
+    left_pose = np.array(left_pose).astype(np.float32)
+    left_gaze = np.array(left_gaze).astype(np.float32)
+    right_img = np.array(right_img).astype(np.float32) / 255
+    right_pose = np.array(right_pose).astype(np.float32)
+    right_gaze = np.array(right_gaze).astype(np.float32)
+
+
 
     return np.concatenate((right_gaze,left_gaze),axis=0),np.concatenate((right_img,left_img),axis=0), np.concatenate((right_pose,left_pose),axis=0)
     
@@ -83,17 +104,35 @@ def open_file(rootDir, d):
     dataset_gaze = []
     dataset_pose = []
     for root, dirs, files in list_dirs: #gia kathe person
-        for f in files: #gia kathe .mat arxeo                
-            gaze, img, pose=read_mat(os.path.join(root, f), d, f)
-            if dataset_img==[]:
-                dataset_img=img
-                dataset_gaze=gaze
-                dataset_pose=pose
-            else:
-                dataset_img=np.append(dataset_img,img,axis = 0)
-                dataset_gaze=np.append(dataset_gaze,gaze,axis = 0)
-                dataset_pose=np.append(dataset_pose,pose,axis = 0)
+        for f in files: #gia kathe .mat arxeio
+            if totals[d][f] != 0:                
+                gaze, img, pose=read_mat(os.path.join(root, f), d, f)
+                if dataset_img==[]:
+                    dataset_img = img
+                    dataset_gaze=gaze
+                    dataset_pose=pose
+                else:
+                    #print("shape1:",dataset_img.shape,", shape2:",img.shape)
+                    dataset_img=np.append(dataset_img,img,axis = 0)
+                    dataset_gaze=np.append(dataset_gaze,gaze,axis = 0)
+                    dataset_pose=np.append(dataset_pose,pose,axis = 0)
+                
     return dataset_gaze,dataset_img,dataset_pose
+
+import cv2
+
+def convert_pose(vect):
+    M, _ = cv2.Rodrigues(np.array(vect).astype(np.float32))
+    vec = M[:, 2]
+    yaw = np.arctan2(vec[0], vec[2])
+    pitch = np.arcsin(vec[1])
+    return np.array([yaw, pitch])
+
+def convert_gaze(vect):
+    x, y, z = vect
+    yaw = np.arctan2(-x, -z)
+    pitch = np.arcsin(-y)
+    return np.array([yaw, pitch])
 
 
                       
@@ -103,31 +142,37 @@ def make_dataset():
     dir_path = os.getcwd()#+'#os.getcwd()+data_path
     list_dirs = os.walk(dir_path)
     
-    dataset_img = []
-    dataset_gaze = []
-    dataset_pose = []
+   
     totals=json.load(open("text.txt"))
     # dirs=15 people
     #prepei na paw (1500 left + 1500 right apto kathe outer loop)
+    print("ok?!")
     for root, dirs,files in list_dirs:
+
         for i in range(len(dirs)):
             if dirs[i] == '..Normalized':
                 print("deleting ",dirs[i], " at position ",i)
                 del dirs[i]
                 break 
         for d in dirs: # for each person
+            # dataset_img = []
+            # dataset_gaze = []
+            # dataset_pose = []
+            print(d)
             gaze,img,pose=open_file(os.path.join(root,d),d)
-            if dataset_img == []:
-                dataset_img = img
-                dataset_gaze = gaze
-                dataset_pose = pose
-            else:
-                dataset_img = np.append(dataset_img, img, axis=0)
-                dataset_gaze = np.append(dataset_gaze, gaze, axis=0)
-                dataset_pose = np.append(dataset_pose, pose, axis=0)
-
-
-    return dataset_gaze, dataset_img, dataset_pose
+            # if dataset_img == []:
+            #     dataset_img = img
+            #     dataset_gaze = gaze
+            #     dataset_pose = pose
+            # else:
+            #     dataset_img = np.append(dataset_img, img, axis=0)
+            #     dataset_gaze = np.append(dataset_gaze, gaze, axis=0)
+            #     dataset_pose = np.append(dataset_pose, pose, axis=0)
+            #outpath = os.path.join(outdir, subject_id)
+            #np.savez('../../../newdata/'+d+'.npz', image=dataset_img, pose=dataset_pose, gaze=dataset_gaze)
+            np.savez('../../../newdata/'+d+'.npz', image=img, pose=pose, gaze=gaze)
+    return
+    #return dataset_gaze, dataset_img, dataset_pose
 
 def randomize(dataset_gaze, dataset_img, dataset_pose):
   
@@ -138,8 +183,8 @@ def randomize(dataset_gaze, dataset_img, dataset_pose):
   return shuffled_gaze, shuffled_img,shuffled_pose
 
 
-calcs()
-# gaze,img,pose=make_dataset()#22497...xanw mono 2*3 paratiriseis(2*1500 to atomo!)
+#calcs()
+make_dataset()#22497...xanw mono 2*3 paratiriseis(2*1500 to atomo!)
 
 # gaze,img,pose=randomize(gaze,img,pose)
 
