@@ -36,7 +36,7 @@ try:
 except Exception:
     is_tensorboard_available = False
 
-from dataloader import get_loader,get_loader_multiview_mpiigaze
+from dataloader import get_train_loader_multiview, get_person_loader_mpiigaze, get_loader_per_person, get_loader_person_specific
 
 torch.backends.cudnn.benchmark = True
 
@@ -79,7 +79,9 @@ def parse_args():
     parser.add_argument('--block_sizes', nargs='+',type=int,default=[64,128,256,512])
     parser.add_argument('--deepths',nargs='+',type=int,default=[2,2,2,2])
     parser.add_argument('--numOfFC',type=int,default=3)
-
+    parser.add_argument('--valid_type', type=str,default='cross_dataset')
+    parser.add_argument('--personID',type=int,default=0)
+    parser.add_argument('--fold',type=int,default=0)
     # optimizer
     parser.add_argument('--epochs', type=int, default=40)
     parser.add_argument('--batch_size', type=int, default=64)
@@ -178,9 +180,9 @@ def train(epoch, model, optimizer, criterion, train_loader, config, writer):
                     images, normalize=True, scale_each=True)
                 writer.add_image('Train/Image', image, epoch)#https://tensorboardx.readthedocs.io/en/latest/tensorboard.html#tensorboardX.SummaryWriter.add_image
             #print("edw05")
-            #images = images.cuda()
-            #poses = poses.cuda()
-            #gazes = gazes.cuda()
+            images = images.cuda()
+            poses = poses.cuda()
+            gazes = gazes.cuda()
 
             optimizer.zero_grad()
             #print("edw1")
@@ -244,7 +246,7 @@ def train(epoch, model, optimizer, criterion, train_loader, config, writer):
     #print("edw10")
 
 
-def test(epoch, model, criterion, test_loader, config, writer):
+def test(epoch, model, criterion, test_loader, config, writer,valid_type):
     logger.info('Test {}'.format(epoch))
 
     model.eval()
@@ -261,9 +263,9 @@ def test(epoch, model, criterion, test_loader, config, writer):
                 images, normalize=True, scale_each=True)
             writer.add_image('Test/Image', image, epoch)
 
-        #images = images.cuda()
-        #poses = poses.cuda()
-        #gazes = gazes.cuda()
+        images = images.cuda()
+        poses = poses.cuda()
+        gazes = gazes.cuda()
 
         with torch.no_grad():
             outputs = model(images, poses)
@@ -288,7 +290,7 @@ def test(epoch, model, criterion, test_loader, config, writer):
     #print("my_avg:",abs(std_errors).mean())
     #print("my_stdev:",abs(std_errors).std())
 
-   
+
     std=abs(std_errors).std()
     logger.info('Epoch {} Loss {:.4f} AngleError {:.2f} AngleError(std) {:.2f} EuclideanError(std) {:.2f}'.format(
         epoch, loss_meter.avg, angle_error_meter.avg,std,euclidean_error_meter.avg ))
@@ -311,6 +313,82 @@ def test(epoch, model, criterion, test_loader, config, writer):
             
 
     return (angle_error_meter.avg,std)
+
+
+
+
+
+
+def test_person(epoch, model, pid,criterion, test_loader, config, writer,valid_type):
+    #logger.info('Test {}, person {}'.format(epoch,pid))
+
+
+    model.eval()
+
+    loss_meter = AverageMeter()
+    angle_error_meter = AverageMeter()
+    euclidean_error_meter = AverageMeter()
+    start = time.time()
+
+    std_errors=[]
+    for step, (images, poses, gazes) in enumerate(test_loader):
+        if config['tensorboard_images'] and epoch == 0 and step == 0:
+            image = torchvision.utils.make_grid(
+                images, normalize=True, scale_each=True)
+            writer.add_image('Test/Image', image, epoch)
+
+        images = images.cuda()
+        poses = poses.cuda()
+        gazes = gazes.cuda()
+
+        with torch.no_grad():
+            outputs = model(images, poses)
+            
+        loss = criterion(outputs, gazes)
+
+        [mult_errors,euclidean]=compute_angle_error(outputs, gazes)
+        angle_error = mult_errors.mean()
+        euclidean_mean=euclidean.mean()
+        std_errors=std_errors+mult_errors.tolist()
+
+        #find new average:
+        num = images.size(0)
+        loss_meter.update(loss.item(), num)
+        angle_error_meter.update(angle_error.item(), num)
+        euclidean_error_meter.update(euclidean_mean.item(), num)
+
+    std_errors=np.array(std_errors)
+    #mean()
+  
+    #print("average:",angle_error_meter.avg)
+    #print("my_avg:",abs(std_errors).mean())
+    #print("my_stdev:",abs(std_errors).std())
+
+
+    std=abs(std_errors).std()
+    #logger.info('Epoch {} Loss {:.4f} AngleError {:.2f} AngleError(std) {:.2f} EuclideanError(std) {:.2f}'.format(epoch, loss_meter.avg, angle_error_meter.avg,std,euclidean_error_meter.avg ))
+
+    elapsed = time.time() - start
+    #logger.info('Elapsed {:.2f}'.format(elapsed))
+
+    if config['tensorboard']:
+        if epoch > 0:
+            writer.add_scalar('Test/Loss', loss_meter.avg, epoch)
+            writer.add_scalar('Test/AngleError', angle_error_meter.avg, epoch),
+            writer.add_scalar('Test/AngleError(std)', abs(std_errors).std(), epoch),
+            writer.add_scalar('Test/EuclideanError', euclidean_error_meter.avg, epoch),
+        writer.add_scalar('Test/Time', elapsed, epoch)
+
+    if config['tensorboard_parameters']:
+        for name, param in model.named_parameters():
+            writer.add_histogram(name, param, global_step)
+            #https://tensorboardx.readthedocs.io/en/latest/tensorboard.html#tensorboardX.SummaryWriter.add_histogram
+            
+
+    return euclidean_error_meter.avg
+    #return (angle_error_meter.avg,std)
+
+
 
 
 def main():
@@ -336,10 +414,16 @@ def main():
         json.dump(vars(args), fout, indent=2)
 
     # data loaders
-    # train_loader, test_loader = get_loader(
-    #     args.dataset, args.test_id, args.batch_size, args.num_workers, True)
-    train_loader, test_loader = get_loader_multiview_mpiigaze(
-        args.dataset, args.testset, args.batch_size, args.num_workers, True)
+    
+    if args.valid_type == 'cross_dataset':
+        train_loader = get_train_loader_multiview(args.dataset,args.batch_size,args.num_workers,True)
+    elif args.valid_type == 'per_person_mpiigaze':
+        train_loader, test_loader = get_loader_per_person(args.testset, args.personID, args.batch_size, args.num_workers, True)
+    elif args.valid_type == 'person_specific':
+        train_loader, test_loader = get_loader_person_specific(args.testset, args.personID, args.fold, args.batch_size, args.num_workers, True)
+    else:
+        print("error here")
+
 
 
     # model
@@ -351,7 +435,7 @@ def main():
     #img_n = (1,1,60,36)
     #pose_n = (1,2)
     #print(summary(model,(img_n,pose_n)))
-    #model.cuda()
+    model.cuda()
 
     criterion = nn.MSELoss(size_average=True)
 
@@ -374,12 +458,32 @@ def main():
     # run test before start trainings
     #test(0, model, criterion, test_loader, config, writer)
 
+    if args.valid_type=='cross_dataset':
+        pid_errors=np.zeros((15,1))
+
     for epoch in range(1, args.epochs + 1):
         scheduler.step()
 
         train(epoch, model, optimizer, criterion, train_loader, config, writer)
-        (angle_error,std) = test(epoch, model, criterion, test_loader, config,
-                           writer)
+        
+        if args.valid_type=='cross_dataset':
+            logger.info("******* Epoch {} *********".format(epoch))
+            for pid in range(15):
+                test_loader=get_person_loader_mpiigaze(args.testset,pid,args.batch_size,args.num_workers,True)
+                angle_error = test_person(epoch, model, pid, criterion, test_loader, config, writer, args.valid_type)
+                pid_errors[pid] = angle_error
+                logger.info("person:{}, error:{}".format(pid,pid_errors[pid]))
+            angle_error=pid_errors.mean()
+            std=pid_errors.std()
+            logger.info("Epoch:{}, Error(euclidean):{}, std:{}".format(epoch,angle_error,std) )
+
+        elif args.valid_type=='per_person_mpiigaze':
+            (angle_error,std) = test(epoch, model, criterion, test_loader, config,
+                writer, args.valid_type)
+        elif args.valid_type=='person_specific':
+            (angle_error,std) = test(epoch, model, criterion, test_loader, config,
+                writer, args.valid_type)
+
 
         state = OrderedDict([
             ('args', vars(args)),
