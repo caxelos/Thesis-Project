@@ -34,19 +34,27 @@ class MPIIGazeDatasetTrain(torch.utils.data.Dataset):
     def __init__(self, subject_id, dataset_dir, fold):
         path = os.path.join(dataset_dir, '{}.npz'.format(subject_id))
         with np.load(path) as fin:
-            size=math.floor(len(fin['image'])/3)
+            size=math.floor(len(fin['image'])/5)
             if fold == 0:
                 self.images = fin['image'][size:]
                 self.poses = fin['pose'][size:]
                 self.gazes = fin['gaze'][size:]
             elif fold == 1:
-                self.images = np.concatenate(fin['image'][0:size],fin['image'][2*size:])
-                self.poses = np.concatenate(fin['pose'][0:size],fin['pose'][2*size:])
-                self.gazes = np.concatenate(fin['gaze'][0:size],fin['gaze'][2*size:])
-            else:
-                self.images = fin['image'][:2*size]
-                self.poses = fin['pose'][:2*size]
-                self.gazes = fin['gaze'][:2*size]
+                self.images = np.concatenate([fin['image'][0:size],fin['image'][2*size:]])
+                self.poses = np.concatenate([fin['pose'][0:size],fin['pose'][2*size:]])
+                self.gazes = np.concatenate([fin['gaze'][0:size],fin['gaze'][2*size:]])
+            elif fold == 2:
+                self.images = np.concatenate([fin['image'][0:2*size],fin['image'][3*size:]])
+                self.poses = np.concatenate([fin['pose'][0:2*size],fin['pose'][3*size:]])
+                self.gazes = np.concatenate([fin['gaze'][0:2*size],fin['gaze'][3*size:]])
+            elif fold == 3:
+                self.images = np.concatenate([fin['image'][0:3*size],fin['image'][4*size:]])
+                self.poses = np.concatenate([fin['pose'][0:3*size],fin['pose'][4*size:]])
+                self.gazes = np.concatenate([fin['gaze'][0:3*size],fin['gaze'][4*size:]])
+            elif fold == 4:
+                self.images = fin['image'][:4*size]
+                self.poses = fin['pose'][:4*size]
+                self.gazes = fin['gaze'][:4*size]
 
         self.length = len(self.images)
         self.images = torch.unsqueeze(torch.from_numpy(self.images), 1)
@@ -62,7 +70,7 @@ class MPIIGazeDatasetTest(torch.utils.data.Dataset):
     def __init__(self, subject_id, dataset_dir, fold):
         path = os.path.join(dataset_dir, '{}.npz'.format(subject_id))
         with np.load(path) as fin:
-            size=math.floor(len(fin['image'])/3)
+            size=math.floor(len(fin['image'])/5)
             if fold == 0:
                 self.images = fin['image'][0:size]
                 self.poses = fin['pose'][0:size]
@@ -71,10 +79,18 @@ class MPIIGazeDatasetTest(torch.utils.data.Dataset):
                 self.images = fin['image'][size:2*size]
                 self.poses = fin['pose'][size:2*size]
                 self.gazes = fin['gaze'][size:2*size]
-            else:
-                self.images = fin['image'][size:2*size]
-                self.poses = fin['pose'][size:2*size]
-                self.gazes = fin['gaze'][size:2*size]
+            elif fold == 2:
+                self.images = fin['image'][2*size:3*size]
+                self.poses = fin['pose'][2*size:3*size]
+                self.gazes = fin['gaze'][2*size:3*size]
+            elif fold == 3:
+                self.images = fin['image'][3*size:4*size]
+                self.poses = fin['pose'][3*size:4*size]
+                self.gazes = fin['gaze'][3*size:4*size]
+            elif fold == 4:
+                self.images = fin['image'][4*size:5*size]
+                self.poses = fin['pose'][4*size:5*size]
+                self.gazes = fin['gaze'][4*size:5*size]
 
         self.length = len(self.images)
         self.images = torch.unsqueeze(torch.from_numpy(self.images), 1)

@@ -145,6 +145,12 @@ class ResNetResidualBlock(ResidualBlock):
         self.expansion, self.downsampling, self.conv = expansion, downsampling, conv
         
         #expanded_channels={64,128,256,512}
+        #activate): ReLU(inplace)
+        #(shortcut): Sequential(
+        #(0): Conv2d(128, 256, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        #(1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+
+
         self.shortcut = nn.Sequential(
             nn.Conv2d(self.in_channels, self.expanded_channels, kernel_size=1,
                       stride=self.downsampling, bias=False),
@@ -336,7 +342,7 @@ class ResnetDecoder(nn.Module):
         super().__init__()
         self.avg = nn.AdaptiveAvgPool2d((1, 1))
         #in_features=512
-        self.numOfFC=ff1_out
+        self.numOfFC=numOfFC#ff1_out
         if self.numOfFC == 3:
             self.ff1_out = ff1_out
             self.ff2_out = ff2_out
@@ -367,7 +373,6 @@ class ResnetDecoder(nn.Module):
         else:
             x = torch.cat([x,pose],dim=1)
             x = self.decoderFinal(x)
-
         return x
 
 #init image: torch.Size([32, 1, 36, 60])
