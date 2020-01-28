@@ -180,9 +180,9 @@ def train(epoch, model, optimizer, criterion, train_loader, config, writer):
                     images, normalize=True, scale_each=True)
                 writer.add_image('Train/Image', image, epoch)#https://tensorboardx.readthedocs.io/en/latest/tensorboard.html#tensorboardX.SummaryWriter.add_image
             #print("edw05")
-            # images = images.cuda()
-            # poses = poses.cuda()
-            # gazes = gazes.cuda()
+            images = images.cuda()
+            poses = poses.cuda()
+            gazes = gazes.cuda()
 
             optimizer.zero_grad()
             #print("edw1")
@@ -263,9 +263,9 @@ def test(epoch, model, criterion, test_loader, config, writer,valid_type):
                 images, normalize=True, scale_each=True)
             writer.add_image('Test/Image', image, epoch)
 
-        # images = images.cuda()
-        # poses = poses.cuda()
-        # gazes = gazes.cuda()
+        images = images.cuda()
+        poses = poses.cuda()
+        gazes = gazes.cuda()
 
         with torch.no_grad():
             outputs = model(images, poses)
@@ -337,9 +337,9 @@ def test_person(epoch, model, pid,criterion, test_loader, config, writer,valid_t
                 images, normalize=True, scale_each=True)
             writer.add_image('Test/Image', image, epoch)
 
-        # images = images.cuda()
-        # poses = poses.cuda()
-        # gazes = gazes.cuda()
+        images = images.cuda()
+        poses = poses.cuda()
+        gazes = gazes.cuda()
 
         with torch.no_grad():
             outputs = model(images, poses)
@@ -435,7 +435,7 @@ def main():
     #img_n = (1,1,60,36)
     #pose_n = (1,2)
     #print(summary(model,(img_n,pose_n)))
-    #model.cuda()
+    model.cuda()
 
     criterion = nn.MSELoss(size_average=True)
 
