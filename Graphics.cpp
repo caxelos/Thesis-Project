@@ -6,7 +6,7 @@
 using namespace std;
 
 
-#define RECTANGLE_SIZE 25
+#define RECTANGLE_SIZE 50
 
 
 void Graphics::close() {
@@ -45,14 +45,14 @@ void Graphics::init() {
     this->r[0].h=RECTANGLE_SIZE;
     this->r[1].w=RECTANGLE_SIZE;
     this->r[1].h=RECTANGLE_SIZE;
-    this->r[2].w=RECTANGLE_SIZE;
-    this->r[2].h=RECTANGLE_SIZE;
+    //this->r[2].w=RECTANGLE_SIZE;
+    //this->r[2].h=RECTANGLE_SIZE;
 
     //SDL_GetWindowSize(SDL_Window* window,int*w,int* h);
 }
                     
 //void Graphics::setPos(int x,int y,bool color,int z) {
-void Graphics::setPos(int x_blue,int y_blue,int x_green,int y_green,int x_red)  {
+void Graphics::setPos(int x_blue,int y_blue,int x_green,int y_green)  {
     //x:pixW
     //y:pixH
     //z:dx0:
@@ -60,8 +60,10 @@ void Graphics::setPos(int x_blue,int y_blue,int x_green,int y_green,int x_red)  
     this->r[0].y=y_blue;
     this->r[1].x=x_green;
     this->r[1].y=y_green;
-    this->r[2].x=x_red;
-    this->r[2].y=y_blue;
+    //this->r[2].x=x_red;
+    //this->r[2].y=y_blue;
+    //this->r[2].x=x_yellow;
+    //this->r[2].y=y_blue;
 
     //this->r[1].x=x+50;
     //this->r[1].y=y+50;
@@ -71,6 +73,8 @@ void Graphics::setPos(int x_blue,int y_blue,int x_green,int y_green,int x_red)  
     SDL_RenderFillRect(this->renderer, &this->r[1] );
     SDL_SetRenderDrawColor(this->renderer,255,255,0,255);//Red
     SDL_RenderFillRect(this->renderer, &this->r[2] );
+    SDL_SetRenderDrawColor(this->renderer,255,255,255,0);//Red
+    SDL_RenderFillRect(this->renderer, &this->r[3] );
 
 /*
     //legend    

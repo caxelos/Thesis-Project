@@ -4,10 +4,10 @@
 #include "Convolutional.h"
 using namespace std;
 
-void Convolutional::load_model(void) {
+void Convolutional::load_model(char *modelpath) {
 	//torch::jit::script::Module module = torch::jit::load("../model.pt");
 	//this->module = torch::jit::load("../model.pt");
-	this->module = torch::jit::load("../model_40_epochs.pt");
+	this->module = torch::jit::load(modelpath);//../model_40_epochs.pt");
 
 }
 
