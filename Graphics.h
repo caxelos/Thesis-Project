@@ -10,6 +10,6 @@ class Graphics {
         SDL_Rect r_tmp;
 	public:   
 		void init(void);
-		void setPos(int x_blue,int y_blue,int x_green,int y_green,int x_red);
+		void setPos(int x_blue,int y_blue,int x_green,int y_green,int x_red, int y_red);
 		void close(); 
 };

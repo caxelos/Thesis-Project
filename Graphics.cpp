@@ -45,6 +45,8 @@ void Graphics::init() {
     this->r[0].h=RECTANGLE_SIZE;
     this->r[1].w=RECTANGLE_SIZE;
     this->r[1].h=RECTANGLE_SIZE;
+    this->r[2].w=RECTANGLE_SIZE;
+    this->r[2].h=RECTANGLE_SIZE;
     //this->r[2].w=RECTANGLE_SIZE;
     //this->r[2].h=RECTANGLE_SIZE;
 
@@ -52,7 +54,7 @@ void Graphics::init() {
 }
                     
 //void Graphics::setPos(int x,int y,bool color,int z) {
-void Graphics::setPos(int x_blue,int y_blue,int x_green,int y_green)  {
+void Graphics::setPos(int x_blue,int y_blue,int x_green,int y_green, int x_red, int y_red)  {
     //x:pixW
     //y:pixH
     //z:dx0:
@@ -60,6 +62,9 @@ void Graphics::setPos(int x_blue,int y_blue,int x_green,int y_green)  {
     this->r[0].y=y_blue;
     this->r[1].x=x_green;
     this->r[1].y=y_green;
+    this->r[2].x=x_red;
+    this->r[2].y=y_red;
+
     //this->r[2].x=x_red;
     //this->r[2].y=y_blue;
     //this->r[2].x=x_yellow;
@@ -73,8 +78,7 @@ void Graphics::setPos(int x_blue,int y_blue,int x_green,int y_green)  {
     SDL_RenderFillRect(this->renderer, &this->r[1] );
     SDL_SetRenderDrawColor(this->renderer,255,255,0,255);//Red
     SDL_RenderFillRect(this->renderer, &this->r[2] );
-    SDL_SetRenderDrawColor(this->renderer,255,255,255,0);//Red
-    SDL_RenderFillRect(this->renderer, &this->r[3] );
+  
 
 /*
     //legend    

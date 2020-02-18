@@ -4,7 +4,7 @@ class Convolutional {
 		torch::jit::script::Module module;
 
 	public:
-		void load_model(void);
+		void load_model(char *modelpath);
 		void predict(cv::Mat img,float *pose,float *gaze);
 
 };
