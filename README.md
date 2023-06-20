@@ -26,8 +26,9 @@ background-image:url('gazeview.jpg');
 }
 -->     
 
+# Electrical and Computer Engineering, University of Thessaly, Greece
 
-## Undergraduate Thesis :Gaze Estimation Algorithms using low cost Cameras
+## Thesis :Gaze Estimation Algorithms using low cost Cameras
 
 
 
