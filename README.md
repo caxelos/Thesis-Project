@@ -54,7 +54,7 @@ accuracy is not necessary. As a result, reducing the production cost can make th
 applications accessible not only to specialized users, but to everyone with a laptop and a 
 web camera.
 
-* The paper of this Thesis can be found in greek here: https://194-177-202-67.uth.gr/xmlui/bitstream/handle/11615/52046/20167.pdf?sequence=1
+* The paper of this Thesis can be found in greek here: https://www.e-ce.uth.gr/wp-content/uploads/formidable/59/Axelos_Christos.pdf
 
 
 
