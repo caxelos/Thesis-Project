@@ -37,6 +37,7 @@ background-image:url('gazeview.jpg');
 ### Author: Christos Axelos
 
 
+* The paper of this Thesis can be found in greek here: https://www.e-ce.uth.gr/wp-content/uploads/formidable/59/Axelos_Christos.pdf
 
 * Deep learning and particularly neural networks have offered a new point of view in problem 
 solving. These techniques have been heavily adopted by many applications used in daily 
@@ -57,7 +58,7 @@ web camera.
 ![image](https://github.com/user-attachments/assets/3c9e70e7-97eb-411d-8396-f6f83e872f14)
 
 
-* The paper of this Thesis can be found in greek here: https://www.e-ce.uth.gr/wp-content/uploads/formidable/59/Axelos_Christos.pdf
+
 
 
 
