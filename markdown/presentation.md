@@ -1,11 +1,4 @@
-
----
-title: "R Notebooks"
-output:
-  html_notebook:
-    css: /home/oly/MPIIGaze/markdown/format.css
-    
----
+# Implementation of Regression Forrests algorithm from Scratch in C and Matlab languages
 
 
 <html>
