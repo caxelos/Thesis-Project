@@ -32,10 +32,8 @@ background-image:url('gazeview.jpg');
 
 ## Date: February, 2020
 
-
-
 ### Author: Christos Axelos
-
+![image](https://github.com/user-attachments/assets/3c9e70e7-97eb-411d-8396-f6f83e872f14)
 
 * The paper of this Thesis can be found in greek here: [https://www.e-ce.uth.gr/wp-content/uploads/formidable/59/Axelos_Christos.pdf](https://github.com/caxelos/Thesis-Project/blob/master/Thesis_Axelos_Christos.pdf)
 
@@ -55,7 +53,7 @@ accuracy is not necessary. As a result, reducing the production cost can make th
 applications accessible not only to specialized users, but to everyone with a laptop and a 
 web camera.
 
-![image](https://github.com/user-attachments/assets/3c9e70e7-97eb-411d-8396-f6f83e872f14)
+
 
 
 
