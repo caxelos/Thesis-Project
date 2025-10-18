@@ -1,1 +1,0 @@
-./bin/FeatureExtraction -device 0 -verbose #-device 04ca:7046 -cam_width 640 -cam_height 480

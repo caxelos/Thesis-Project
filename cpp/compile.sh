@@ -1,1 +1,0 @@
-sudo h5c++ -g -Wall -std=c++11 forest.cpp -o forest -fopenmp

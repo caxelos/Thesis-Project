@@ -1,1 +1,0 @@
-sudo ~/.local/install/caffe/build/tools/caffe train -solver /home/trakis/Downloads/MPIIGaze/Data/my_solver.prototxt 

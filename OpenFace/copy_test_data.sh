@@ -1,1 +1,0 @@
-sudo cp ../lib/local/LandmarkDetector/model/* ./bin/model/patch_experts/
