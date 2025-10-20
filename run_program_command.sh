@@ -1,1 +1,0 @@
-sudo ./webcam_face_pose_ex model_zhang_36_60.pt
