@@ -65,13 +65,7 @@ void Graphics::setPos(int x_blue,int y_blue,int x_green,int y_green, int x_red, 
     this->r[2].x=x_red;
     this->r[2].y=y_red;
 
-    //this->r[2].x=x_red;
-    //this->r[2].y=y_blue;
-    //this->r[2].x=x_yellow;
-    //this->r[2].y=y_blue;
 
-    //this->r[1].x=x+50;
-    //this->r[1].y=y+50;
     SDL_SetRenderDrawColor(this->renderer,0,0,255,255);//Blue
     SDL_RenderFillRect(this->renderer, &this->r[0] );
     SDL_SetRenderDrawColor(this->renderer,0,255,0,255);//Green
@@ -80,8 +74,7 @@ void Graphics::setPos(int x_blue,int y_blue,int x_green,int y_green, int x_red, 
     SDL_RenderFillRect(this->renderer, &this->r[2] );
   
 
-/*
-    //legend    
+/* Add legend    
     TTF_Font* Sans = TTF_OpenFont("Sans.ttf", 10); //this opens a font style and sets a size
     SDL_Color Red = {255,0,255};  // this is the color in rgb format, maxing out all would give you the color white, and it will be your text's color
     SDL_Surface* surfaceMessage = TTF_RenderText_Solid(Sans, "ResNet", Red); // as TTF_RenderText_Solid could only be used on SDL_Surface then you have to create the surface first
@@ -105,11 +98,6 @@ SDL_FreeSurface(surfaceMessage); SDL_DestroyTexture(Message);
     SDL_RenderPresent(this->renderer);
     SDL_SetRenderDrawColor(this->renderer, 128,128,128,255);// Select the color for drawing.
     SDL_RenderClear(this->renderer);
-
-    
-    
-    //Don't forget too free your surface and texture
-
 
 
 }        
