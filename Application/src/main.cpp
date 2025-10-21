@@ -50,11 +50,6 @@
 #define TORCH_MODE
 //#define REGRESSION_FORESTS
 
-
-
-
-
-
 #ifdef TORCH_MODE
 #include <torch/script.h> // One-stop header.
 #include "Convolutional.h"
@@ -70,42 +65,14 @@ volatile int pixW = 200, pixH=200,pixW_n=400, pixH_n=400;
 int pixH_truth=100, pixW_truth=100;
 volatile bool quit=false;
 
-// void TimerThread(int *pixW_truth, int *pixH_truth) {
-// 	SDL_Event event;
-// 	bool quit = false;
-//     clock_t startTime = clock(); //Start timer
-//  	double secondsPassed;
-//  	double secondsToDelay = 3;
-//  	while(!quit)  {
-//  		// send signal
-//  		SDL_WaitEvent(&event);
-//         switch (event.type) {
-//             case SDL_QUIT:
-//                 quit = true;
-//                 break;
-//         }
 
-//         // change value
-//     	secondsPassed = (clock() - startTime) / CLOCKS_PER_SEC;
-//    		if(secondsPassed >= secondsToDelay)  {
-//    			startTime=clock();
-//     		*pixH_truth = 100;
-//     		*pixW_truth = *pixW_truth+100;
-//     	}
-//   	}
-// }
+
 void GraphicsThread() { 
     
-    //bool quit = false;
+    bool quit = false;
     SDL_Event event;
-    //Graphics graphics;
-    
-    //graphics.init();
-   // graphics.setPos(pixW,pixH,false);
-    //SDL_Delay(3000);
-    //graphics.setPos(700,700,false);
-    //SDL_Delay(3000);
-   // graphics.setPos(400,400,false);
+    Graphics graphics;
+ 
     while (!quit) {
         SDL_WaitEvent(&event);
         switch (event.type) {
@@ -113,9 +80,9 @@ void GraphicsThread() {
                 quit = true;
                 break;
         }
-    //    graphics.setPos(pixW,pixH,false);
+        graphics.setPos(pixW,pixH,false);
     }
- //   graphics.close(); 
+    graphics.close(); 
 }
 
 // Checks if a matrix is a valid rotation matrix.
@@ -136,84 +103,11 @@ bool isRotationMatrix(cv::Mat &R)
 //cv::Vec3f rotationMatrixToEulerAngles(cv::Mat &R)
 void rotationMatrixToEulerAngles(cv::Mat &R, float *headpose, int type)
 {
-//  cout << "Rotation is:" << cv::Vec3f(180.0/M_PI*atan2(R.at<double>(2,1),R.at<double>(2,2)),
-//                    180.0/M_PI*atan2(-R.at<double>(2,0),sqrt(R.at<double>(2,1)*R.at<double>(2,1)+R.at<double>(2,2)*R.at<double>(2,2)) ),
-//                    180.0/M_PI*atan2(R.at<double>(1,0),R.at<double>(0,0))                     
-//                   ) << endl;
-/*
-    assert(isRotationMatrix(R));
-    float sy = sqrt(R.at<double>(0,0) * R.at<double>(0,0) +  R.at<double>(1,0) * R.at<double>(1,0) );
-    bool singular = sy < 1e-6; // If
-    float x, y, z;
-    if (!singular){
-        x = atan2(R.at<double>(2,1) , R.at<double>(2,2));
-        y = atan2(-R.at<double>(2,0), sy);
-        z = atan2(R.at<double>(1,0), R.at<double>(0,0));
-    }
-    else{
-        x = atan2(-R.at<double>(1,2), R.at<double>(1,1));
-        y = atan2(-R.at<double>(2,0), sy);
-        z = 0;
-    }
-    float theta = atan(x/z);
-    float phi = asin(-y);
-    static int l=0;
-    if (l == 1) {
-    //cout << "Theta:" << 180.0/M_PI*theta << " and Phi:" << 180.0/M_PI*phi << endl;
-    l=0;
-    }
-    else
-        l=1;
-    //cout << "Rotation is: " << cv::Vec3f(x, y, z) << endl;
-    headpose[0]=theta;
-    headpose[1]=phi;
-    return;
-*/
-    //if (type == LEFT) {
-        
-
-        //afto gia to deksi mati!!! Gia to aristero,tsekare to "preprocess_data.py",grammi 85
-        headpose[0] = /*-*/atan2(R.at<double>(0,2),R.at<double>(2,2));//theta
-        headpose[1] =/*-*/asin(R.at<double>(1,2));//phi
-
-
-        //afto tha prepe na doulevei
-        
-    //}
-   // else {
-        //edw kanoyme flip kanonika 
-   //   headpose[0] = asin(R.at<double>(1,2));
-   //     headpose[1] = -atan2(R.at<double>(0,2),R.at<double>(2,2));
-    
-        //headpose[0] = -atan2(R.at<double>(0,2),R.at<double>(2,2));
-        //headpose[1] =-asin(R.at<double>(1,2));
-    //}
-
-    //return cv::Vec3f(-asin(R.at<double>(1,2)),-atan2(R.at<double>(0,2),R.at<double>(2,2)),1.0);
-
-/*
-    assert(isRotationMatrix(R));
-     
-    float sy = sqrt(R.at<double>(0,0) * R.at<double>(0,0) +  R.at<double>(1,0) * R.at<double>(1,0) );
- 
-    bool singular = sy < 1e-6; // If
- 
-    float x, y, z;
-    if (!singular)
-    {
-        x = atan2(R.at<double>(2,1) , R.at<double>(2,2));
-        y = atan2(-R.at<double>(2,0), sy);
-        z = atan2(R.at<double>(1,0), R.at<double>(0,0));
-    }
-    else
-    {
-        x = atan2(-R.at<double>(1,2), R.at<double>(1,1));
-        y = atan2(-R.at<double>(2,0), sy);
-        z = 0;
-    }
-    return cv::Vec3f(x, y, z);   
-*/
+    headpose[0] = /*-*/atan2(R.at<double>(0,2),R.at<double>(2,2));//theta
+    headpose[1] =/*-*/asin(R.at<double>(1,2));//phi
 }
+
+
 int main(int argc,char **argv)
 {
 	int timer = 0; srand (time(NULL));
@@ -225,25 +119,7 @@ int main(int argc,char **argv)
 
     try
     {
-        /*
-        const rlim_t kStackSize = 16 * 1024 * 1024;   // min stack size = 16 MB
-        struct rlimit rl;
-        int result;
-
-        result = getrlimit(RLIMIT_STACK, &rl);
-        if (result == 0)
-        {
-            if (rl.rlim_cur < kStackSize)
-            {
-                rl.rlim_cur = kStackSize;
-                result = setrlimit(RLIMIT_STACK, &rl);
-                if (result != 0)
-                {
-                    fprintf(stderr, "setrlimit returned result = %d\n", result);
-                }
-            }
-        }*/
-
+       
         cv::VideoCapture cap(0);
         if (!cap.isOpened())
         {
@@ -257,9 +133,6 @@ int main(int argc,char **argv)
         shape_predictor pose_model;
         deserialize("../../Downloads/shape_predictor_68_face_landmarks.dat") >> pose_model;
     
-        
- 
-
         //define our 3D face model:
         std::vector<cv::Point3d> model3Dpoints;
         model3Dpoints.push_back(cv::Point3d(-45.097f, -0.48377f, 2.397f));// Right eye: Right Corner
@@ -271,13 +144,7 @@ int main(int argc,char **argv)
 
         cv::Mat face3d = (cv::Mat_<float>(3,4) << -45.097, -21.313, 21.313, 45.097 , -0.48377,0.48377, 0.48377, -0.48377, 2.397,-2.397,-2.397,2.397);
         face3d.convertTo(face3d, CV_32FC1);
-        //face3d = face3d.t();
-
-
-        // 1c.Calculate xr(x axis) of the head coordinate system
-        //cv::Mat xr =(leftmidpoints-rightmidpoints);///cv::norm(leftmidpoints-rightmidpoints);
-        //cv::Point3d xr =(leftmidpoints-rightmidpoints)/cv::norm(leftmidpoints-rightmidpoints);
-        
+    
         #ifndef TORCH_MODE
         Regressor regressor;
         regressor.load_model();
@@ -310,16 +177,9 @@ int main(int argc,char **argv)
             {
                 break;
             }
-            //printf("rows are %d\n", temp.rows);//cols=640,rows=460
-            // Turn OpenCV's Mat into something dlib can deal with.  Note that this just
-            // wraps the Mat object, it doesn't copy anything.  So cimg is only valid as
-            // long as temp is valid.  Also don't do anything to temp that would cause it
-            // to reallocate the memory which stores the image as that will make cimg
-            // contain dangling pointers.  This basically means you shouldn't modify temp
-            // while using cimg.
+          
             cv_image<bgr_pixel> cimg(temp);
         
-
             // Detect faces 
             std::vector<rectangle> faces = detector(cimg);
             // Find the pose of each face.
@@ -338,13 +198,7 @@ int main(int argc,char **argv)
                 image_points.push_back(cv::Point2d(shape.part(45).x(),shape.part(45).y()));    // Right eye right corner
                 image_points.push_back(cv::Point2d(shape.part(48).x(),shape.part(48).y()));    // Left Mouth corner
                 image_points.push_back(cv::Point2d(shape.part(54).x(),shape.part(54).y()));    // Right mouth corner
-                //tha xreiastoume ta 6 parakatw 2d landmarks(se pixels):
-                //n.36: deksia akri deksiou matiou
-                //n.39: aristeri akri deksiou matiou
-                //n.42: deksia akri aristerou matiou
-                //n.45: aristeri akri aristerou matiou
-                //n.48: deksia akri stoma
-                //n.54: aristeri akri stoma                                
+                                         
                 shapes2d.push_back(pose_model(cimg, faces[i]));//size=68, shape.part(0)         
                 double focal_length = temp.cols;// Approximate focal length.
                 cv::Point2d center = cv::Point2d(temp.cols/2,temp.rows/2);//rows=460, cols=640
@@ -409,20 +263,8 @@ int main(int argc,char **argv)
                 cv::warpPerspective(temp,output, W, output.size());
                 
                 rotation_vector.convertTo(rotation_vector, CV_32FC1);
-                //cv::Mat rotvecn = M*rotation_vector;
-                //cv::Mat Rn,R_new;
-                //cv::Rodrigues(rotvecn,Rn);
+             
                 cv::Mat Rn = R*Rr;
-                //cv::Mat rvecn;
-                //cv::Rodrigues(Rn,rvecn);
-                //cout << "rvecn is: " << rvecn << endl; 
-        
-                //rvecn = rvecn[0,:]
-                
-                //deksi mati::
-     
-                //float phi =  -atan(rvecn.at<float>(0,0)/rvecn.at<float>(2,0));//phi
-                //float theta = asin(rvecn.at<float>(1,0));//theta
 
                 float phi =  -atan(Rn.at<float>(0,2)/Rn.at<float>(2,2));//phi
                 float theta = asin(Rn.at<float>(1,2));//theta
@@ -467,7 +309,7 @@ int main(int argc,char **argv)
                 //TODO:Allakse ton Face-Detector wste na mporei na 
                 //pianei kai meros tou proswpou
 
-                /**** SHMANTIKO print****/
+                /**** Importamt print****/
                 //cout << "prediction gaze_n:(" << -gaze_n[0]* 180.0/M_PI << "," << -gaze_n[1]* 180.0/M_PI << ")" << endl;
                 //cout << "tvec:" << tvec << endl;
                 //cout << "right_eye_center:" << reye << endl;
@@ -501,118 +343,37 @@ int main(int argc,char **argv)
 				float dx,dy;
  
                 if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) > 0) {
-                    
-                	// afto pou leitourgei swsta
-                    //dx = -reye.at<float>(0,0)+ reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
-                    //pixW=MID_WIDTH_PIXEL-dx/FACTOR;//*4;//mm se pixels
-                    
-                    //kanonika
-                    //dx = -reye.at<float>(0,0)+ reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
-
-                    //meta tin allagi se apolutes times:
                     pixW_n = MID_WIDTH_PIXEL + (-(-reye.at<float>(0,0))+ (-reye.at<float>(2,0))*tan(gaze_n[0]))/FACTOR; 
                     pixW = MID_WIDTH_PIXEL + (-(-reye.at<float>(0,0))+ (-reye.at<float>(2,0))*tan(gaze_r.at<float>(0,0)))/FACTOR;
-                    //pixW = pixW=MID_WIDTH_PIXEL+dx/FACTOR;
-
-                    //cout <<"case1:" <<pixW<<"dx:" << endl;
-                    //edw lathos,giati koitaw deksia kai leei oti koitaw aristera,
-                    //me theorei case 2
                 }
                 else if (reye.at<float>(0,0) <0 && gaze_r.at<float>(0,0) < 0) {
-                    
-                	//afto pou leitourgei swsta
-                    //dx = reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
-                    //pixW = MID_WIDTH_PIXEL+(reye.at<float>(0,0)-dx)/FACTOR;///0.3647;//1mm=0.3647px
-                    
-
-                    //kanonika
-                    //pixW = MID_WIDTH_PIXEL + (-reye.at<float>(0,0)-tan(gaze_r.at<float>(0,0))*reye.at<float>(2,0))/FACTOR; 
-
-                    //meta tin allagi se apolutes times: (isws lathos afto)
                     pixW = MID_WIDTH_PIXEL + (-(-reye.at<float>(0,0))-tan((-gaze_r.at<float>(0,0)))*(-reye.at<float>(2,0)))/FACTOR; 
                     pixW_n = MID_WIDTH_PIXEL + (-(-reye.at<float>(0,0))-tan((-gaze_n[0]))*(-reye.at<float>(2,0)))/FACTOR; 
-                  
-                    //kentro+(thesi_matiou-dx)/pixel_ana_mm
-                    //cout <<"case2:"<<pixW  << endl;
-                    //swsto,alla prepei na provlepei kalutera tis akraies times
-                    //lathos,me theorei case 1
                 }
                 else if (reye.at<float>(0,0)>0 && gaze_r.at<float>(0,0) >0) {
-
-                	//afto pou leitourgei swsta
-                    //dx = (-reye.at<float>(2,0))*tan(gaze_r.at<float>(0,0));
-                    //pixW=MID_WIDTH_PIXEL+(reye.at<float>(0,0)+dx)/FACTOR;
-
-
-                    //kanonika
-                    //pixW = MID_WIDTH_PIXEL + (reye.at<float>(0,0)+tan(gaze_r.at<float>(0,0))*reye.at<float>(2,0))/FACTOR;
-
-                    //meta tin allagi se apolutes times
                     pixW = MID_WIDTH_PIXEL + (reye.at<float>(0,0)+tan(gaze_r.at<float>(0,0))*(-reye.at<float>(2,0)))/FACTOR;
                     pixW = MID_WIDTH_PIXEL + (reye.at<float>(0,0)+tan(gaze_n[0])*(-reye.at<float>(2,0)))/FACTOR;
-
-
-                    //cout <<"case3:"<<pixW << endl;
-                    //lathos,me theorei case 4 edw
-                    //swsto,alla prepei na provlepei kalutera tis akraies times(terma deksia)
                 }
                 else if (reye.at<float>(0,0)>0 && gaze_r.at<float>(0,0) <0) {
-                    
-                	//to swsto afto
-                    //dx = reye.at<float>(0,0) - reye.at<float>(2,0)*tan(gaze_r.at<float>(0,0));
-                    //pixW=MID_WIDTH_PIXEL+dx/FACTOR;
-
-                    //kanonika
                 	pixW = MID_WIDTH_PIXEL - ((-reye.at<float>(2,0))*tan(-gaze_r.at<float>(0,0))-reye.at<float>(0,0))/FACTOR;
                 	pixW_n = MID_WIDTH_PIXEL - ((-reye.at<float>(2,0))*tan(-gaze_n[0])-reye.at<float>(0,0))/FACTOR;
-
-                    //cout <<"case4:"<<pixW  << endl;
-                    //me theorei arketa case3
                 }
-                //pixW=620;
-                //vertical
 
-                // prosoxi sta prosima edw!!! Merika exoyn anapoda prosima
-                // wste na antikathistane tin apoluti timi!!!!
                 if (reye.at<float>(1,0) <0 && gaze_r.at<float>(1,0) > 0) {
                    
-                	//kanonika
-                	//dy = -reye.at<float>(2,0)*tan(gaze_r.at<float>(1,0))+reye.at<float>(1,0);                    
- 
-                	//meta tin allagi se apolutes times:
                     pixH = (-(-reye.at<float>(2,0))*tan(gaze_r.at<float>(1,0))+reye.at<float>(1,0))/FACTOR;
                     pixH_n = (-(-reye.at<float>(2,0))*tan(gaze_n[1])+reye.at<float>(1,0))/FACTOR;
 
-                    //pixH = dy/FACTOR;//0.3647;
-                    //cout << "periptwsi 1:" <<pixH<<"px"<< endl;
                 }
                 else if (reye.at<float>(1,0) <0 && gaze_r.at<float>(1,0) < 0) {
-                
-                	//kanonika
-                	//dy = reye.at<float(1,0) + tan(gaze_r.at<float>(1,0))* reye.at<float>(2,0);
-                   
-                   	//meta tin allagi se apolutes times
+
            			pixH = (-reye.at<float>(1,0) + tan(-gaze_r.at<float>(1,0))* (-reye.at<float>(2,0)))/FACTOR;
                     pixH_n = (-reye.at<float>(1,0) + tan(-gaze_n[1])* (-reye.at<float>(2,0)))/FACTOR;
-                  
-                    //pixH=dy/FACTOR;
-                    //cout << "periptwsi 2:" <<pixH<<"px"<< endl;
 
                 }
                 else if (reye.at<float>(1,0)>0 && gaze_r.at<float>(1,0)<0) {
-                    //dy = -tan(-gaze_r.at<float>(1,0))*reye.at<float>(2,0)-reye.at<float>(1,0);
-           
-                    // dy = tan(-gaze_r.at<float>(1,0)) * reye.at<float>(2,0) -reye.at<float>(1,0);
-                    // dy = dy - gaze_r.at<float>(1,0);
-                    
-                    //kanonika
-                    //dy = reye.at<float>(2,0)*tan(gaze_r.at<float>(1,0)) -reye.at<float>(1,0);
-                    //meta tin allagi se apolutes times
                     pixH = ((-reye.at<float>(2,0))*tan(-gaze_r.at<float>(1,0)) -reye.at<float>(1,0))/FACTOR;
                     pixH_n = ((-reye.at<float>(2,0))*tan(-gaze_n[1]) -reye.at<float>(1,0))/FACTOR;
-                    
-                    //pixH=dy/FACTOR;
-                    //cout << "periptwsi 3:" << pixH<<"px" << endl;
                 }
                 else {
                    //looking outside the screen!!!
@@ -620,126 +381,7 @@ int main(int argc,char **argv)
 
                 }
                 pixH = pixH-20/FACTOR;// here we subtract the distance from camera.Important??.
-                
-                //cout << "position is:" << reye.at<float>(1,0) << endl;
-                //pixW=620;
-
-                
-                // ******************* ZHANG NETWORK *********************************/
-                // int dx0_2;
-                // int pixW2;
-                // /////zhang-40
-                // if (reye.at<float>(0,0) <0 && gaze_r2.at<float>(0,0) > 0) {
-                //     //dx0 = -reye.at<float>(0,0);
-                //     //dx0 =   620-dx0/0.3647;
-                //     dx0_2=620 + (reye.at<float>(0,0))/0.3647;
-                //     dx = -reye.at<float>(0,0)+ reye.at<float>(2,0)*tan(gaze_r2.at<float>(0,0));
-                //     pixW2=620-dx/0.3647;//*4;//mm se pixels
-                //     //edw lathos,giati koitaw deksia kai leei oti koitaw aristera,
-                //     //me theorei case 2
-                // }
-                // else if (reye.at<float>(0,0) <0 && gaze_r2.at<float>(0,0) < 0) {
-                //     dx0_2 = 620+(reye.at<float>(0,0))/0.3647;
-                //     dx = reye.at<float>(2,0)*tan(gaze_r2.at<float>(0,0));
-                //     pixW2 = 620+(reye.at<float>(0,0)-dx)/0.3647;///0.3647;//1mm=0.3647px
-                //     //kentro+(thesi_matiou-dx)/pixel_ana_mm
-                //     //swsto,alla prepei na provlepei kalutera tis akraies times
-                //     //lathos,me theorei case 1
-                // } 
-                // else if (reye.at<float>(0,0)>0 && gaze_r2.at<float>(0,0) >0) {
-        
-                //     dx0_2=620+(reye.at<float>(0,0))/0.3647;
-                //     dx = (-reye.at<float>(2,0))*tan(gaze_r2.at<float>(0,0));
-                //     pixW2=620+(reye.at<float>(0,0)+dx)/0.3647;
-                //     //lathos,me theorei case 4 edw
-                //     //swsto,alla prepei na provlepei kalutera tis akraies times(terma deksia)
-                // }
-                // else if (reye.at<float>(0,0)>0 && gaze_r2.at<float>(0,0) <0) {
-                //     dx0_2 = reye.at<float>(0,0);
-                //     dx0_2=620+dx0_2/0.3647;
-                //     dx = reye.at<float>(0,0) - reye.at<float>(2,0)*tan(gaze_r2.at<float>(0,0));
-                //     pixW2=620+dx/0.3647;
-                //     //me theorei arketa case3
-                // }
-
-
-                // //zhang-60
-                // int dx0_3;
-                // int pixW3;
-                // if (reye.at<float>(0,0) <0 && gaze_r3.at<float>(0,0) > 0) {
-                //     //dx0 = -reye.at<float>(0,0);
-                //     //dx0 =   620-dx0/0.3647;
-                //     dx0_3=620 + (reye.at<float>(0,0))/0.3647;
-                //     dx = -reye.at<float>(0,0)+ reye.at<float>(2,0)*tan(gaze_r3.at<float>(0,0));
-                //     pixW3=620-dx/0.3647;//*4;//mm se pixels
-                //     //edw lathos,giati koitaw deksia kai leei oti koitaw aristera,
-                //     //me theorei case 2
-                // }
-                // else if (reye.at<float>(0,0) <0 && gaze_r3.at<float>(0,0) < 0) {
-                //     dx0_3 = 620+(reye.at<float>(0,0))/0.3647;
-                //     dx = reye.at<float>(2,0)*tan(gaze_r3.at<float>(0,0));
-                //     pixW3 = 620+(reye.at<float>(0,0)-dx)/0.3647;///0.3647;//1mm=0.3647px
-                //     //kentro+(thesi_matiou-dx)/pixel_ana_mm
-                //     //swsto,alla prepei na provlepei kalutera tis akraies times
-                //     //lathos,me theorei case 1
-                // } 
-                // else if (reye.at<float>(0,0)>0 && gaze_r3.at<float>(0,0) >0) {
-        
-                //     dx0_3=620+(reye.at<float>(0,0))/0.3647;
-                //     dx = (-reye.at<float>(2,0))*tan(gaze_r3.at<float>(0,0));
-                //     pixW3=620+(reye.at<float>(0,0)+dx)/0.3647;
-                //     //lathos,me theorei case 4 edw
-                //     //swsto,alla prepei na provlepei kalutera tis akraies times(terma deksia)
-                // }
-                // else if (reye.at<float>(0,0)>0 && gaze_r3.at<float>(0,0) <0) {
-                //     dx0_3 = reye.at<float>(0,0);
-                //     dx0_3=620+dx0_3/0.3647;
-                //     dx = reye.at<float>(0,0) - reye.at<float>(2,0)*tan(gaze_r3.at<float>(0,0));
-                //     pixW3=620+dx/0.3647;
-                //     //me theorei arketa case3
-                // }
-
-
-                //dx = -tan(gaze_r.at<float>(1,0))*reye.at<float>(2,0) -reye.at<float>(0,0);//in mm's
-
-                //dy = -tan(gaze_r.at<float>(0,0))*reye.at<float>(2,0) - reye.at<float>(1,0);//in mm's
-                //dy=50;
-                //cout << "translation_vector:" << translation_vector << endl;
-                //cout << "a1:" << gaze_r.at<float>(0,0) << endl;
-                //cout << "a3:" << translation_vector.at<float>(1 ,0) << endl;//in mm's
-                //cout << "a2:" << translation_vector.at<float>(2,0) << endl;
-                //cout << "a3:" << translation_vector.at<float>(0,0) << endl;//in mm's
-                //cout  << " dx is " << dx<<", dy is " << dy<< endl;
-                //cout << "theta:("<< gaze_r.at<float>(1,0)* 180.0/M_PI<<",phi:" << gaze_r.at<float>(0,0)* 180.0/M_PI<<")"<< endl;
-                //cout  << "dist:(" << dx <<"," << dy<<")"<< endl;
-                //-1.21378 gaze_r.at<float>(0,0)
-                //-584.579 translation_vector.at<float>(2,0)
-                //-61.781 translation_vector.at<float>(0,0)
-                //-44.2272 translation_vector.at<float>(1,0)
-
-                //dist:(-1505.44,1078.35)
-                //dx = -tan(-1.21378)*(-584.579) - (-61.781)
-
-
-                //dy = 4 * dy;
-                //dx =  4 * dx + 340/2;
-                //pixH = dy;//set
-                //pixW = dx;
-
-                //othoni diastaseis:W=1240px kai 340cm kai H = 780px kai 190cm
-                //HORIZONTAL
-                //1240 = 3400mm
-                //???  = 1mm=0.3647px
-                //???=0.3647
-                //VERTICAL
-                //780px=1900mm
-                //??? = 1mm=0.4105px
-
-                //cout  << "pixel:(" << pixW <<"," << pixH<<")"<< endl;
-                //dx0=620;
-                
-                //pixH=200;dy0=200;
-                //graphics.setPos(pixW,pixH,dx0,dy0);
+    
                 graphics.setPos(pixW,pixH,pixW_truth,pixH_truth,pixW_n,pixH_n);
                 //cv_image<bgr_pixel> cimg2(output_orig);
 
@@ -759,20 +401,9 @@ int main(int argc,char **argv)
   				pixH_truth = std::rand() % 695;
   				/* generate secret number between 100 and 680: */
   				pixW_truth = std::rand() %1255;
-  				//pixW_truth = 1280;1305
-  				//pixH_truth = 720;745
-
-  				//corner_width: 1305 kai se mm 3400..FACTOR:0.3838
-  				//corner_height: 745 kai se mm 1900..FACTOR:0.392..
 
             }
              
-            //Now let's view our face poses on the screen.
-            
-            //win.clear_overlay();
-            //win.set_image(cimg);
-            //win.add_overlay(render_face_detections(shapes2d)); 
-                    
         }
         #ifndef TORCH_MODE
         regressor.close();
@@ -790,20 +421,3 @@ int main(int argc,char **argv)
         cout << e.what() << endl;
     }
 }
-
-    
-
-/*
-        vector<Point3d> nose_end_point3D;//Project a 3D point (0,0,1000.0) onto the image plane.
-        vector<Point2d> nose_end_point2D;
-        nose_end_point3D.push_back(Point3d(0,0,1000.0));
-     
-        projectPoints(nose_end_point3D, rotation_vector, translation_vector, camera_matrix, dist_coeffs, nose_end_point2D);
-*/
-
-
-
-//dlib::array<array2d<rgb_pixel> > face_chips;
-//extract_image_chips(cimg, get_face_chip_details(shapes), face_chips);
-//win.set_image(tile_images(face_chips));   
-        
